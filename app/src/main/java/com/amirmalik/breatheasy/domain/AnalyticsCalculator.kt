@@ -16,7 +16,7 @@ data class MonthlySpendPoint(
 
 data class MonthlyConsumptionPoint(
     val month: YearMonth,
-    val cigaretteCount: Int,
+    val cigaretteCount: Long,
 )
 
 data class SpendingSummary(
@@ -68,7 +68,7 @@ object AnalyticsCalculator {
             val month = selectedMonth.minusMonths(offset.toLong())
             val total = events.asSequence()
                 .filter { YearMonth.from(Instant.ofEpochMilli(it.smokedAtMillis).atZone(zoneId)) == month }
-                .sumOf { it.quantity }
+                .sumOf { it.quantity.toLong() }
             MonthlyConsumptionPoint(month, total)
         }
     }
