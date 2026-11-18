@@ -225,7 +225,14 @@ fun ProgressArc(
             style = Stroke(stroke, cap = StrokeCap.Round),
         )
         drawArc(
-            color = primary,
+            brush = Brush.sweepGradient(
+                colors = listOf(
+                    primary,
+                    MaterialTheme.colorScheme.secondary,
+                    MaterialTheme.colorScheme.tertiary,
+                    primary,
+                ),
+            ),
             startAngle = 135f,
             sweepAngle = 270f * progress.coerceIn(0f, 1f),
             useCenter = false,
