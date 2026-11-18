@@ -725,7 +725,7 @@ private fun SpendingScreen(
                         Text(
                             messageText,
                             style = MaterialTheme.typography.bodySmall,
-                            color = if (messageText.startsWith("Your PDF")) {
+                            color = if (messageText.startsWith("PDF saved")) {
                                 MaterialTheme.colorScheme.primary
                             } else {
                                 MaterialTheme.colorScheme.error
