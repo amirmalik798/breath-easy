@@ -108,7 +108,6 @@ import com.amirmalik.breatheasy.data.AppSnapshot
 import com.amirmalik.breatheasy.data.CravingEvent
 import com.amirmalik.breatheasy.data.CravingOutcome
 import com.amirmalik.breatheasy.data.CravingTrigger
-import com.amirmalik.breatheasy.data.CurrencyCode
 import com.amirmalik.breatheasy.data.Purchase
 import com.amirmalik.breatheasy.data.PurchaseType
 import com.amirmalik.breatheasy.domain.AnalyticsCalculator
@@ -442,8 +441,7 @@ private fun TodayScreen(
                             Text("Spent this month", color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 style = MaterialTheme.typography.labelLarge)
                             Text(
-                                if (spend.convertedPurchaseCount == 0 && spend.unconvertedPurchaseCount > 0) "Rate needed"
-                                else Money.format(spend.convertedTotalMinor, prefs.displayCurrency),
+                                Money.format(spend.totalMinor, prefs.displayCurrency),
                                 style = MaterialTheme.typography.headlineSmall,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.primary,
@@ -452,28 +450,17 @@ private fun TodayScreen(
                         AssistChip(onClick = onRecordPurchase, label = { Text("Add purchase") },
                             leadingIcon = { Icon(Icons.Outlined.Add, contentDescription = null) })
                     }
-                    if (spend.nativeSubtotals.isNotEmpty()) {
-                        Text("Recorded by currency", style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
-                            spend.nativeSubtotals.toList().sortedBy { it.first.isoCode }.forEach { (currency, amount) ->
-                                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                    Text(currency.isoCode, style = MaterialTheme.typography.bodyMedium)
-                                    Text(Money.format(amount, currency), style = MaterialTheme.typography.bodyMedium,
-                                        fontWeight = FontWeight.SemiBold)
-                                }
-                            }
-                        }
-                    } else {
-                        Text("Record your cigarette or tobacco purchases to build an accurate monthly total.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                    if (spend.unconvertedPurchaseCount > 0) {
+                    if (spend.purchaseCount == 0) {
                         Text(
-                            "${spend.unconvertedPurchaseCount} purchase(s) could not be converted to ${prefs.displayCurrency.isoCode}. Their original-currency totals are shown above. Add an exchange rate in Goals to include them in converted totals.",
-                            color = MaterialTheme.colorScheme.tertiary,
+                            "No purchases recorded in ${prefs.displayCurrency.isoCode} this month. Older entries in another currency remain in your ledger.",
                             style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    } else {
+                        Text(
+                            "${spend.purchaseCount} purchase(s) recorded in ${prefs.displayCurrency.isoCode}.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                     Text("Monthly totals are based on purchase dates, not estimated cigarette consumption.",
@@ -546,11 +533,10 @@ private fun SpendingScreen(
     onDeletePurchase: (Purchase) -> Unit,
 ) {
     val prefs = snapshot.preferences
-    var reportCurrency by rememberSaveable(prefs.displayCurrency) { mutableStateOf(prefs.displayCurrency) }
     var monthOffset by rememberSaveable { mutableIntStateOf(0) }
     val selectedMonth = YearMonth.now().minusMonths(monthOffset.toLong())
-    val summary = remember(snapshot.purchases, selectedMonth, reportCurrency) {
-        AnalyticsCalculator.spending(snapshot.purchases, selectedMonth, reportCurrency, 12)
+    val summary = remember(snapshot.purchases, selectedMonth, prefs.displayCurrency) {
+        AnalyticsCalculator.spending(snapshot.purchases, selectedMonth, prefs.displayCurrency, 12)
     }
     val usagePoints = remember(snapshot.smokeEvents, selectedMonth) {
         AnalyticsCalculator.monthlyConsumption(snapshot.smokeEvents, selectedMonth, 12)
@@ -584,9 +570,6 @@ private fun SpendingScreen(
             }
         }
         item {
-            CurrencyPicker(selected = reportCurrency, onSelect = { reportCurrency = it })
-        }
-        item {
             Card(
                 shape = RoundedCornerShape(28.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
@@ -598,13 +581,12 @@ private fun SpendingScreen(
                             Text("${selectedMonth.month.getDisplayName(TextStyle.FULL, Locale.getDefault())} ${selectedMonth.year}",
                                 style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onPrimaryContainer)
-                            Text("Actual purchase spending · ${reportCurrency.isoCode}",
+                            Text("Actual purchase spending · ${prefs.displayCurrency.isoCode}",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.78f))
                         }
                         Text(
-                            if (summary.convertedPurchaseCount == 0 && summary.unconvertedPurchaseCount > 0) "Rate needed"
-                            else Money.format(summary.convertedTotalMinor, reportCurrency),
+                            Money.format(summary.totalMinor, prefs.displayCurrency),
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onPrimaryContainer)
@@ -626,33 +608,19 @@ private fun SpendingScreen(
                     if (previous != null && monthOffset == 0) {
                         val direction = when {
                             change == null || change == 0L -> "No change from last month"
-                            change < 0L -> "${Money.format(-change, reportCurrency)} less than last month"
-                            else -> "${Money.format(change, reportCurrency)} more than last month"
+                            change < 0L -> "${Money.format(-change, prefs.displayCurrency)} less than last month"
+                            else -> "${Money.format(change, prefs.displayCurrency)} more than last month"
                         }
                         Text(direction, style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.onPrimaryContainer)
                     }
                     Divider(color = MaterialTheme.colorScheme.outlineVariant)
-                    MonthlySpendingChart(summary.monthlyPoints, reportCurrency)
-                    val monthsNeedingRates = summary.monthlyPoints.filter { it.unconvertedPurchaseCount > 0 }
-                    if (monthsNeedingRates.isNotEmpty()) {
-                        Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Icon(Icons.Outlined.Info, contentDescription = null,
-                                tint = MaterialTheme.colorScheme.tertiary, modifier = Modifier.size(18.dp))
-                            Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                                Text(
-                                    "Some purchases in this 12-month chart could not be converted and are excluded from the plotted converted totals.",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                                Text(
-                                    monthsNeedingRates.joinToString { point -> "${point.month.month.getDisplayName(TextStyle.SHORT, Locale.getDefault())}: ${point.unconvertedPurchaseCount}" },
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.tertiary,
-                                )
-                            }
-                        }
-                    }
+                    MonthlySpendingChart(summary.monthlyPoints, prefs.displayCurrency)
+                    Text(
+                        "Charts include only purchases recorded in ${prefs.displayCurrency.isoCode}. Entries in other currencies remain unchanged in your ledger and are not mixed into these totals.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.82f),
+                    )
                 }
             }
         }
@@ -697,33 +665,21 @@ private fun SpendingScreen(
                                     style = MaterialTheme.typography.bodyMedium,
                                     fontWeight = FontWeight.SemiBold,
                                 )
-                                if (point.nativeSubtotals.isNotEmpty()) {
-                                    Text(
-                                        point.nativeSubtotals.toList().sortedBy { it.first.isoCode }
-                                            .joinToString(" · ") { (code, amount) -> Money.format(amount, code) },
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    )
-                                } else {
-                                    Text("No purchases recorded", style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                }
-                                if (point.unconvertedPurchaseCount > 0) {
-                                    Text(
-                                        "${point.unconvertedPurchaseCount} purchase(s) need an exchange rate",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.tertiary,
-                                    )
-                                }
+                                Text(
+                                    if (point.purchaseCount == 0) "No purchases recorded"
+                                    else "${point.purchaseCount} purchase(s) in ${prefs.displayCurrency.isoCode}",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
                             }
                             Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(2.dp)) {
                                 Text(
-                                    Money.format(point.convertedMinor, reportCurrency),
+                                    Money.format(point.totalMinor, prefs.displayCurrency),
                                     style = MaterialTheme.typography.bodyMedium,
                                     fontWeight = FontWeight.Bold,
                                     color = MaterialTheme.colorScheme.primary,
                                 )
-                                Text("${point.convertedPurchaseCount} purchases included",
+                                Text("${point.purchaseCount} purchases included",
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
@@ -736,47 +692,16 @@ private fun SpendingScreen(
             }
         }
         item {
-            SectionHeader("Monthly totals by currency", "Original amounts are never overwritten")
-            val selectedPurchases = snapshot.purchases.filter { purchase ->
-                YearMonth.from(Instant.ofEpochMilli(purchase.purchasedAtMillis).atZone(ZoneId.systemDefault())) == selectedMonth
-            }
-            Card(
-                shape = RoundedCornerShape(24.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-            ) {
-                if (selectedPurchases.isEmpty()) {
-                    Text("No purchases recorded for this month.", Modifier.padding(18.dp),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant)
-                } else {
-                    val totals = selectedPurchases.groupBy { it.currency }.mapValues { (_, rows) -> rows.sumOf { it.amountMinor } }
-                    Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        CurrencyCode.entries.forEach { currency ->
-                            val total = totals[currency] ?: 0L
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Column(Modifier.weight(1f)) {
-                                    Text(currency.isoCode, fontWeight = FontWeight.SemiBold)
-                                    Text(currency.displayName, color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        style = MaterialTheme.typography.labelSmall)
-                                }
-                                Text(Money.format(total, currency), fontWeight = FontWeight.SemiBold)
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        item {
             SectionHeader("Spending breakdown", "By purchase type")
             val selectedPurchases = snapshot.purchases.filter { purchase ->
                 YearMonth.from(Instant.ofEpochMilli(purchase.purchasedAtMillis).atZone(ZoneId.systemDefault())) == selectedMonth
-                    && purchase.currency == reportCurrency
+                    && purchase.currency.isoCode == prefs.displayCurrency.isoCode
             }
             val breakdown = selectedPurchases.groupBy { it.type }.mapValues { (_, rows) -> rows.sumOf { it.amountMinor } }
             Card(shape = RoundedCornerShape(24.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                 border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
                 if (breakdown.isEmpty()) {
-                    Text("No purchases in ${reportCurrency.isoCode} for this month.", Modifier.padding(18.dp),
+                    Text("No purchases in ${prefs.displayCurrency.isoCode} for this month.", Modifier.padding(18.dp),
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                 } else {
                     Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -785,7 +710,7 @@ private fun SpendingScreen(
                             if (amount > 0L) {
                                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                                     Text(type.label, style = MaterialTheme.typography.bodyMedium)
-                                    Text(Money.format(amount, reportCurrency), fontWeight = FontWeight.SemiBold)
+                                    Text(Money.format(amount, prefs.displayCurrency), fontWeight = FontWeight.SemiBold)
                                 }
                             }
                         }
@@ -794,7 +719,7 @@ private fun SpendingScreen(
             }
         }
         item {
-            SectionHeader("Purchase ledger", "Every recorded payment for the selected month")
+            SectionHeader("Purchase ledger", "Original purchase amounts are preserved for this month")
             val ledgerPurchases = snapshot.purchases.filter { purchase ->
                 YearMonth.from(Instant.ofEpochMilli(purchase.purchasedAtMillis).atZone(ZoneId.systemDefault())) == selectedMonth
             }
@@ -1005,12 +930,9 @@ private fun GoalsScreen(
     onSave: (AppPreferences) -> Unit,
     busy: Boolean,
 ) {
-    var currency by remember(snapshot.preferences) { mutableStateOf(snapshot.preferences.displayCurrency) }
     var target by remember(snapshot.preferences) { mutableStateOf(snapshot.preferences.dailyTarget.toString()) }
     var baseline by remember(snapshot.preferences) { mutableStateOf(snapshot.preferences.baselinePerDay.toString()) }
     var startingStock by remember(snapshot.preferences) { mutableStateOf(snapshot.preferences.startingStockCigarettes.toString()) }
-    var pkrRate by remember(snapshot.preferences) { mutableStateOf(snapshot.preferences.pkrPerUsd) }
-    var rwfRate by remember(snapshot.preferences) { mutableStateOf(snapshot.preferences.rwfPerUsd) }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -1027,12 +949,20 @@ private fun GoalsScreen(
             Card(shape = RoundedCornerShape(24.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
                 elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)) {
-                Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text("Preferred currency", style = MaterialTheme.typography.titleMedium,
+                Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Currency for this device", style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onPrimaryContainer)
-                    Text("Choose how combined spending charts are displayed. Each purchase keeps its original currency.",
-                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.82f))
-                    CurrencyPicker(selected = currency, onSelect = { currency = it })
+                    Text(
+                        "${snapshot.preferences.displayCurrency.displayName} (${snapshot.preferences.displayCurrency.isoCode})",
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                    )
+                    Text(
+                        "Selected automatically from your mobile network country or device region on first launch. It stays fixed for this installation, including when you travel. Spending charts include only purchases recorded in this currency.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.82f),
+                    )
                 }
             }
         }
@@ -1071,47 +1001,14 @@ private fun GoalsScreen(
             }
         }
         item {
-            Card(shape = RoundedCornerShape(24.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
-                Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text("Currency conversion rates", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                    Text("Set the rate you want to use when recording purchases. Rates are snapshotted with each purchase, so editing a rate later does not rewrite old spending history.",
-                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    OutlinedTextField(
-                        value = pkrRate,
-                        onValueChange = { pkrRate = it.filter { ch -> ch.isDigit() || ch == '.' }.take(18) },
-                        label = { Text("1 USD = ? PKR") },
-                        placeholder = { Text("Enter your current rate") },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                    OutlinedTextField(
-                        value = rwfRate,
-                        onValueChange = { rwfRate = it.filter { ch -> ch.isDigit() || ch == '.' }.take(18) },
-                        label = { Text("1 USD = ? RWF") },
-                        placeholder = { Text("Enter your current rate") },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                    Text("USD is the reference currency. Leave a rate blank when you prefer to keep totals in their original currency. Rates are entered by you; BreatheEasy does not invent exchange rates.",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-            }
-        }
-        item {
             Button(
                 onClick = {
                     onSave(
                         AppPreferences(
-                            displayCurrency = currency,
+                            displayCurrency = snapshot.preferences.displayCurrency,
                             dailyTarget = target.toIntOrNull()?.coerceIn(1, 200) ?: 4,
                             baselinePerDay = baseline.toIntOrNull()?.coerceIn(0, 200) ?: 15,
                             startingStockCigarettes = startingStock.toIntOrNull()?.coerceIn(0, 100_000) ?: 0,
-                            pkrPerUsd = pkrRate.trim(),
-                            rwfPerUsd = rwfRate.trim(),
                         ),
                     )
                 },
@@ -1139,7 +1036,7 @@ private fun RecordPurchaseDialog(
     var type by remember { mutableStateOf(PurchaseType.PACK) }
     var quantity by remember { mutableStateOf("1") }
     var amount by remember { mutableStateOf("") }
-    var currency by remember { mutableStateOf(preferences.displayCurrency) }
+    val currency = preferences.displayCurrency
     var brand by remember { mutableStateOf("") }
     var location by remember { mutableStateOf("") }
     var note by remember { mutableStateOf("") }
@@ -1305,9 +1202,11 @@ private fun RecordPurchaseDialog(
                                 fontWeight = FontWeight.Bold,
                                 letterSpacing = 0.6.sp,
                             )
-                            CurrencyPicker(
-                                selected = currency,
-                                onSelect = { currency = it },
+                            Text(
+                                "${currency.displayName} (${currency.isoCode})",
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer,
                             )
                         }
                     }
@@ -1576,19 +1475,6 @@ private fun RecordCravingDialog(
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
     )
-}
-
-@Composable
-private fun CurrencyPicker(selected: CurrencyCode, onSelect: (CurrencyCode) -> Unit) {
-    Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-        CurrencyCode.entries.forEach { currency ->
-            FilterChip(
-                selected = selected == currency,
-                onClick = { onSelect(currency) },
-                label = { Text(currency.isoCode, fontWeight = FontWeight.SemiBold) },
-            )
-        }
-    }
 }
 
 @Composable
