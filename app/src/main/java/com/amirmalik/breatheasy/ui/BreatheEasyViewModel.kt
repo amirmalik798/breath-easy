@@ -33,6 +33,9 @@ class BreatheEasyViewModel(application: Application) : AndroidViewModel(applicat
     private val _message = MutableStateFlow<String?>(null)
     val message: StateFlow<String?> = _message.asStateFlow()
 
+    private val _loadError = MutableStateFlow(false)
+    val loadError: StateFlow<Boolean> = _loadError.asStateFlow()
+
     init { refresh() }
 
     fun refresh() {
@@ -41,9 +44,14 @@ class BreatheEasyViewModel(application: Application) : AndroidViewModel(applicat
                 _busy.value = true
                 try {
                     _snapshot.value = repository.loadSnapshot()
+                    _loadError.value = false
                 } catch (error: Exception) {
                     if (error is CancellationException) throw error
-                    _message.value = "Your local records could not be loaded. Please reopen the app."
+                    // Do not leave the app in its initial loading state forever. Keep
+                    // the last good snapshot (if any) and expose an explicit retry path.
+                    _snapshot.value = _snapshot.value.copy(isLoading = false)
+                    _loadError.value = true
+                    _message.value = "Your local records could not be loaded."
                 } finally {
                     _busy.value = false
                 }
@@ -79,13 +87,28 @@ class BreatheEasyViewModel(application: Application) : AndroidViewModel(applicat
             operationMutex.withLock {
                 _busy.value = true
                 try {
-                    operation()
-                    _snapshot.value = repository.loadSnapshot()
+                    try {
+                        operation()
+                    } catch (error: Exception) {
+                        if (error is CancellationException) throw error
+                        _message.value = error.message?.takeIf { it.length <= 140 }
+                            ?: "That action could not be saved. Please try again."
+                        return@withLock
+                    }
+
+                    // The write is already committed at this point. A later read failure
+                    // must not be reported as a failed write, or users may retry and
+                    // create duplicate purchases or activity records.
                     _message.value = successMessage
-                } catch (error: Exception) {
-                    if (error is CancellationException) throw error
-                    _message.value = error.message?.takeIf { it.length <= 140 }
-                        ?: "That action could not be saved. Please try again."
+                    try {
+                        _snapshot.value = repository.loadSnapshot()
+                        _loadError.value = false
+                    } catch (error: Exception) {
+                        if (error is CancellationException) throw error
+                        _snapshot.value = _snapshot.value.copy(isLoading = false)
+                        _loadError.value = true
+                        _message.value = "$successMessage. Saved, but the latest data could not be reloaded."
+                    }
                 } finally {
                     _busy.value = false
                 }
