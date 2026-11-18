@@ -14,6 +14,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -164,9 +166,8 @@ fun BreatheEasyApp(viewModel: BreatheEasyViewModel) {
             TopAppBar(
                 title = {
                     Column(verticalArrangement = Arrangement.spacedBy(0.dp)) {
-                        Text("BreatheEasy", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.ExtraBold, letterSpacing = (-0.6).sp)
-                        Text("Small steps. More breathing room.", style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("BreatheEasy", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.ExtraBold,
+                            letterSpacing = (-0.6).sp, color = MaterialTheme.colorScheme.primary)
                     }
                 },
                 actions = {
@@ -322,11 +323,8 @@ private fun TodayScreen(
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(todayLabel.uppercase(Locale.getDefault()), style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.secondary, letterSpacing = 1.1.sp)
-                Text("A fresh chance to choose", style = MaterialTheme.typography.headlineMedium,
-                    fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-                Text("Track without judgement. Your progress is yours.",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    style = MaterialTheme.typography.bodyMedium)
+                Text("Your day", style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
             }
         }
         item {
@@ -335,37 +333,69 @@ private fun TodayScreen(
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
                 elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
             ) {
-                Row(
-                    Modifier.fillMaxWidth().padding(18.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Box(Modifier.size(128.dp), contentAlignment = Alignment.Center) {
-                        ProgressArc(progress = smokedToday.toFloat() / prefs.dailyTarget.coerceAtLeast(1),
-                            modifier = Modifier.fillMaxSize())
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(smokedToday.toString(), style = MaterialTheme.typography.headlineLarge,
-                                fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onPrimaryContainer)
-                            Text("today", style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.78f))
+                BoxWithConstraints(Modifier.fillMaxWidth().padding(18.dp)) {
+                    val remaining = (prefs.dailyTarget - smokedToday).coerceAtLeast(0)
+                    val compact = maxWidth < 350.dp
+                    if (compact) {
+                        Column(
+                            Modifier.fillMaxWidth(),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(14.dp),
+                        ) {
+                            Box(Modifier.size(112.dp), contentAlignment = Alignment.Center) {
+                                ProgressArc(
+                                    progress = smokedToday.toFloat() / prefs.dailyTarget.coerceAtLeast(1),
+                                    modifier = Modifier.fillMaxSize(),
+                                )
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Text(smokedToday.toString(), style = MaterialTheme.typography.headlineLarge,
+                                        fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onPrimaryContainer)
+                                    Text("today", style = MaterialTheme.typography.labelMedium,
+                                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.78f))
+                                }
+                            }
+                            Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                                Text("Daily target", style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onPrimaryContainer)
+                                Text("$smokedToday of ${prefs.dailyTarget} cigarettes",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.82f))
+                                Text(if (remaining > 0) "$remaining below target" else "Target reached",
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                    style = MaterialTheme.typography.labelLarge,
+                                    fontWeight = FontWeight.SemiBold)
+                            }
                         }
-                    }
-                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(7.dp)) {
-                        Text("Your daily rhythm", style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onPrimaryContainer)
-                        Text("$smokedToday of ${prefs.dailyTarget} cigarettes in your personal target",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.82f))
-                        val remaining = (prefs.dailyTarget - smokedToday).coerceAtLeast(0)
-                        Text(
-                            if (remaining > 0) "$remaining below your target" else "Your target has been reached",
-                            color = MaterialTheme.colorScheme.onPrimaryContainer,
-                            style = MaterialTheme.typography.labelLarge,
-                            fontWeight = FontWeight.SemiBold,
-                        )
-                        Text("A personal tracking goal — not medical advice.",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.72f))
+                    } else {
+                        Row(
+                            Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(14.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Box(Modifier.size(116.dp), contentAlignment = Alignment.Center) {
+                                ProgressArc(
+                                    progress = smokedToday.toFloat() / prefs.dailyTarget.coerceAtLeast(1),
+                                    modifier = Modifier.fillMaxSize(),
+                                )
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Text(smokedToday.toString(), style = MaterialTheme.typography.headlineLarge,
+                                        fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onPrimaryContainer)
+                                    Text("today", style = MaterialTheme.typography.labelMedium,
+                                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.78f))
+                                }
+                            }
+                            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Text("Daily target", style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onPrimaryContainer)
+                                Text("$smokedToday of ${prefs.dailyTarget} cigarettes",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.82f))
+                                Text(if (remaining > 0) "$remaining below target" else "Target reached",
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                    style = MaterialTheme.typography.labelLarge,
+                                    fontWeight = FontWeight.SemiBold)
+                            }
+                        }
                     }
                 }
                 Divider(color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.16f))
@@ -378,7 +408,7 @@ private fun TodayScreen(
                     FilledTonalButton(onClick = onOpenCravings, modifier = Modifier.weight(1f)) {
                         Icon(Icons.Outlined.Spa, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(6.dp))
-                        Text("Need a pause?")
+                        Text("Take a pause")
                     }
                 }
             }
@@ -423,13 +453,13 @@ private fun TodayScreen(
                     }
                     Spacer(Modifier.width(12.dp))
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                        Text("Tracked cigarette stock", fontWeight = FontWeight.SemiBold)
+                        Text("Stock on hand", fontWeight = FontWeight.SemiBold)
                         if (stock >= 0L) {
-                            Text("${stock} sticks · ${stock / 20} full-pack equivalent(s) and ${stock % 20} loose",
+                            Text("${stock} cigarettes · ${stock / 20} packs + ${stock % 20} loose",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant)
                         } else {
-                            Text("${-stock} more smoked than purchases logged. Add your opening stock in Goals to reconcile the counter.",
+                            Text("${-stock} more smoked than recorded purchases",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.tertiary)
                         }
@@ -438,7 +468,7 @@ private fun TodayScreen(
             }
         }
         item {
-            SectionHeader("Your spending", "Actual purchase costs")
+            SectionHeader("Your spending")
             Card(
                 shape = RoundedCornerShape(24.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -461,25 +491,23 @@ private fun TodayScreen(
                     }
                     if (spend.purchaseCount == 0) {
                         Text(
-                            "No purchases recorded in ${prefs.displayCurrency.isoCode} this month. Older entries in another currency remain in your ledger.",
+                            "No ${prefs.displayCurrency.isoCode} purchases this month.",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     } else {
                         Text(
-                            "${spend.purchaseCount} purchase(s) recorded in ${prefs.displayCurrency.isoCode}.",
+                            "${spend.purchaseCount} purchases · ${prefs.displayCurrency.isoCode}",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
-                    Text("Monthly totals are based on purchase dates, not estimated cigarette consumption.",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+
                 }
             }
         }
         item {
-            SectionHeader("Recent purchases", "Your personal spending ledger")
+            SectionHeader("Recent purchases")
             Card(
                 shape = RoundedCornerShape(24.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -489,10 +517,7 @@ private fun TodayScreen(
                     Column(Modifier.fillMaxWidth().padding(18.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                         Icon(Icons.Outlined.Waves, contentDescription = null)
                         Text("No purchases yet", fontWeight = FontWeight.SemiBold)
-                        Text("Your records will appear here when you add a purchase.",
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            style = MaterialTheme.typography.bodySmall)
-                        TextButton(onClick = onRecordPurchase) { Text("Record first purchase") }
+                        TextButton(onClick = onRecordPurchase) { Text("Record a purchase") }
                     }
                 } else {
                     Column {
@@ -519,11 +544,8 @@ private fun TodayScreen(
                         tint = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.size(30.dp))
                     Spacer(Modifier.width(12.dp))
                     Column(Modifier.weight(1f)) {
-                        Text("Give the urge a little space", color = MaterialTheme.colorScheme.onPrimaryContainer,
+                        Text("Need a reset?", color = MaterialTheme.colorScheme.onPrimaryContainer,
                             fontWeight = FontWeight.SemiBold)
-                        Text("Try a short, guided breathing pause before deciding what comes next.",
-                            color = MaterialTheme.colorScheme.onPrimaryContainer,
-                            style = MaterialTheme.typography.bodySmall)
                     }
                     IconButton(onClick = onOpenCravings) {
                         Icon(Icons.Outlined.Air, contentDescription = "Open breathing exercise",
@@ -570,9 +592,9 @@ private fun SpendingScreen(
                 }
                 isExportingPdf = false
                 pdfExportMessage = result.fold(
-                    onSuccess = { "Your PDF spending summary has been saved." },
+                    onSuccess = { "PDF saved." },
                     onFailure = { error ->
-                        "PDF export failed: ${error.message?.take(100) ?: "Please try again."}"
+                        "PDF export failed. Please try again."
                     },
                 )
             }
@@ -601,11 +623,8 @@ private fun SpendingScreen(
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text("Spending insights", style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-                    Text("Your smoking costs, clearly and month by month.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("Spending", style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
                 }
                 FilledTonalButton(onClick = onRecordPurchase) {
                     Icon(Icons.Outlined.Add, contentDescription = null, modifier = Modifier.size(18.dp))
@@ -642,9 +661,9 @@ private fun SpendingScreen(
                             )
                         }
                         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                            Text("Monthly PDF report", fontWeight = FontWeight.Bold)
+                            Text("Spending report", fontWeight = FontWeight.Bold)
                             Text(
-                                "Choose a period ending this month",
+                                "PDF · monthly breakdown",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
@@ -666,8 +685,10 @@ private fun SpendingScreen(
                                     label = {
                                         Text(
                                             when (period) {
-                                                SpendingReportPeriod.CURRENT_MONTH -> "Current month"
-                                                else -> period.label + " months"
+                                                SpendingReportPeriod.CURRENT_MONTH -> "This month"
+                                                SpendingReportPeriod.LAST_3_MONTHS -> "3 months"
+                                                SpendingReportPeriod.LAST_6_MONTHS -> "6 months"
+                                                SpendingReportPeriod.LAST_12_MONTHS -> "12 months"
                                             },
                                             maxLines = 1,
                                             overflow = TextOverflow.Ellipsis,
@@ -698,13 +719,8 @@ private fun SpendingScreen(
                             Icon(Icons.Outlined.ReceiptLong, contentDescription = null, modifier = Modifier.size(18.dp))
                         }
                         Spacer(Modifier.width(8.dp))
-                        Text(if (isExportingPdf) "Creating PDF…" else "Generate PDF summary")
+                        Text(if (isExportingPdf) "Creating PDF…" else "Create PDF")
                     }
-                    Text(
-                        "Every month starts on a new page. Busy months continue on additional pages.",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
                     pdfExportMessage?.let { messageText ->
                         Text(
                             messageText,
@@ -731,7 +747,7 @@ private fun SpendingScreen(
                             Text("${selectedMonth.month.getDisplayName(TextStyle.FULL, Locale.getDefault())} ${selectedMonth.year}",
                                 style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onPrimaryContainer)
-                            Text("Actual purchase spending · ${prefs.displayCurrency.isoCode}",
+                            Text(prefs.displayCurrency.isoCode,
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.78f))
                         }
@@ -744,16 +760,17 @@ private fun SpendingScreen(
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         OutlinedButton(
                             onClick = { monthOffset = (monthOffset + 1).coerceAtMost(60) },
+                            modifier = Modifier.weight(1f),
+                            contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 8.dp, vertical = 8.dp),
                             colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.onPrimaryContainer),
-                        ) {
-                            Text("Previous month")
-                        }
-                        OutlinedButton(onClick = { monthOffset = (monthOffset - 1).coerceAtLeast(0) },
+                        ) { Text("Older") }
+                        OutlinedButton(
+                            onClick = { monthOffset = (monthOffset - 1).coerceAtLeast(0) },
                             enabled = monthOffset > 0,
+                            modifier = Modifier.weight(1f),
+                            contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 8.dp, vertical = 8.dp),
                             colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.onPrimaryContainer),
-                        ) {
-                            Text("Next month")
-                        }
+                        ) { Text("Newer") }
                     }
                     if (previous != null && monthOffset == 0) {
                         val direction = when {
@@ -766,11 +783,6 @@ private fun SpendingScreen(
                     }
                     Divider(color = MaterialTheme.colorScheme.outlineVariant)
                     MonthlySpendingChart(summary.monthlyPoints, prefs.displayCurrency)
-                    Text(
-                        "Charts include only purchases recorded in ${prefs.displayCurrency.isoCode}. Entries in other currencies remain unchanged in your ledger and are not mixed into these totals.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.82f),
-                    )
                 }
             }
         }
@@ -782,15 +794,12 @@ private fun SpendingScreen(
             ) {
                 Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text("Cigarettes logged", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                    Text("A separate view of consumption activity — not purchase spending.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant)
                     MonthlyConsumptionChart(usagePoints)
                 }
             }
         }
         item {
-            SectionHeader("Monthly spending history", "Exact totals for every month · tap to inspect")
+            SectionHeader("Monthly history")
             Card(
                 shape = RoundedCornerShape(24.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -816,8 +825,8 @@ private fun SpendingScreen(
                                     fontWeight = FontWeight.SemiBold,
                                 )
                                 Text(
-                                    if (point.purchaseCount == 0) "No purchases recorded"
-                                    else "${point.purchaseCount} purchase(s) in ${prefs.displayCurrency.isoCode}",
+                                    if (point.purchaseCount == 0) "No purchases"
+                                    else "${point.purchaseCount} purchases · ${prefs.displayCurrency.isoCode}",
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
@@ -829,9 +838,6 @@ private fun SpendingScreen(
                                     fontWeight = FontWeight.Bold,
                                     color = MaterialTheme.colorScheme.primary,
                                 )
-                                Text("${point.purchaseCount} purchases included",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                         }
                         if (index < summary.monthlyPoints.lastIndex) {
@@ -842,7 +848,7 @@ private fun SpendingScreen(
             }
         }
         item {
-            SectionHeader("Spending breakdown", "By purchase type")
+            SectionHeader("Spending breakdown")
             val selectedPurchases = snapshot.purchases.filter { purchase ->
                 YearMonth.from(Instant.ofEpochMilli(purchase.purchasedAtMillis).atZone(ZoneId.systemDefault())) == selectedMonth
                     && purchase.currency.isoCode == prefs.displayCurrency.isoCode
@@ -851,7 +857,7 @@ private fun SpendingScreen(
             Card(shape = RoundedCornerShape(24.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                 border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
                 if (breakdown.isEmpty()) {
-                    Text("No purchases in ${prefs.displayCurrency.isoCode} for this month.", Modifier.padding(18.dp),
+                    Text("No ${prefs.displayCurrency.isoCode} purchases this month.", Modifier.padding(18.dp),
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                 } else {
                     Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -869,7 +875,7 @@ private fun SpendingScreen(
             }
         }
         item {
-            SectionHeader("Purchase ledger", "Original purchase amounts are preserved for this month")
+            SectionHeader("Purchase ledger")
             val ledgerPurchases = snapshot.purchases.filter { purchase ->
                 YearMonth.from(Instant.ofEpochMilli(purchase.purchasedAtMillis).atZone(ZoneId.systemDefault())) == selectedMonth
             }
@@ -879,7 +885,7 @@ private fun SpendingScreen(
                 border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
             ) {
                 if (ledgerPurchases.isEmpty()) {
-                    Text("No purchases recorded for this month.", Modifier.padding(18.dp),
+                    Text("No purchases this month.", Modifier.padding(18.dp),
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                 } else {
                     Column {
@@ -921,14 +927,12 @@ private fun CravingsScreen(
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = androidx.compose.foundation.layout.PaddingValues(18.dp, 16.dp, 18.dp, 108.dp),
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(18.dp, 16.dp, 18.dp, 28.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         item {
-            Text("Craving space", style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-            Text("Notice the urge. Slow down. Choose your next step.",
-                color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("Cravings", style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
         }
         item {
             Card(
@@ -939,7 +943,7 @@ private fun CravingsScreen(
                     verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Icon(Icons.Outlined.Spa, contentDescription = null,
                         modifier = Modifier.size(30.dp), tint = MaterialTheme.colorScheme.onPrimaryContainer)
-                    Text("Mindful pause", color = MaterialTheme.colorScheme.onPrimaryContainer,
+                    Text("Box breathing", color = MaterialTheme.colorScheme.onPrimaryContainer,
                         style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                     Box(
                         Modifier.size(176.dp).graphicsLayer {
@@ -964,8 +968,8 @@ private fun CravingsScreen(
                         }
                     }
                     Text(
-                        if (running) "Follow the pace gently. There is no need to force or hold your breath."
-                        else "A gentle 4-second rhythm for each phase. Breathe comfortably and stop if you feel unwell.",
+                        if (running) "Breathe comfortably. Never force or hold your breath."
+                        else "Four seconds in, hold, out and rest. Stop if uncomfortable.",
                         color = MaterialTheme.colorScheme.onPrimaryContainer,
                         style = MaterialTheme.typography.bodySmall,
                     )
@@ -986,12 +990,8 @@ private fun CravingsScreen(
             Card(shape = RoundedCornerShape(24.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                 border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
                 Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text("Log what happened", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                    Text("Record a craving you rode out or one that led to smoking. Both are useful information.",
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        style = MaterialTheme.typography.bodySmall)
                     Button(onClick = onRecordCraving, modifier = Modifier.fillMaxWidth()) {
-                        Text("Record a craving")
+                        Text("Log a craving")
                     }
                 }
             }
@@ -1005,10 +1005,9 @@ private fun CravingsScreen(
                 border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
             ) {
                 Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Patterns you have logged", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                    Text("Common triggers", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                     if (triggerCounts.isEmpty()) {
-                        Text("As you record cravings, common triggers will appear here.",
-                            style = MaterialTheme.typography.bodySmall,
+                        Text("No trigger data yet.", style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant)
                     } else {
                         val maxTriggerCount = triggerCounts.maxOfOrNull { it.value }?.coerceAtLeast(1) ?: 1
@@ -1016,7 +1015,7 @@ private fun CravingsScreen(
                             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                                     Text(trigger.label, fontWeight = FontWeight.Medium)
-                                    Text("$count logged", color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    Text("$count", color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         style = MaterialTheme.typography.labelMedium)
                                 }
                                 Box(
@@ -1086,21 +1085,19 @@ private fun GoalsScreen(
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = androidx.compose.foundation.layout.PaddingValues(18.dp, 16.dp, 18.dp, 108.dp),
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(18.dp, 16.dp, 18.dp, 28.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         item {
-            Text("Goals & settings", style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-            Text("Shape the app around your own tracking preferences.",
-                color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("Goals", style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
         }
         item {
             Card(shape = RoundedCornerShape(24.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
                 elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)) {
                 Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Currency for this device", style = MaterialTheme.typography.titleMedium,
+                    Text("Currency", style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onPrimaryContainer)
                     Text(
                         "${snapshot.preferences.displayCurrency.displayName} (${snapshot.preferences.displayCurrency.isoCode})",
@@ -1108,11 +1105,9 @@ private fun GoalsScreen(
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onPrimaryContainer,
                     )
-                    Text(
-                        "Selected automatically from your mobile network country or device region on first launch. It stays fixed for this installation, including when you travel. Spending charts include only purchases recorded in this currency.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.82f),
-                    )
+                    Text("Set automatically on first launch",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.82f))
                 }
             }
         }
@@ -1120,12 +1115,12 @@ private fun GoalsScreen(
             Card(shape = RoundedCornerShape(24.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                 border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
                 Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text("Personal tracking goals", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                    Text("Daily tracking", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                     OutlinedTextField(
                         value = target,
                         onValueChange = { target = it.filter(Char::isDigit).take(3) },
                         label = { Text("Daily tracking target (cigarettes)") },
-                        supportingText = { Text("A personal tracking setting, not a recommended safe amount.") },
+                        supportingText = { Text("Personal target, not a safe-use limit.") },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth(),
@@ -1142,7 +1137,7 @@ private fun GoalsScreen(
                         value = startingStock,
                         onValueChange = { startingStock = it.filter(Char::isDigit).take(6) },
                         label = { Text("Starting stock on hand (cigarettes)") },
-                        supportingText = { Text("Used to keep the stock counter accurate when you start using the app.") },
+                        supportingText = { Text("Used for your stock estimate.") },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth(),
@@ -1165,12 +1160,12 @@ private fun GoalsScreen(
                 enabled = !busy && target.toIntOrNull() in 1..200 && baseline.toIntOrNull() in 0..200
                     && startingStock.toIntOrNull() in 0..100_000,
                 modifier = Modifier.fillMaxWidth(),
-            ) { Text(if (busy) "Saving…" else "Save preferences") }
+            ) { Text(if (busy) "Saving…" else "Save goals") }
         }
         item {
             EmptyPanel(
-                title = "Your records stay on this device",
-                body = "Purchase, cigarette and craving entries are stored locally in the app database. No account or cloud sync is required in this build.",
+                title = "Stored on this device",
+                body = "Purchases, smoking and craving records stay on this device.",
             )
         }
     }
@@ -1224,7 +1219,7 @@ private fun RecordPurchaseDialog(
         ) {
             Column(
                 Modifier.fillMaxWidth()
-                    .heightIn(max = 560.dp)
+                    .heightIn(max = 460.dp)
                     .verticalScroll(rememberScrollState())
                     .padding(horizontal = 20.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
@@ -1252,14 +1247,9 @@ private fun RecordPurchaseDialog(
                         verticalArrangement = Arrangement.spacedBy(3.dp),
                     ) {
                         Text(
-                            "Add a purchase",
+                            "Add purchase",
                             style = MaterialTheme.typography.headlineSmall,
                             fontWeight = FontWeight.Bold,
-                        )
-                        Text(
-                            "A quick note for your spending history.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                 }
@@ -1312,7 +1302,7 @@ private fun RecordPurchaseDialog(
                         verticalArrangement = Arrangement.spacedBy(10.dp),
                     ) {
                         Text(
-                            "TOTAL PAID",
+                            "TOTAL",
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.78f),
@@ -1420,7 +1410,7 @@ private fun RecordPurchaseDialog(
                 ) {
                     Icon(Icons.Outlined.CalendarToday, contentDescription = null)
                     Spacer(Modifier.width(9.dp))
-                    Text("Purchase date  ·  $dateLabel")
+                    Text("Date  ·  $dateLabel", maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
 
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -1432,7 +1422,7 @@ private fun RecordPurchaseDialog(
                         ),
                     ) {
                         Text(
-                            if (showDetails) "Hide optional details" else "Add details (optional)",
+                            if (showDetails) "Hide details" else "Add details",
                             fontWeight = FontWeight.SemiBold,
                         )
                     }
@@ -1441,7 +1431,7 @@ private fun RecordPurchaseDialog(
                             value = brand,
                             onValueChange = { brand = it.take(60) },
                             label = { Text("Brand or product") },
-                            placeholder = { Text("e.g. your usual brand") },
+                            placeholder = { Text("Optional") },
                             singleLine = true,
                             modifier = Modifier.fillMaxWidth(),
                         )
@@ -1449,7 +1439,7 @@ private fun RecordPurchaseDialog(
                             value = location,
                             onValueChange = { location = it.take(80) },
                             label = { Text("Shop or location") },
-                            placeholder = { Text("Where did you buy it?") },
+                            placeholder = { Text("Optional") },
                             singleLine = true,
                             modifier = Modifier.fillMaxWidth(),
                         )
@@ -1474,7 +1464,7 @@ private fun RecordPurchaseDialog(
                             value = note,
                             onValueChange = { note = it.take(500) },
                             label = { Text("Note") },
-                            placeholder = { Text("Anything you want to remember?") },
+                            placeholder = { Text("Optional note") },
                             modifier = Modifier.fillMaxWidth(),
                             minLines = 2,
                         )
@@ -1488,11 +1478,6 @@ private fun RecordPurchaseDialog(
                         color = MaterialTheme.colorScheme.error,
                     )
                 }
-                Text(
-                    "Your total is saved as the full amount paid for this purchase.",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
             }
 
             Column(
@@ -1524,20 +1509,17 @@ private fun RecordPurchaseDialog(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween,
                     ) {
-                        Text("Save purchase", fontWeight = FontWeight.Bold)
+                        Text("Save", modifier = Modifier.weight(1f), fontWeight = FontWeight.Bold)
                         Text(
                             amountMinor?.let { Money.format(it, currency, includeCode = true) }.orEmpty(),
+                            modifier = Modifier.weight(1f),
+                            textAlign = androidx.compose.ui.text.style.TextAlign.End,
                             fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
                         )
                     }
                 }
-                Text(
-                    "Only the total price is needed. Everything else is optional.",
-                    modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                )
             }
         }
     }
@@ -1592,22 +1574,29 @@ private fun RecordCravingDialog(
                         onClick = { outcome = CravingOutcome.SMOKED }, label = { Text("I smoked") })
                 }
                 Text("What triggered it?", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
-                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    CravingTrigger.entries.chunked(3).forEach { row ->
-                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            row.forEach { item ->
-                                FilterChip(selected = trigger == item, onClick = { trigger = item },
-                                    label = { Text(item.label, maxLines = 1) })
-                            }
-                        }
+                FlowRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    CravingTrigger.entries.forEach { item ->
+                        FilterChip(
+                            selected = trigger == item,
+                            onClick = { trigger = item },
+                            label = { Text(item.label, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                        )
                     }
                 }
                 Text("Intensity: $intensity / 5", style = MaterialTheme.typography.labelLarge,
                     fontWeight = FontWeight.SemiBold)
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     (1..5).forEach { value ->
-                        FilterChip(selected = intensity == value, onClick = { intensity = value },
-                            label = { Text(value.toString()) })
+                        FilterChip(
+                            selected = intensity == value,
+                            onClick = { intensity = value },
+                            modifier = Modifier.weight(1f),
+                            label = { Text(value.toString()) },
+                        )
                     }
                 }
                 OutlinedTextField(value = note, onValueChange = { note = it.take(500) },
@@ -1707,12 +1696,8 @@ private fun PurchaseRow(purchase: Purchase, onDelete: () -> Unit) {
 }
 
 @Composable
-private fun SectionHeader(title: String, subtitle: String) {
-    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-        Text(title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-        Text(subtitle, style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant)
-    }
+private fun SectionHeader(title: String) {
+    Text(title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
 }
 
 @Composable

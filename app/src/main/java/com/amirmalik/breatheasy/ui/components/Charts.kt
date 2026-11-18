@@ -117,12 +117,6 @@ fun MonthlySpendingChart(
                 )
             }
         }
-        Text(
-            text = "Only purchases recorded in ${currency.isoCode} are included.",
-            color = muted,
-            style = MaterialTheme.typography.labelSmall,
-            modifier = Modifier.padding(top = 8.dp),
-        )
     }
 }
 
@@ -198,8 +192,6 @@ fun MonthlyConsumptionChart(
                 )
             }
         }
-        Text("Cigarettes explicitly logged in each month", color = muted,
-            style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(top = 8.dp))
     }
 }
 

@@ -7,63 +7,51 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 
-// A brighter botanical palette: deep evergreen foundations, fresh mint actions,
-// an aqua secondary accent, and a warm citrus highlight for meaningful emphasis.
-private val Evergreen = Color(0xFF174B3B)
-private val EvergreenDeep = Color(0xFF0D3027)
-private val Aqua = Color(0xFF287F7A)
-private val Citrus = Color(0xFF9A7A20)
-private val Canvas = Color(0xFFF3F8F3)
-private val Card = Color(0xFFFFFFFF)
-private val Ink = Color(0xFF14231D)
-private val Muted = Color(0xFF5E7066)
-private val Border = Color(0xFFD7E5DA)
-
 private val LightScheme = lightColorScheme(
-    primary = Evergreen,
-    onPrimary = Color.White,
-    primaryContainer = Color(0xFFD7F2E3),
-    onPrimaryContainer = EvergreenDeep,
-    secondary = Aqua,
+    primary = Color(0xFFE85D04),
+    onPrimary = Color(0xFF1A0D06),
+    primaryContainer = Color(0xFFFFE0CC),
+    onPrimaryContainer = Color(0xFF4B1D08),
+    secondary = Color(0xFFC64F0A),
     onSecondary = Color.White,
-    secondaryContainer = Color(0xFFD9F1EC),
-    onSecondaryContainer = Color(0xFF123D39),
-    tertiary = Citrus,
-    onTertiary = Color.White,
-    tertiaryContainer = Color(0xFFF8EDC7),
-    onTertiaryContainer = Color(0xFF49380A),
-    background = Canvas,
-    onBackground = Ink,
-    surface = Card,
-    onSurface = Ink,
-    surfaceVariant = Color(0xFFE8F1E9),
-    onSurfaceVariant = Muted,
-    outline = Color(0xFF91A79A),
-    outlineVariant = Border,
-    error = Color(0xFFB8494C),
+    secondaryContainer = Color(0xFFFFE7D8),
+    onSecondaryContainer = Color(0xFF54220B),
+    tertiary = Color(0xFFB87819),
+    onTertiary = Color(0xFF241500),
+    tertiaryContainer = Color(0xFFFFE7B8),
+    onTertiaryContainer = Color(0xFF3E2600),
+    background = Color(0xFFF6F2EF),
+    onBackground = Color(0xFF211B18),
+    surface = Color(0xFFFFFCFA),
+    onSurface = Color(0xFF211B18),
+    surfaceVariant = Color(0xFFECE3DE),
+    onSurfaceVariant = Color(0xFF6D625B),
+    outline = Color(0xFF9D8A7D),
+    outlineVariant = Color(0xFFE2D6CF),
+    error = Color(0xFFBA1A1A),
 )
 
 private val DarkScheme = darkColorScheme(
-    primary = Color(0xFFA7F3C8),
-    onPrimary = Color(0xFF073A2A),
-    primaryContainer = Color(0xFF245F46),
-    onPrimaryContainer = Color(0xFFD1F8E1),
-    secondary = Color(0xFF78E6D6),
-    onSecondary = Color(0xFF073B37),
-    secondaryContainer = Color(0xFF20544E),
-    onSecondaryContainer = Color(0xFFCAFAF1),
-    tertiary = Color(0xFFFFD166),
-    onTertiary = Color(0xFF403500),
-    tertiaryContainer = Color(0xFF5C4C16),
-    onTertiaryContainer = Color(0xFFFFF1B8),
-    background = Color(0xFF08140F),
-    onBackground = Color(0xFFE6F2EA),
-    surface = Color(0xFF15271F),
-    onSurface = Color(0xFFE6F2EA),
-    surfaceVariant = Color(0xFF243D31),
-    onSurfaceVariant = Color(0xFFB7CFC0),
-    outline = Color(0xFF719A83),
-    outlineVariant = Color(0xFF3B5948),
+    primary = Color(0xFFFF7417),
+    onPrimary = Color(0xFF201008),
+    primaryContainer = Color(0xFF57270F),
+    onPrimaryContainer = Color(0xFFFFE2D0),
+    secondary = Color(0xFFFFA15C),
+    onSecondary = Color(0xFF2B1207),
+    secondaryContainer = Color(0xFF492514),
+    onSecondaryContainer = Color(0xFFFFDCC5),
+    tertiary = Color(0xFFFFC15E),
+    onTertiary = Color(0xFF251700),
+    tertiaryContainer = Color(0xFF4D3514),
+    onTertiaryContainer = Color(0xFFFFE9BF),
+    background = Color(0xFF0B0A0D),
+    onBackground = Color(0xFFF6F0EC),
+    surface = Color(0xFF17161B),
+    onSurface = Color(0xFFF6F0EC),
+    surfaceVariant = Color(0xFF28252B),
+    onSurfaceVariant = Color(0xFFBEB3AC),
+    outline = Color(0xFF85746B),
+    outlineVariant = Color(0xFF393239),
     error = Color(0xFFFFB4AB),
 )
 
