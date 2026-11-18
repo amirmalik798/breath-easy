@@ -166,6 +166,7 @@ fun BreatheEasyApp(viewModel: BreatheEasyViewModel) {
     var purchaseToDeleteId by rememberSaveable { mutableStateOf<String?>(null) }
     val purchaseToDelete = snapshot.purchases.firstOrNull { it.id == purchaseToDeleteId }
     var pendingDeleteId by rememberSaveable { mutableStateOf<String?>(null) }
+    val deleteInProgress = pendingDeleteId != null
     val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(message) {
@@ -175,9 +176,9 @@ fun BreatheEasyApp(viewModel: BreatheEasyViewModel) {
                 resultMessage.startsWith("Craving recorded as resisted") ||
                     resultMessage.startsWith("Craving and cigarette recorded") -> showCravingDialog = false
             }
-            if (pendingDeleteId != null) {
-                // Do not dismiss the confirmation until the repository returns the
-                // operation result. A failed delete must remain visible to the user.
+            if (pendingDeleteId != null && !snapshot.purchases.any { it.id == pendingDeleteId }) {
+                // The snapshot no longer contains the selected record, so the delete
+                // committed. On failure, the record remains and the confirmation stays.
                 pendingDeleteId = null
                 purchaseToDeleteId = null
             }
