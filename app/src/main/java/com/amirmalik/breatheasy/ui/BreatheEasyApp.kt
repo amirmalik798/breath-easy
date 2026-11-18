@@ -947,7 +947,7 @@ private fun CravingsScreen(
     val phase = phases[(seconds / 4) % phases.size]
     val phaseSeconds = 4 - (seconds % 4)
     val breathingScale by animateFloatAsState(
-        targetValue = if (!running) 0.92f
+        targetValue = if (!running && seconds == 0) 0.92f
             else if (phase == "Breathe in" || phase == "Hold") 1f else 0.78f,
         animationSpec = tween(durationMillis = 3_800, easing = FastOutSlowInEasing),
         label = "breathing-orb-scale",
@@ -983,23 +983,29 @@ private fun CravingsScreen(
                         contentAlignment = Alignment.Center,
                     ) {
                         ProgressArc(
-                            progress = if (running) ((seconds % 16) / 16f) else 0.08f,
+                            progress = if (running || seconds > 0) ((seconds % 16) / 16f) else 0.08f,
                             modifier = Modifier.fillMaxSize(),
                             strokeWidth = 9.dp,
                         )
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(if (running) "$phaseSeconds" else "4–4–4–4",
+                            Text(if (running || seconds > 0) "$phaseSeconds" else "4–4–4–4",
                                 color = MaterialTheme.colorScheme.onPrimaryContainer,
                                 style = MaterialTheme.typography.headlineMedium,
                                 fontWeight = FontWeight.Bold)
-                            Text(if (running) phase else "Ready",
+                            Text(
+                                when {
+                                    running -> phase
+                                    seconds > 0 -> "Paused"
+                                    else -> "Ready"
+                                },
                                 color = MaterialTheme.colorScheme.onPrimaryContainer,
-                                style = MaterialTheme.typography.labelMedium)
+                                style = MaterialTheme.typography.labelMedium,
+                            )
                         }
                     }
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         phases.forEach { phaseName ->
-                            val active = running && phase == phaseName
+                            val active = (running || seconds > 0) && phase == phaseName
                             Surface(
                                 modifier = Modifier.weight(1f),
                                 shape = RoundedCornerShape(50),
@@ -1029,10 +1035,18 @@ private fun CravingsScreen(
                         Button(onClick = { running = !running }, colors = ButtonDefaults.buttonColors(
                             containerColor = MaterialTheme.colorScheme.primary,
                             contentColor = MaterialTheme.colorScheme.onPrimary,
-                        )) { Text(if (running) "Pause" else "Start breathing") }
+                        )) {
+                            Text(
+                                when {
+                                    running -> "Pause"
+                                    seconds > 0 -> "Resume"
+                                    else -> "Start breathing"
+                                },
+                            )
+                        }
                         OutlinedButton(onClick = { running = false; seconds = 0 }) { Text("Reset") }
                     }
-                    if (running) Text("Session ${seconds / 60}:${(seconds % 60).toString().padStart(2, '0')}",
+                    if (seconds > 0) Text("Session ${seconds / 60}:${(seconds % 60).toString().padStart(2, '0')}",
                         color = MaterialTheme.colorScheme.onPrimaryContainer,
                         style = MaterialTheme.typography.labelMedium)
                 }
