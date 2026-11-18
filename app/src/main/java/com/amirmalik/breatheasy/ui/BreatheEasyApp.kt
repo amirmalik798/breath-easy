@@ -54,7 +54,6 @@ import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -148,8 +147,8 @@ fun BreatheEasyApp(viewModel: BreatheEasyViewModel) {
             TopAppBar(
                 title = {
                     Column(verticalArrangement = Arrangement.spacedBy(0.dp)) {
-                        Text("BreatheEasy", fontWeight = FontWeight.Bold, letterSpacing = (-0.5).sp)
-                        Text("Small steps. More breathing room.", style = MaterialTheme.typography.labelSmall,
+                        Text("BreatheEasy", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.ExtraBold, letterSpacing = (-0.6).sp)
+                        Text("Small steps. More breathing room.", style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 },
@@ -165,7 +164,7 @@ fun BreatheEasyApp(viewModel: BreatheEasyViewModel) {
             )
         },
         bottomBar = {
-            NavigationBar(containerColor = MaterialTheme.colorScheme.surface) {
+            NavigationBar(containerColor = MaterialTheme.colorScheme.surface, tonalElevation = 8.dp) {
                 MainTab.entries.forEach { tab ->
                     val icon = when (tab) {
                         MainTab.TODAY -> Icons.Outlined.Home
@@ -182,13 +181,6 @@ fun BreatheEasyApp(viewModel: BreatheEasyViewModel) {
                     )
                 }
             }
-        },
-        floatingActionButton = {
-            FloatingActionButton(
-                onClick = { showPurchaseDialog = true },
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary,
-            ) { Icon(Icons.Outlined.Add, contentDescription = "Record a purchase") }
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { scaffoldPadding ->
@@ -289,7 +281,7 @@ private fun TodayScreen(
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = androidx.compose.foundation.layout.PaddingValues(
-            start = 18.dp, end = 18.dp, top = 16.dp, bottom = 108.dp,
+            start = 18.dp, end = 18.dp, top = 16.dp, bottom = 28.dp,
         ),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
@@ -537,7 +529,7 @@ private fun SpendingScreen(snapshot: AppSnapshot, onDeletePurchase: (Purchase) -
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = androidx.compose.foundation.layout.PaddingValues(18.dp, 16.dp, 18.dp, 108.dp),
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(18.dp, 16.dp, 18.dp, 28.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         item {
@@ -1311,9 +1303,9 @@ private fun PurchaseRow(purchase: Purchase, onDelete: () -> Unit) {
                 color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
         }
         Column(horizontalAlignment = Alignment.End) {
-            Text(Money.format(purchase.amountMinor, purchase.currency),
+            Text("${purchase.currency.isoCode} · ${Money.format(purchase.amountMinor, purchase.currency)}",
                 fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary,
-                style = MaterialTheme.typography.bodyMedium)
+                style = MaterialTheme.typography.bodyMedium, maxLines = 1)
             Text(if (purchase.planned) "Planned" else "Impulse", style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
