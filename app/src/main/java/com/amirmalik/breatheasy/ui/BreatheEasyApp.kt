@@ -912,11 +912,29 @@ private fun CravingsScreen(
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant)
                     } else {
-                        triggerCounts.forEach { (trigger, count) ->
-                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                Text(trigger.label)
-                                Text("$count logged", color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    style = MaterialTheme.typography.labelMedium)
+                        val maxTriggerCount = triggerCounts.maxOfOrNull { it.value }?.coerceAtLeast(1) ?: 1
+                        triggerCounts.forEachIndexed { index, (trigger, count) ->
+                            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                    Text(trigger.label, fontWeight = FontWeight.Medium)
+                                    Text("$count logged", color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        style = MaterialTheme.typography.labelMedium)
+                                }
+                                Box(
+                                    Modifier.fillMaxWidth().height(8.dp)
+                                        .clip(RoundedCornerShape(50))
+                                        .background(MaterialTheme.colorScheme.surfaceVariant),
+                                ) {
+                                    Box(
+                                        Modifier.fillMaxWidth(count.toFloat() / maxTriggerCount)
+                                            .height(8.dp)
+                                            .clip(RoundedCornerShape(50))
+                                            .background(
+                                                if (index == 0) MaterialTheme.colorScheme.secondary
+                                                else MaterialTheme.colorScheme.primary.copy(alpha = 0.72f),
+                                            ),
+                                    )
+                                }
                             }
                         }
                     }
