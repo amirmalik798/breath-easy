@@ -133,6 +133,7 @@ import com.amirmalik.breatheasy.domain.Money
 import com.amirmalik.breatheasy.domain.InventoryCalculator
 import com.amirmalik.breatheasy.domain.DailyTargetProgress
 import com.amirmalik.breatheasy.domain.DateTimeRanges
+import com.amirmalik.breatheasy.domain.MonthNavigation
 import com.amirmalik.breatheasy.ui.components.MonthlySpendingChart
 import com.amirmalik.breatheasy.ui.components.MonthlyConsumptionChart
 import com.amirmalik.breatheasy.ui.pdf.SpendingPdfExporter
@@ -564,16 +565,21 @@ private fun TodayScreen(
                     }
                     Spacer(Modifier.width(12.dp))
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                        Text("Stock on hand", fontWeight = FontWeight.SemiBold)
+                        Text("Estimated stock", fontWeight = FontWeight.SemiBold)
                         if (stock >= 0L) {
                             Text("${stock} cigarettes · ${stock / 20} packs + ${stock % 20} loose",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant)
                         } else {
-                            Text("${-stock} more smoked than recorded purchases",
+                            Text("Consumption exceeds tracked stock by ${-stock} cigarettes",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.tertiary)
                         }
+                        Text(
+                            "Estimate assumes 20 cigarettes per pack and 200 per carton; rolling tobacco is excluded.",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
                     }
                 }
             }
@@ -663,7 +669,8 @@ private fun SpendingScreen(
     var isPickingPdfDestination by rememberSaveable { mutableStateOf(false) }
     var pdfExportMessage by rememberSaveable { mutableStateOf<String?>(null) }
     var monthOffset by rememberSaveable { mutableIntStateOf(0) }
-    val selectedMonth = YearMonth.now(ZoneId.systemDefault()).minusMonths(monthOffset.toLong())
+    val currentMonth = YearMonth.now(ZoneId.systemDefault())
+    val selectedMonth = currentMonth.minusMonths(monthOffset.toLong())
     val latestSnapshot = rememberUpdatedState(snapshot)
     val latestCurrency = rememberUpdatedState(prefs.displayCurrency)
     val latestPeriod = rememberUpdatedState(reportPeriod)
@@ -822,12 +829,12 @@ private fun SpendingScreen(
             ) {
                 Column {
                     summary.monthlyPoints.asReversed().forEachIndexed { index, point ->
+                        val targetMonthOffset = MonthNavigation.offsetForMonth(point.month, currentMonth)
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clickable {
-                                    monthOffset = java.time.temporal.ChronoUnit.MONTHS
-                                        .between(point.month, YearMonth.now()).toInt().coerceIn(0, 60)
+                                .clickable(enabled = targetMonthOffset != null) {
+                                    targetMonthOffset?.let { monthOffset = it }
                                 }
                                 .padding(horizontal = 18.dp, vertical = 13.dp),
                             verticalAlignment = Alignment.CenterVertically,
@@ -840,10 +847,15 @@ private fun SpendingScreen(
                                     fontWeight = FontWeight.SemiBold,
                                 )
                                 Text(
-                                    if (point.purchaseCount == 0) "No purchases"
-                                    else "${point.purchaseCount} purchases · ${prefs.displayCurrency.isoCode}",
+                                    when {
+                                        targetMonthOffset == null -> "Outside the 5-year navigation range"
+                                        point.purchaseCount == 0 -> "No purchases"
+                                        else -> "${point.purchaseCount} purchases · ${prefs.displayCurrency.isoCode}"
+                                    },
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
                                 )
                             }
                             Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(2.dp)) {
