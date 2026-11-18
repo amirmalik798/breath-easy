@@ -1,6 +1,7 @@
 package com.amirmalik.breatheasy.data
 
 import android.content.Context
+import android.icu.util.ULocale
 import android.telephony.TelephonyManager
 import java.time.Instant
 import java.time.YearMonth
@@ -59,10 +60,13 @@ data class CurrencyCode(
         }
 
         fun fromLocale(locale: Locale): CurrencyCode {
-            val currency = runCatching { Currency.getInstance(locale) }.getOrNull()
-                ?: runCatching { Currency.getInstance(Locale.US) }.getOrThrow()
+            val likelyLocale = ULocale.addLikelySubtags(ULocale.forLocale(locale)).toLocale()
+            val currency = sequenceOf(locale, likelyLocale)
+                .mapNotNull { candidate -> runCatching { Currency.getInstance(candidate) }.getOrNull() }
+                .firstOrNull { it.defaultFractionDigits >= 0 }
+                ?: throw IllegalStateException("No ISO currency could be resolved for the device region.")
             return fromJavaCurrency(currency)
-                ?: fromJavaCurrency(Currency.getInstance(Locale.US))!!
+                ?: throw IllegalStateException("The device region resolved to a currency without a supported minor unit.")
         }
 
         private fun fromJavaCurrency(currency: Currency): CurrencyCode? {
