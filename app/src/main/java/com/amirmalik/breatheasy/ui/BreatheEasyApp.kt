@@ -21,6 +21,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -38,6 +40,9 @@ import androidx.compose.material.icons.outlined.Air
 import androidx.compose.material.icons.outlined.BarChart
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.Remove
+import androidx.compose.material.icons.outlined.ReceiptLong
+import androidx.compose.material.icons.outlined.CalendarToday
 import androidx.compose.material.icons.outlined.Flag
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Info
@@ -62,6 +67,8 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.OutlinedTextField
@@ -1137,104 +1144,358 @@ private fun RecordPurchaseDialog(
     var location by remember { mutableStateOf("") }
     var note by remember { mutableStateOf("") }
     var planned by remember { mutableStateOf(true) }
-    var purchasedAtMillis by remember { mutableLongStateOf(LocalDate.now().atTime(12, 0).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()) }
+    var purchasedAtMillis by remember {
+        mutableLongStateOf(
+            LocalDate.now().atTime(12, 0).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli(),
+        )
+    }
     var showDatePicker by rememberSaveable { mutableStateOf(false) }
+    var showDetails by rememberSaveable { mutableStateOf(false) }
+
     val amountMinor = Money.parseToMinor(amount, currency)
     val quantityValue = quantity.toIntOrNull()
     val canSave = amountMinor != null && quantityValue in 1..10_000
+    val quantityLabel = when (type) {
+        PurchaseType.PACK -> "packs"
+        PurchaseType.SINGLE -> "cigarettes"
+        PurchaseType.CARTON -> "cartons"
+        PurchaseType.ROLLING -> "units"
+    }
+    val dateLabel = DateTimeFormatter.ofPattern("EEE, d MMM yyyy", Locale.getDefault())
+        .withZone(ZoneId.systemDefault())
+        .format(Instant.ofEpochMilli(purchasedAtMillis))
 
-    AlertDialog(
+    ModalBottomSheet(
         onDismissRequest = onDismiss,
-        title = {
-            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text("Record a purchase", fontWeight = FontWeight.Bold)
-                Text("Log what you actually paid", style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-        },
-        text = {
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        containerColor = MaterialTheme.colorScheme.surface,
+        tonalElevation = 4.dp,
+    ) {
+        Column(
+            Modifier.fillMaxWidth().imePadding().navigationBarsPadding(),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
             Column(
-                Modifier.fillMaxWidth().heightIn(max = 560.dp).verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(10.dp),
+                Modifier.fillMaxWidth()
+                    .heightIn(max = 560.dp)
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 20.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
-                Text("Product type", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    PurchaseType.entries.chunked(2).forEach { row ->
-                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            row.forEach { option ->
-                                FilterChip(selected = type == option, onClick = { type = option },
-                                    label = { Text(option.label, maxLines = 1, overflow = TextOverflow.Ellipsis) })
+                Row(
+                    Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    Box(
+                        Modifier.size(48.dp)
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(MaterialTheme.colorScheme.primaryContainer),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(
+                            Icons.Outlined.ReceiptLong,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                            modifier = Modifier.size(25.dp),
+                        )
+                    }
+                    Column(
+                        Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(3.dp),
+                    ) {
+                        Text(
+                            "Add a purchase",
+                            style = MaterialTheme.typography.headlineSmall,
+                            fontWeight = FontWeight.Bold,
+                        )
+                        Text(
+                            "A quick note for your spending history.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+
+                Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
+                    Text(
+                        "WHAT DID YOU BUY?",
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        letterSpacing = 0.7.sp,
+                    )
+                    PurchaseType.entries.chunked(2).forEach { options ->
+                        Row(
+                            Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            options.forEach { option ->
+                                FilterChip(
+                                    selected = type == option,
+                                    onClick = { type = option },
+                                    modifier = Modifier.weight(1f),
+                                    label = {
+                                        Text(
+                                            option.label,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis,
+                                        )
+                                    },
+                                )
+                            }
+                            if (options.size == 1) Spacer(Modifier.weight(1f))
+                        }
+                    }
+                }
+
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(22.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.62f),
+                    ),
+                    border = BorderStroke(
+                        1.dp,
+                        MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+                    ),
+                ) {
+                    Column(
+                        Modifier.fillMaxWidth().padding(15.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        Text(
+                            "TOTAL PAID",
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.78f),
+                            letterSpacing = 0.7.sp,
+                        )
+                        OutlinedTextField(
+                            value = amount,
+                            onValueChange = {
+                                amount = it.filter { c ->
+                                    c.isDigit() || c == '.' || c == ','
+                                }.take(18)
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            placeholder = {
+                                Text(if (currency.fractionDigits == 0) "0" else "0.00")
+                            },
+                            textStyle = MaterialTheme.typography.headlineMedium.copy(
+                                fontWeight = FontWeight.Bold,
+                            ),
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                            singleLine = true,
+                            isError = amount.isNotBlank() && amountMinor == null,
+                            supportingText = {
+                                if (amount.isNotBlank() && amountMinor == null) {
+                                    Text(
+                                        "Enter a valid ${currency.isoCode} amount.",
+                                        color = MaterialTheme.colorScheme.error,
+                                    )
+                                }
+                            },
+                        )
+                        Row(
+                            Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                        ) {
+                            Text(
+                                "Paid in",
+                                style = MaterialTheme.typography.labelLarge,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                fontWeight = FontWeight.SemiBold,
+                            )
+                            CurrencyPicker(
+                                selected = currency,
+                                onSelect = { currency = it },
+                            )
+                        }
+                    }
+                }
+
+                Row(
+                    Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text("Quantity", fontWeight = FontWeight.SemiBold)
+                        Text(
+                            quantityLabel,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Surface(
+                        shape = RoundedCornerShape(16.dp),
+                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(7.dp),
+                        ) {
+                            IconButton(
+                                onClick = {
+                                    val current = quantity.toIntOrNull() ?: 1
+                                    quantity = (current - 1).coerceAtLeast(1).toString()
+                                },
+                                enabled = (quantity.toIntOrNull() ?: 1) > 1,
+                            ) {
+                                Icon(Icons.Outlined.Remove, contentDescription = "Decrease quantity")
+                            }
+                            Text(
+                                quantity,
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.width(28.dp),
+                                maxLines = 1,
+                            )
+                            IconButton(
+                                onClick = {
+                                    val current = quantity.toIntOrNull() ?: 1
+                                    quantity = (current + 1).coerceAtMost(10_000).toString()
+                                },
+                                enabled = (quantity.toIntOrNull() ?: 1) < 10_000,
+                            ) {
+                                Icon(Icons.Outlined.Add, contentDescription = "Increase quantity")
                             }
                         }
                     }
                 }
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    OutlinedTextField(
-                        value = quantity,
-                        onValueChange = { quantity = it.filter(Char::isDigit).take(5) },
-                        label = { Text("Quantity") },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        singleLine = true,
-                        modifier = Modifier.weight(0.8f),
-                    )
-                    OutlinedTextField(
-                        value = amount,
-                        onValueChange = { amount = it.filter { c -> c.isDigit() || c == '.' || c == ',' }.take(18) },
-                        label = { Text("Total price") },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                        singleLine = true,
-                        modifier = Modifier.weight(1.2f),
-                    )
+
+                OutlinedButton(
+                    onClick = { showDatePicker = true },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                ) {
+                    Icon(Icons.Outlined.CalendarToday, contentDescription = null)
+                    Spacer(Modifier.width(9.dp))
+                    Text("Purchase date  ·  $dateLabel")
                 }
-                OutlinedButton(onClick = { showDatePicker = true }, modifier = Modifier.fillMaxWidth()) {
-                    Text("Purchase date · ${DateTimeFormatter.ofPattern("d MMM yyyy", Locale.getDefault()).withZone(ZoneId.systemDefault()).format(Instant.ofEpochMilli(purchasedAtMillis))}")
+
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    TextButton(
+                        onClick = { showDetails = !showDetails },
+                        contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                            horizontal = 0.dp,
+                            vertical = 2.dp,
+                        ),
+                    ) {
+                        Text(
+                            if (showDetails) "Hide optional details" else "Add details (optional)",
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                    }
+                    if (showDetails) {
+                        OutlinedTextField(
+                            value = brand,
+                            onValueChange = { brand = it.take(60) },
+                            label = { Text("Brand or product") },
+                            placeholder = { Text("e.g. your usual brand") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                        OutlinedTextField(
+                            value = location,
+                            onValueChange = { location = it.take(80) },
+                            label = { Text("Shop or location") },
+                            placeholder = { Text("Where did you buy it?") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                        Text(
+                            "Purchase context",
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            FilterChip(
+                                selected = planned,
+                                onClick = { planned = true },
+                                label = { Text("Planned") },
+                            )
+                            FilterChip(
+                                selected = !planned,
+                                onClick = { planned = false },
+                                label = { Text("Impulse") },
+                            )
+                        }
+                        OutlinedTextField(
+                            value = note,
+                            onValueChange = { note = it.take(500) },
+                            label = { Text("Note") },
+                            placeholder = { Text("Anything you want to remember?") },
+                            modifier = Modifier.fillMaxWidth(),
+                            minLines = 2,
+                        )
+                    }
                 }
-                Text("Purchase currency", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
-                CurrencyPicker(selected = currency, onSelect = { currency = it })
-                OutlinedTextField(value = brand, onValueChange = { brand = it.take(60) },
-                    label = { Text("Brand or product (optional)") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(value = location, onValueChange = { location = it.take(80) },
-                    label = { Text("Shop or location (optional)") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(value = note, onValueChange = { note = it.take(500) },
-                    label = { Text("Note (optional)") }, modifier = Modifier.fillMaxWidth(), minLines = 2)
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    FilterChip(selected = planned, onClick = { planned = true }, label = { Text("Planned") })
-                    FilterChip(selected = !planned, onClick = { planned = false }, label = { Text("Impulse") })
+
+                if (quantityValue == null || quantityValue !in 1..10_000) {
+                    Text(
+                        "Quantity must be between 1 and 10,000.",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.error,
+                    )
                 }
                 Text(
-                    when {
-                        amount.isNotBlank() && amountMinor == null -> "Enter a valid amount. ${currency.isoCode} supports ${currency.fractionDigits} decimal places."
-                        quantityValue == null || quantityValue !in 1..10_000 -> "Quantity must be between 1 and 10,000."
-                        else -> "The amount is the full price for this purchase, not a per-cigarette estimate."
-                    },
+                    "Your total is saved as the full amount paid for this purchase.",
                     style = MaterialTheme.typography.labelSmall,
-                    color = if (amount.isNotBlank() && amountMinor == null) MaterialTheme.colorScheme.error
-                    else MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-        },
-        confirmButton = {
-            Button(
-                onClick = {
-                    onSave(
-                        Purchase(
-                            purchasedAtMillis = purchasedAtMillis,
-                            type = type,
-                            quantity = quantityValue ?: 1,
-                            amountMinor = amountMinor ?: 0L,
-                            currency = currency,
-                            brand = brand,
-                            location = location,
-                            planned = planned,
-                            note = note,
-                        ),
-                    )
-                },
-                enabled = canSave,
-            ) { Text("Save purchase") }
-        },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
-    )
+
+            Column(
+                Modifier.fillMaxWidth().padding(horizontal = 20.dp),
+                verticalArrangement = Arrangement.spacedBy(7.dp),
+            ) {
+                Button(
+                    onClick = {
+                        onSave(
+                            Purchase(
+                                purchasedAtMillis = purchasedAtMillis,
+                                type = type,
+                                quantity = quantityValue ?: 1,
+                                amountMinor = amountMinor ?: 0L,
+                                currency = currency,
+                                brand = brand,
+                                location = location,
+                                planned = planned,
+                                note = note,
+                            ),
+                        )
+                    },
+                    enabled = canSave,
+                    modifier = Modifier.fillMaxWidth().height(54.dp),
+                    shape = RoundedCornerShape(17.dp),
+                ) {
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                    ) {
+                        Text("Save purchase", fontWeight = FontWeight.Bold)
+                        Text(
+                            amountMinor?.let { Money.format(it, currency, includeCode = true) }.orEmpty(),
+                            fontWeight = FontWeight.Bold,
+                        )
+                    }
+                }
+                Text(
+                    "Only the total price is needed. Everything else is optional.",
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                )
+            }
+        }
+    }
+
     if (showDatePicker) {
         val datePickerState = rememberDatePickerState(initialSelectedDateMillis = purchasedAtMillis)
         DatePickerDialog(
@@ -1242,13 +1503,20 @@ private fun RecordPurchaseDialog(
             confirmButton = {
                 TextButton(onClick = {
                     datePickerState.selectedDateMillis?.let { utcMillis ->
-                        val selectedDate = Instant.ofEpochMilli(utcMillis).atZone(ZoneId.of("UTC")).toLocalDate()
-                        purchasedAtMillis = selectedDate.atTime(12, 0).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
+                        val selectedDate = Instant.ofEpochMilli(utcMillis)
+                            .atZone(ZoneId.of("UTC"))
+                            .toLocalDate()
+                        purchasedAtMillis = selectedDate.atTime(12, 0)
+                            .atZone(ZoneId.systemDefault())
+                            .toInstant()
+                            .toEpochMilli()
                     }
                     showDatePicker = false
                 }) { Text("Apply date") }
             },
-            dismissButton = { TextButton(onClick = { showDatePicker = false }) { Text("Cancel") } },
+            dismissButton = {
+                TextButton(onClick = { showDatePicker = false }) { Text("Cancel") }
+            },
         ) {
             DatePicker(state = datePickerState)
         }
