@@ -17,6 +17,24 @@ class InventoryCalculatorTest {
         assertEquals(30L, InventoryCalculator.remainingCigarettes(0, purchases, events))
     }
 
+    @Test fun veryLargeLegacyCartonCountsDoNotOverflowAnInt() {
+        val purchases = listOf(
+            Purchase(
+                type = PurchaseType.CARTON,
+                quantity = Int.MAX_VALUE,
+                amountMinor = 1,
+                currency = CurrencyCode.fromCode("USD"),
+            ),
+        )
+        assertEquals(Int.MAX_VALUE.toLong() * 200L,
+            InventoryCalculator.remainingCigarettes(0, purchases, emptyList()))
+    }
+
+    @Test fun negativeStockIsRetainedWhenMoreCigarettesAreLoggedThanPurchased() {
+        val events = listOf(SmokeEvent(quantity = 5))
+        assertEquals(-5L, InventoryCalculator.remainingCigarettes(0, emptyList(), events))
+    }
+
     @Test fun rollingTobaccoDoesNotInventAStickCount() {
         val purchases = listOf(
             Purchase(type = PurchaseType.ROLLING, quantity = 2, amountMinor = 500, currency = CurrencyCode.fromCode("PKR")),
