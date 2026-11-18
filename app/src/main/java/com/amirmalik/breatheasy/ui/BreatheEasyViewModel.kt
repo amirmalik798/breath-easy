@@ -54,20 +54,11 @@ class BreatheEasyViewModel(application: Application) : AndroidViewModel(applicat
     }
 
     fun savePreferences(preferences: AppPreferences) = perform("Settings saved") {
-        require(preferences.dailyTarget in 1..200) { "Daily target must be between 1 and 200." }
-        require(preferences.baselinePerDay in 0..200) { "Baseline must be between 0 and 200." }
-        require(preferences.startingStockCigarettes in 0..100_000) { "Starting stock must be between 0 and 100,000." }
         repository.savePreferences(preferences)
     }
 
     fun recordPurchase(purchase: Purchase) = perform("Purchase added to your ledger") {
-        repository.recordPurchase(
-            purchase.copy(
-                brand = purchase.brand.trim().take(60),
-                location = purchase.location.trim().take(80),
-                note = purchase.note.trim().take(500),
-            ),
-        )
+        repository.recordPurchase(purchase)
     }
 
     fun deletePurchase(id: String) = perform("Purchase removed. Monthly totals have been updated.") {
@@ -76,12 +67,12 @@ class BreatheEasyViewModel(application: Application) : AndroidViewModel(applicat
 
     fun logSmoke(trigger: com.amirmalik.breatheasy.data.CravingTrigger, note: String = "") =
         perform("Cigarette logged. No judgement — just useful data.") {
-            repository.logSmoke(SmokeEvent(trigger = trigger, note = note.trim().take(500)))
+            repository.logSmoke(SmokeEvent(trigger = trigger, note = note))
         }
 
     fun logCraving(event: CravingEvent) = perform(
         if (event.outcome == CravingOutcome.RESISTED) "Craving recorded as resisted" else "Craving and cigarette recorded",
-    ) { repository.logCraving(event.copy(note = event.note.trim().take(500))) }
+    ) { repository.logCraving(event) }
 
     fun clearMessage() { _message.value = null }
 
