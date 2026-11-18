@@ -631,7 +631,11 @@ private fun SpendingScreen(
     var isPickingPdfDestination by rememberSaveable { mutableStateOf(false) }
     var pdfExportMessage by rememberSaveable { mutableStateOf<String?>(null) }
     var monthOffset by rememberSaveable { mutableIntStateOf(0) }
-    val selectedMonth = YearMonth.now().minusMonths(monthOffset.toLong())
+    val selectedMonth = YearMonth.now(ZoneId.systemDefault()).minusMonths(monthOffset.toLong())
+    val latestSnapshot = rememberUpdatedState(snapshot)
+    val latestCurrency = rememberUpdatedState(prefs.displayCurrency)
+    val latestPeriod = rememberUpdatedState(reportPeriod)
+    val latestSelectedMonth = rememberUpdatedState(selectedMonth)
     DisposableEffect(Unit) {
         onDispose {
             isExportingPdf = false
@@ -645,9 +649,13 @@ private fun SpendingScreen(
         if (destination != null) {
             isExportingPdf = true
             pdfExportMessage = null
-            val purchasesForReport = snapshot.purchases
-            val currencyForReport = prefs.displayCurrency
-            val periodForReport = reportPeriod
+            // The SAF result may arrive after the screen has recomposed or the
+            // selected reporting period has changed. Snapshot all inputs at the
+            // moment the document is actually created.
+            val purchasesForReport = latestSnapshot.value.purchases
+            val currencyForReport = latestCurrency.value
+            val periodForReport = latestPeriod.value
+            val monthForReport = latestSelectedMonth.value
             exportScope.launch {
                 val result = try {
                     withContext(Dispatchers.IO) {
@@ -657,7 +665,7 @@ private fun SpendingScreen(
                             purchases = purchasesForReport,
                             currency = currencyForReport,
                             period = periodForReport,
-                            currentMonth = selectedMonth,
+                            currentMonth = monthForReport,
                         )
                     }
                     Result.success(Unit)
@@ -669,9 +677,7 @@ private fun SpendingScreen(
                 isExportingPdf = false
                 pdfExportMessage = result.fold(
                     onSuccess = { "PDF saved." },
-                    onFailure = { error ->
-                        "PDF export failed. Please try again."
-                    },
+                    onFailure = { "PDF export failed. Please try again." },
                 )
             }
         }
