@@ -11,6 +11,8 @@ import androidx.compose.ui.graphics.Color
 // an aqua secondary accent, and a warm citrus highlight for meaningful emphasis.
 private val Evergreen = Color(0xFF174B3B)
 private val EvergreenDeep = Color(0xFF0D3027)
+private val Aqua = Color(0xFF287F7A)
+private val Citrus = Color(0xFF9A7A20)
 private val Canvas = Color(0xFFF3F8F3)
 private val Card = Color(0xFFFFFFFF)
 private val Ink = Color(0xFF14231D)
