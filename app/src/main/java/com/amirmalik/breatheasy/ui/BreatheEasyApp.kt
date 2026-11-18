@@ -1,6 +1,9 @@
 package com.amirmalik.breatheasy.ui
 
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
@@ -87,6 +90,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
@@ -826,6 +830,12 @@ private fun CravingsScreen(
     val phases = listOf("Breathe in", "Hold", "Breathe out", "Rest")
     val phase = phases[(seconds / 4) % phases.size]
     val phaseSeconds = 4 - (seconds % 4)
+    val breathingScale by animateFloatAsState(
+        targetValue = if (!running) 0.92f
+            else if (phase == "Breathe in" || phase == "Hold") 1f else 0.78f,
+        animationSpec = tween(durationMillis = 3_800, easing = FastOutSlowInEasing),
+        label = "breathing-orb-scale",
+    )
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -849,7 +859,13 @@ private fun CravingsScreen(
                         modifier = Modifier.size(30.dp), tint = MaterialTheme.colorScheme.onPrimaryContainer)
                     Text("Mindful pause", color = MaterialTheme.colorScheme.onPrimaryContainer,
                         style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                    Box(Modifier.size(176.dp), contentAlignment = Alignment.Center) {
+                    Box(
+                        Modifier.size(176.dp).graphicsLayer {
+                            scaleX = breathingScale
+                            scaleY = breathingScale
+                        },
+                        contentAlignment = Alignment.Center,
+                    ) {
                         ProgressArc(
                             progress = if (running) ((seconds % 16) / 16f) else 0.08f,
                             modifier = Modifier.fillMaxSize(),
