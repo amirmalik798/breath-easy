@@ -349,7 +349,7 @@ private fun TodayScreen(
     LaunchedEffect(busy) {
         if (!busy) smokePending = false
     }
-    val loggingSmoke = busy || smokePending
+    val loggingSmoke = busy && smokePending
     val todayZone = ZoneId.systemDefault()
     val todayDate = LocalDate.now(todayZone)
     val todayRange = remember(todayDate, todayZone) {
@@ -472,7 +472,7 @@ private fun TodayScreen(
                             smokePending = true
                             onLogSmoke(CravingTrigger.OTHER, "")
                         },
-                        enabled = !loggingSmoke,
+                        enabled = !busy && !smokePending,
                         modifier = Modifier.weight(1f),
                     ) {
                         if (loggingSmoke) {
@@ -630,6 +630,12 @@ private fun SpendingScreen(
     var isExportingPdf by rememberSaveable { mutableStateOf(false) }
     var isPickingPdfDestination by rememberSaveable { mutableStateOf(false) }
     var pdfExportMessage by rememberSaveable { mutableStateOf<String?>(null) }
+    DisposableEffect(Unit) {
+        onDispose {
+            isExportingPdf = false
+            isPickingPdfDestination = false
+        }
+    }
     val createPdfLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("application/pdf"),
     ) { destination ->
