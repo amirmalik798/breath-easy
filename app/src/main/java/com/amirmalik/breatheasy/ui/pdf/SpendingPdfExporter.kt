@@ -19,6 +19,7 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
 import java.util.Locale
+import kotlin.math.max
 
 enum class SpendingReportPeriod(
     val monthCount: Int,
@@ -215,6 +216,7 @@ object SpendingPdfExporter {
         drawText(canvas, monthName + " " + month.year, 52f, 98f, 23f, paper, bold = true)
         drawText(canvas, "PURCHASE DETAILS  ·  CONTINUED", 52f, 123f, 8f, Color.rgb(203, 218, 207), bold = true)
         drawText(
+            canvas,
             Money.format(sumAmounts(purchases), currency),
             542f,
             98f,
