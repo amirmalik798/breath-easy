@@ -102,6 +102,7 @@ import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -175,11 +176,17 @@ fun BreatheEasyApp(viewModel: BreatheEasyViewModel) {
                 resultMessage.startsWith("Craving recorded as resisted") ||
                     resultMessage.startsWith("Craving and cigarette recorded") -> showCravingDialog = false
             }
-            if (pendingDeleteId != null && !snapshot.purchases.any { it.id == pendingDeleteId }) {
-                // The snapshot no longer contains the selected record, so the delete
-                // committed. On failure, the record remains and the confirmation stays.
+            val deletingId = pendingDeleteId
+            if (deletingId != null) {
+                val removedFromSnapshot = snapshot.purchases.none { it.id == deletingId }
+                val writeReportedSuccess = resultMessage.startsWith("Purchase removed.")
+                // A failed delete leaves the confirmation open but re-enables Retry.
+                // If the write committed but reloading failed, close the modal and let
+                // the app-level reload error prompt the user to refresh the stale view.
                 pendingDeleteId = null
-                purchaseToDeleteId = null
+                if (removedFromSnapshot || writeReportedSuccess) {
+                    purchaseToDeleteId = null
+                }
             }
             snackbarHostState.showSnackbar(resultMessage)
             viewModel.clearMessage()
