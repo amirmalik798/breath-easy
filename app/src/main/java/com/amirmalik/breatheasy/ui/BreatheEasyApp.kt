@@ -40,6 +40,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -113,6 +114,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -1776,7 +1778,8 @@ private fun RecordPurchaseScreen(
                             options.forEach { option ->
                                 val selected = type == option
                                 Surface(modifier = Modifier.weight(1f).heightIn(min = 58.dp).clip(RoundedCornerShape(17.dp))
-                                    .clickable { type = option }.animateContentSize(),
+                                    .selectable(selected = selected, role = Role.RadioButton, onClick = { type = option })
+                                    .animateContentSize(),
                                     shape = RoundedCornerShape(17.dp),
                                     color = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface,
                                     border = BorderStroke(if (selected) 1.5.dp else 1.dp,

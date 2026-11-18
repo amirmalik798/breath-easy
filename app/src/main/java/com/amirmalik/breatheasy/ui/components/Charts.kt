@@ -23,6 +23,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -35,7 +36,10 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import com.amirmalik.breatheasy.data.CurrencyCode
+import com.amirmalik.breatheasy.domain.Money
 import com.amirmalik.breatheasy.domain.MonthlySpendPoint
 import com.amirmalik.breatheasy.domain.MonthlyConsumptionPoint
 import java.time.format.TextStyle
@@ -53,6 +57,11 @@ fun MonthlySpendingChart(
     val grid = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.15f)
     val muted = MaterialTheme.colorScheme.onSurfaceVariant
     val values = points.map { it.totalMinor.coerceAtLeast(0L) }
+    val spendingChartDescription = remember(points, currency) {
+        "Monthly spending by month. " + points.joinToString("; ") { point ->
+            "${point.month.month.getDisplayName(TextStyle.FULL, Locale.getDefault())} ${point.month.year}: ${Money.format(point.totalMinor, currency)}"
+        }
+    }
     val maxValue = values.maxOrNull() ?: 0L
     val hasSpending = maxValue > 0L
     val chartHeight = 184.dp
@@ -167,7 +176,8 @@ fun MonthlySpendingChart(
                     }
 
                     Canvas(
-                        modifier = Modifier.weight(1f).height(chartHeight),
+                        modifier = Modifier.weight(1f).height(chartHeight)
+                            .semantics { contentDescription = spendingChartDescription },
                     ) {
                         val left = 4.dp.toPx()
                         val right = size.width - 4.dp.toPx()
@@ -306,10 +316,18 @@ fun MonthlyConsumptionChart(
     val muted = MaterialTheme.colorScheme.onSurfaceVariant
     val surface = MaterialTheme.colorScheme.surface
     val values = points.map { it.cigaretteCount.toFloat() }
+    val consumptionChartDescription = remember(points) {
+        "Cigarettes smoked by month. " + points.joinToString("; ") { point ->
+            "${point.month.month.getDisplayName(TextStyle.FULL, Locale.getDefault())} ${point.month.year}: ${point.cigaretteCount} cigarettes"
+        }
+    }
     val maxValue = max(values.maxOrNull() ?: 0f, 1f)
 
     Column(modifier = modifier.fillMaxWidth()) {
-        Canvas(modifier = Modifier.fillMaxWidth().height(150.dp)) {
+        Canvas(
+            modifier = Modifier.fillMaxWidth().height(150.dp)
+                .semantics { contentDescription = consumptionChartDescription },
+        ) {
             val left = 8.dp.toPx()
             val right = size.width - 8.dp.toPx()
             val top = 10.dp.toPx()
