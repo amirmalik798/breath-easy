@@ -842,6 +842,59 @@ private fun SpendingScreen(
                 }
             }
         }
+        item {
+            Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(26.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
+                Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Box(Modifier.size(48.dp).clip(RoundedCornerShape(16.dp))
+                            .background(MaterialTheme.colorScheme.primaryContainer), contentAlignment = Alignment.Center) {
+                            Icon(Icons.Outlined.ReceiptLong, contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.size(25.dp))
+                        }
+                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                            Text("Spending report", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                            Text("Export your monthly breakdown as a PDF", style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
+                    Text("REPORT PERIOD", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant, letterSpacing = 0.7.sp)
+                    SpendingReportPeriod.entries.chunked(2).forEach { periodRow ->
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            periodRow.forEach { period ->
+                                FilterChip(selected = reportPeriod == period,
+                                    onClick = { reportPeriod = period; pdfExportMessage = null },
+                                    modifier = Modifier.weight(1f),
+                                    label = { Text(when (period) {
+                                        SpendingReportPeriod.CURRENT_MONTH -> "This month"
+                                        SpendingReportPeriod.LAST_3_MONTHS -> "3 months"
+                                        SpendingReportPeriod.LAST_6_MONTHS -> "6 months"
+                                        SpendingReportPeriod.LAST_12_MONTHS -> "12 months"
+                                    }, maxLines = 1, overflow = TextOverflow.Ellipsis) })
+                            }
+                        }
+                    }
+                    Button(onClick = {
+                        val today = LocalDate.now()
+                        createPdfLauncher.launch("BreatheEasy-Spending-${reportPeriod.fileLabel}-$today.pdf")
+                    }, enabled = !isExportingPdf, modifier = Modifier.fillMaxWidth().height(54.dp),
+                        shape = RoundedCornerShape(17.dp)) {
+                        if (isExportingPdf) CircularProgressIndicator(Modifier.size(18.dp),
+                            color = MaterialTheme.colorScheme.onPrimary, strokeWidth = 2.dp)
+                        else Icon(Icons.Outlined.ReceiptLong, contentDescription = null, modifier = Modifier.size(19.dp))
+                        Spacer(Modifier.width(9.dp))
+                        Text(if (isExportingPdf) "Creating PDF…" else "Create PDF", fontWeight = FontWeight.Bold)
+                    }
+                    pdfExportMessage?.let { messageText ->
+                        Text(messageText, style = MaterialTheme.typography.bodySmall,
+                            color = if (messageText.startsWith("PDF saved")) MaterialTheme.colorScheme.primary
+                                else MaterialTheme.colorScheme.error)
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -1111,60 +1164,7 @@ private fun GoalsScreen(
                 body = "Purchases, smoking and craving records stay on this device.",
             )
         }
-    }        item {
-            Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(26.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
-                Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Box(Modifier.size(48.dp).clip(RoundedCornerShape(16.dp))
-                            .background(MaterialTheme.colorScheme.primaryContainer), contentAlignment = Alignment.Center) {
-                            Icon(Icons.Outlined.ReceiptLong, contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.size(25.dp))
-                        }
-                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                            Text("Spending report", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                            Text("Export your monthly breakdown as a PDF", style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                    }
-                    Text("REPORT PERIOD", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant, letterSpacing = 0.7.sp)
-                    SpendingReportPeriod.entries.chunked(2).forEach { periodRow ->
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            periodRow.forEach { period ->
-                                FilterChip(selected = reportPeriod == period,
-                                    onClick = { reportPeriod = period; pdfExportMessage = null },
-                                    modifier = Modifier.weight(1f),
-                                    label = { Text(when (period) {
-                                        SpendingReportPeriod.CURRENT_MONTH -> "This month"
-                                        SpendingReportPeriod.LAST_3_MONTHS -> "3 months"
-                                        SpendingReportPeriod.LAST_6_MONTHS -> "6 months"
-                                        SpendingReportPeriod.LAST_12_MONTHS -> "12 months"
-                                    }, maxLines = 1, overflow = TextOverflow.Ellipsis) })
-                            }
-                        }
-                    }
-                    Button(onClick = {
-                        val today = LocalDate.now()
-                        createPdfLauncher.launch("BreatheEasy-Spending-${reportPeriod.fileLabel}-$today.pdf")
-                    }, enabled = !isExportingPdf, modifier = Modifier.fillMaxWidth().height(54.dp),
-                        shape = RoundedCornerShape(17.dp)) {
-                        if (isExportingPdf) CircularProgressIndicator(Modifier.size(18.dp),
-                            color = MaterialTheme.colorScheme.onPrimary, strokeWidth = 2.dp)
-                        else Icon(Icons.Outlined.ReceiptLong, contentDescription = null, modifier = Modifier.size(19.dp))
-                        Spacer(Modifier.width(9.dp))
-                        Text(if (isExportingPdf) "Creating PDF…" else "Create PDF", fontWeight = FontWeight.Bold)
-                    }
-                    pdfExportMessage?.let { messageText ->
-                        Text(messageText, style = MaterialTheme.typography.bodySmall,
-                            color = if (messageText.startsWith("PDF saved")) MaterialTheme.colorScheme.primary
-                                else MaterialTheme.colorScheme.error)
-                    }
-                }
-            }
-        }
-
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
