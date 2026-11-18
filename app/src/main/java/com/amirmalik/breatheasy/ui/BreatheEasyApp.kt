@@ -7,6 +7,8 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -98,6 +100,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
@@ -115,8 +118,12 @@ import com.amirmalik.breatheasy.domain.Money
 import com.amirmalik.breatheasy.domain.InventoryCalculator
 import com.amirmalik.breatheasy.ui.components.MonthlySpendingChart
 import com.amirmalik.breatheasy.ui.components.MonthlyConsumptionChart
+import com.amirmalik.breatheasy.ui.pdf.SpendingPdfExporter
+import com.amirmalik.breatheasy.ui.pdf.SpendingReportPeriod
 import com.amirmalik.breatheasy.ui.components.ProgressArc
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.LocalDate
@@ -320,6 +327,111 @@ private fun TodayScreen(
                 Text("Track without judgement. Your progress is yours.",
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     style = MaterialTheme.typography.bodyMedium)
+            }
+        }
+        item {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(24.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+            ) {
+                Column(
+                    Modifier.fillMaxWidth().padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(11.dp),
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        Box(
+                            Modifier.size(42.dp)
+                                .clip(RoundedCornerShape(13.dp))
+                                .background(MaterialTheme.colorScheme.primaryContainer),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Icon(
+                                Icons.Outlined.ReceiptLong,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                            )
+                        }
+                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            Text("Monthly PDF report", fontWeight = FontWeight.Bold)
+                            Text(
+                                "Choose a period ending this month",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                    SpendingReportPeriod.entries.chunked(2).forEach { periodRow ->
+                        Row(
+                            Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            periodRow.forEach { period ->
+                                FilterChip(
+                                    selected = reportPeriod == period,
+                                    onClick = {
+                                        reportPeriod = period
+                                        pdfExportMessage = null
+                                    },
+                                    modifier = Modifier.weight(1f),
+                                    label = {
+                                        Text(
+                                            when (period) {
+                                                SpendingReportPeriod.CURRENT_MONTH -> "Current month"
+                                                else -> period.label + " months"
+                                            },
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis,
+                                        )
+                                    },
+                                )
+                            }
+                        }
+                    }
+                    Button(
+                        onClick = {
+                            val today = LocalDate.now()
+                            createPdfLauncher.launch(
+                                "BreatheEasy-Spending-${reportPeriod.fileLabel}-$today.pdf",
+                            )
+                        },
+                        enabled = !isExportingPdf,
+                        modifier = Modifier.fillMaxWidth().height(50.dp),
+                        shape = RoundedCornerShape(15.dp),
+                    ) {
+                        if (isExportingPdf) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(18.dp),
+                                color = MaterialTheme.colorScheme.onPrimary,
+                                strokeWidth = 2.dp,
+                            )
+                        } else {
+                            Icon(Icons.Outlined.ReceiptLong, contentDescription = null, modifier = Modifier.size(18.dp))
+                        }
+                        Spacer(Modifier.width(8.dp))
+                        Text(if (isExportingPdf) "Creating PDF…" else "Generate PDF summary")
+                    }
+                    Text(
+                        "Every month starts on a new page. Busy months continue on additional pages.",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    pdfExportMessage?.let { messageText ->
+                        Text(
+                            messageText,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = if (messageText.startsWith("Your PDF")) {
+                                MaterialTheme.colorScheme.primary
+                            } else {
+                                MaterialTheme.colorScheme.error
+                            },
+                        )
+                    }
+                }
             }
         }
         item {
@@ -535,6 +647,42 @@ private fun SpendingScreen(
     onDeletePurchase: (Purchase) -> Unit,
 ) {
     val prefs = snapshot.preferences
+    val context = LocalContext.current
+    val exportScope = rememberCoroutineScope()
+    var reportPeriod by rememberSaveable { mutableStateOf(SpendingReportPeriod.CURRENT_MONTH) }
+    var isExportingPdf by rememberSaveable { mutableStateOf(false) }
+    var pdfExportMessage by rememberSaveable { mutableStateOf<String?>(null) }
+    val createPdfLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("application/pdf"),
+    ) { destination ->
+        if (destination != null) {
+            isExportingPdf = true
+            pdfExportMessage = null
+            val purchasesForReport = snapshot.purchases
+            val currencyForReport = prefs.displayCurrency
+            val periodForReport = reportPeriod
+            exportScope.launch {
+                val result = runCatching {
+                    withContext(Dispatchers.IO) {
+                        SpendingPdfExporter.write(
+                            context = context,
+                            destination = destination,
+                            purchases = purchasesForReport,
+                            currency = currencyForReport,
+                            period = periodForReport,
+                        )
+                    }
+                }
+                isExportingPdf = false
+                pdfExportMessage = result.fold(
+                    onSuccess = { "Your PDF spending summary has been saved." },
+                    onFailure = { error ->
+                        "PDF export failed: ${error.message?.take(100) ?: "Please try again."}"
+                    },
+                )
+            }
+        }
+    }
     var monthOffset by rememberSaveable { mutableIntStateOf(0) }
     val selectedMonth = YearMonth.now().minusMonths(monthOffset.toLong())
     val summary = remember(snapshot.purchases, selectedMonth, prefs.displayCurrency) {
