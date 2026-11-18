@@ -15,13 +15,11 @@ import com.amirmalik.breatheasy.domain.Money
 import java.io.IOException
 import java.math.BigDecimal
 import java.math.RoundingMode
-import java.text.NumberFormat
 import java.time.Instant
 import java.time.YearMonth
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
-import java.util.Currency
 import java.util.Locale
 import kotlin.math.max
 
@@ -553,12 +551,7 @@ object SpendingPdfExporter {
         if (divisor <= 0) return Money.format(0L, currency)
         val amount = BigDecimal.valueOf(totalMinor, currency.fractionDigits)
             .divide(BigDecimal.valueOf(divisor.toLong()), currency.fractionDigits, RoundingMode.HALF_UP)
-        val formatter = NumberFormat.getCurrencyInstance(Locale.getDefault()).apply {
-            this.currency = Currency.getInstance(currency.isoCode)
-            minimumFractionDigits = currency.fractionDigits
-            maximumFractionDigits = currency.fractionDigits
-        }
-        return formatter.format(amount)
+        return Money.formatMajor(amount, currency)
     }
 
     private fun formatMonthStart(month: YearMonth): String =

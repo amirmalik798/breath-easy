@@ -1,3 +1,4 @@
 <resources>
-    <string name="app_name">BreatheEasy</string>
+    <string name="app_name">Breathe Easy</string>
+    <string name="developer_credit">Developed by: Amir Malik (2026)</string>
 </resources>

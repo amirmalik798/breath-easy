@@ -28,6 +28,26 @@ class MoneyTest {
         assertTrue(Money.format(200L, rwf, includeCode = true).endsWith("(RWF)"))
     }
 
+
+    @Test
+    fun formatsCurrencyAndAmountWithAnOrdinarySpace() {
+        val originalLocale = java.util.Locale.getDefault()
+        try {
+            java.util.Locale.setDefault(java.util.Locale.US)
+            val rwf = CurrencyCode.fromCode("RWF")
+            val formattedZero = Money.format(0L, rwf)
+            val formattedAmount = Money.format(2_400L, rwf)
+
+            assertTrue(formattedZero.contains("RWF 0"))
+            assertTrue(formattedAmount.contains("RWF 2,400"))
+            assertTrue(!formattedZero.contains('\u00A0'))
+            assertTrue(!formattedZero.contains('\u202F'))
+            assertTrue(Money.formatMajor(java.math.BigDecimal.ZERO, rwf).contains("RWF 0"))
+        } finally {
+            java.util.Locale.setDefault(originalLocale)
+        }
+    }
+
     @Test
     fun parsesAmountsUsingTheSelectedCurrenciesMinorUnitPrecision() {
         val usd = CurrencyCode.fromCode("USD")
