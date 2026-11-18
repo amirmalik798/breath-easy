@@ -7,13 +7,11 @@ import java.time.Instant
 import java.time.YearMonth
 import java.time.ZoneId
 
-/** One bar in the monthly-spend chart. */
+/** One bar in the monthly-spend chart, containing only the selected currency. */
 data class MonthlySpendPoint(
     val month: YearMonth,
-    val convertedMinor: Long,
-    val convertedPurchaseCount: Int,
-    val unconvertedPurchaseCount: Int,
-    val nativeSubtotals: Map<CurrencyCode, Long>,
+    val totalMinor: Long,
+    val purchaseCount: Int,
 )
 
 data class MonthlyConsumptionPoint(
@@ -24,15 +22,13 @@ data class MonthlyConsumptionPoint(
 data class SpendingSummary(
     val selectedMonth: YearMonth,
     val reportCurrency: CurrencyCode,
-    val convertedTotalMinor: Long,
-    val convertedPurchaseCount: Int,
-    val unconvertedPurchaseCount: Int,
-    val nativeSubtotals: Map<CurrencyCode, Long>,
+    val totalMinor: Long,
+    val purchaseCount: Int,
     val monthlyPoints: List<MonthlySpendPoint>,
     val previousMonthTotalMinor: Long?,
 ) {
     val changeFromPreviousMinor: Long?
-        get() = previousMonthTotalMinor?.let { convertedTotalMinor - it }
+        get() = previousMonthTotalMinor?.let { totalMinor - it }
 }
 
 object AnalyticsCalculator {
@@ -50,19 +46,12 @@ object AnalyticsCalculator {
         }
         val selected = points.last()
         val previousPoint = points.getOrNull(points.lastIndex - 1)
-        // Comparisons are meaningful only when both months are complete in the
-        // selected reporting currency. Never compare partial totals as if they
-        // were complete spending figures.
-        val previous = previousPoint
-            ?.takeIf { it.unconvertedPurchaseCount == 0 && selected.unconvertedPurchaseCount == 0 }
-            ?.convertedMinor
+        val previous = previousPoint?.totalMinor
         return SpendingSummary(
             selectedMonth = selectedMonth,
             reportCurrency = reportCurrency,
-            convertedTotalMinor = selected.convertedMinor,
-            convertedPurchaseCount = selected.convertedPurchaseCount,
-            unconvertedPurchaseCount = selected.unconvertedPurchaseCount,
-            nativeSubtotals = selected.nativeSubtotals,
+            totalMinor = selected.totalMinor,
+            purchaseCount = selected.purchaseCount,
             monthlyPoints = points,
             previousMonthTotalMinor = previous,
         )
@@ -90,35 +79,14 @@ object AnalyticsCalculator {
         reportCurrency: CurrencyCode,
         zoneId: ZoneId = ZoneId.systemDefault(),
     ): MonthlySpendPoint {
-        val monthPurchases = purchases.filter { purchase ->
-            YearMonth.from(Instant.ofEpochMilli(purchase.purchasedAtMillis).atZone(zoneId)) == month
-        }
-        var total = 0L
-        var convertedCount = 0
-        var unconvertedCount = 0
-        val native = linkedMapOf<CurrencyCode, Long>()
-
-        monthPurchases.forEach { purchase ->
-            native[purchase.currency] = Math.addExact(native[purchase.currency] ?: 0L, purchase.amountMinor)
-            val converted = Money.convertMinor(
-                amountMinor = purchase.amountMinor,
-                from = purchase.currency,
-                to = reportCurrency,
-                rates = purchase.fxSnapshot,
-            )
-            if (converted == null) {
-                unconvertedCount++
-            } else {
-                total = Math.addExact(total, converted)
-                convertedCount++
-            }
+        val matchingPurchases = purchases.filter { purchase ->
+            purchase.currency.isoCode == reportCurrency.isoCode &&
+                YearMonth.from(Instant.ofEpochMilli(purchase.purchasedAtMillis).atZone(zoneId)) == month
         }
         return MonthlySpendPoint(
             month = month,
-            convertedMinor = total,
-            convertedPurchaseCount = convertedCount,
-            unconvertedPurchaseCount = unconvertedCount,
-            nativeSubtotals = native,
+            totalMinor = matchingPurchases.sumOf { it.amountMinor },
+            purchaseCount = matchingPurchases.size,
         )
     }
 }
