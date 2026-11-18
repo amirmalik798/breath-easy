@@ -163,7 +163,6 @@ fun BreatheEasyApp(viewModel: BreatheEasyViewModel) {
     var showCravingDialog by rememberSaveable { mutableStateOf(false) }
     var purchaseToDelete by remember { mutableStateOf<Purchase?>(null) }
     val snackbarHostState = remember { SnackbarHostState() }
-    val scope = rememberCoroutineScope()
 
     LaunchedEffect(message) {
         message?.let { resultMessage ->
@@ -624,6 +623,7 @@ private fun SpendingScreen(
                             purchases = purchasesForReport,
                             currency = currencyForReport,
                             period = periodForReport,
+                            currentMonth = selectedMonth,
                         )
                     }
                     Result.success(Unit)
@@ -898,7 +898,7 @@ private fun SpendingScreen(
                                     onClick = { reportPeriod = period; pdfExportMessage = null },
                                     modifier = Modifier.weight(1f),
                                     label = { Text(when (period) {
-                                        SpendingReportPeriod.CURRENT_MONTH -> "This month"
+                                        SpendingReportPeriod.CURRENT_MONTH -> "Selected month"
                                         SpendingReportPeriod.LAST_3_MONTHS -> "3 months"
                                         SpendingReportPeriod.LAST_6_MONTHS -> "6 months"
                                         SpendingReportPeriod.LAST_12_MONTHS -> "12 months"
@@ -907,8 +907,9 @@ private fun SpendingScreen(
                         }
                     }
                     Button(onClick = {
-                        val today = LocalDate.now()
-                        createPdfLauncher.launch("BreatheEasy-Spending-${reportPeriod.fileLabel}-$today.pdf")
+                        createPdfLauncher.launch(
+                            "BreatheEasy-Spending-${reportPeriod.fileLabel}-${selectedMonth}.pdf",
+                        )
                     }, enabled = !isExportingPdf, modifier = Modifier.fillMaxWidth().height(54.dp),
                         shape = RoundedCornerShape(17.dp)) {
                         if (isExportingPdf) CircularProgressIndicator(Modifier.size(18.dp),
@@ -1253,6 +1254,11 @@ private fun RecordPurchaseDialog(
     }
     var showDatePicker by rememberSaveable { mutableStateOf(false) }
     var showDetails by rememberSaveable { mutableStateOf(false) }
+    var submitPending by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(busy) {
+        if (!busy) submitPending = false
+    }
+    val saving = busy || submitPending
 
     val amountMinor = Money.parseToMinor(amount, currency)
     val quantityValue = quantity.toIntOrNull()
@@ -1528,6 +1534,7 @@ private fun RecordPurchaseDialog(
             ) {
                 Button(
                     onClick = {
+                        submitPending = true
                         onSave(
                             Purchase(
                                 purchasedAtMillis = purchasedAtMillis,
@@ -1542,11 +1549,11 @@ private fun RecordPurchaseDialog(
                             ),
                         )
                     },
-                    enabled = canSave && !busy,
+                    enabled = canSave && !saving,
                     modifier = Modifier.fillMaxWidth().height(58.dp),
                     shape = RoundedCornerShape(19.dp),
                 ) {
-                    if (busy) {
+                    if (saving) {
                         Row(
                             horizontalArrangement = Arrangement.Center,
                             verticalAlignment = Alignment.CenterVertically,
@@ -1637,8 +1644,13 @@ private fun RecordCravingDialog(
     var trigger by remember { mutableStateOf(CravingTrigger.STRESS) }
     var intensity by remember { mutableIntStateOf(3) }
     var note by remember { mutableStateOf("") }
+    var submitPending by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(busy) {
+        if (!busy) submitPending = false
+    }
+    val saving = busy || submitPending
     AlertDialog(
-        onDismissRequest = { if (!busy) onDismiss() },
+        onDismissRequest = { if (!saving) onDismiss() },
         title = { Text("Record a craving", fontWeight = FontWeight.Bold) },
         text = {
             Column(Modifier.fillMaxWidth().heightIn(max = 540.dp).verticalScroll(rememberScrollState()),
@@ -1687,11 +1699,12 @@ private fun RecordCravingDialog(
         confirmButton = {
             Button(
                 onClick = {
+                    submitPending = true
                     onSave(CravingEvent(outcome = outcome, trigger = trigger, intensity = intensity, note = note))
                 },
-                enabled = !busy,
+                enabled = !saving,
             ) {
-                if (busy) {
+                if (saving) {
                     CircularProgressIndicator(
                         modifier = Modifier.size(18.dp),
                         color = MaterialTheme.colorScheme.onPrimary,
@@ -1705,7 +1718,7 @@ private fun RecordCravingDialog(
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss, enabled = !busy) { Text("Cancel") }
+            TextButton(onClick = onDismiss, enabled = !saving) { Text("Cancel") }
         },
     )
 }
