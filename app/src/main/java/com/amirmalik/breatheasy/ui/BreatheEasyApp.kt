@@ -77,6 +77,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SelectableDates
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
@@ -124,6 +125,7 @@ import com.amirmalik.breatheasy.ui.pdf.SpendingPdfExporter
 import com.amirmalik.breatheasy.ui.pdf.SpendingReportPeriod
 import com.amirmalik.breatheasy.ui.components.ProgressArc
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.launch
@@ -131,6 +133,7 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.YearMonth
 import java.time.ZoneId
+import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
 import java.util.Locale
@@ -360,6 +363,12 @@ private fun TodayScreen(
                                 Text("$smokedToday of ${prefs.dailyTarget} cigarettes",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.82f))
+                                Text(
+                                    if (prefs.baselinePerDay > 0) "Previous baseline · ${prefs.baselinePerDay}/day"
+                                    else "No baseline set",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.72f),
+                                )
                                 Text(if (remaining > 0) "$remaining below target" else "Target reached",
                                     color = MaterialTheme.colorScheme.onPrimaryContainer,
                                     style = MaterialTheme.typography.labelLarge,
@@ -579,7 +588,7 @@ private fun SpendingScreen(
             val currencyForReport = prefs.displayCurrency
             val periodForReport = reportPeriod
             exportScope.launch {
-                val result = runCatching {
+                val result = try {
                     withContext(Dispatchers.IO) {
                         SpendingPdfExporter.write(
                             context = context,
@@ -589,6 +598,11 @@ private fun SpendingScreen(
                             period = periodForReport,
                         )
                     }
+                    Result.success(Unit)
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (error: Exception) {
+                    Result.failure(error)
                 }
                 isExportingPdf = false
                 pdfExportMessage = result.fold(
@@ -1525,7 +1539,26 @@ private fun RecordPurchaseDialog(
     }
 
     if (showDatePicker) {
-        val datePickerState = rememberDatePickerState(initialSelectedDateMillis = purchasedAtMillis)
+        val today = LocalDate.now(ZoneId.systemDefault())
+        val initialPurchaseDateUtc = Instant.ofEpochMilli(purchasedAtMillis)
+            .atZone(ZoneId.systemDefault())
+            .toLocalDate()
+            .atStartOfDay(ZoneOffset.UTC)
+            .toInstant()
+            .toEpochMilli()
+        val datePickerState = rememberDatePickerState(
+            initialSelectedDateMillis = initialPurchaseDateUtc,
+            selectableDates = object : SelectableDates {
+                override fun isSelectableDate(utcTimeMillis: Long): Boolean {
+                    val chosenDate = Instant.ofEpochMilli(utcTimeMillis)
+                        .atZone(ZoneOffset.UTC)
+                        .toLocalDate()
+                    return !chosenDate.isAfter(today)
+                }
+
+                override fun isSelectableYear(year: Int): Boolean = year <= today.year
+            },
+        )
         DatePickerDialog(
             onDismissRequest = { showDatePicker = false },
             confirmButton = {
