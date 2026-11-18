@@ -1,6 +1,10 @@
 package com.amirmalik.breatheasy.ui
 
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -676,108 +680,6 @@ private fun SpendingScreen(
         }
         item {
             Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(24.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-            ) {
-                Column(
-                    Modifier.fillMaxWidth().padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(11.dp),
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    ) {
-                        Box(
-                            Modifier.size(42.dp)
-                                .clip(RoundedCornerShape(13.dp))
-                                .background(MaterialTheme.colorScheme.primaryContainer),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Icon(
-                                Icons.Outlined.ReceiptLong,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                            )
-                        }
-                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                            Text("Spending report", fontWeight = FontWeight.Bold)
-                            Text(
-                                "PDF · monthly breakdown",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                    }
-                    SpendingReportPeriod.entries.chunked(2).forEach { periodRow ->
-                        Row(
-                            Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        ) {
-                            periodRow.forEach { period ->
-                                FilterChip(
-                                    selected = reportPeriod == period,
-                                    onClick = {
-                                        reportPeriod = period
-                                        pdfExportMessage = null
-                                    },
-                                    modifier = Modifier.weight(1f),
-                                    label = {
-                                        Text(
-                                            when (period) {
-                                                SpendingReportPeriod.CURRENT_MONTH -> "This month"
-                                                SpendingReportPeriod.LAST_3_MONTHS -> "3 months"
-                                                SpendingReportPeriod.LAST_6_MONTHS -> "6 months"
-                                                SpendingReportPeriod.LAST_12_MONTHS -> "12 months"
-                                            },
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis,
-                                        )
-                                    },
-                                )
-                            }
-                        }
-                    }
-                    Button(
-                        onClick = {
-                            val today = LocalDate.now()
-                            createPdfLauncher.launch(
-                                "BreatheEasy-Spending-${reportPeriod.fileLabel}-$today.pdf",
-                            )
-                        },
-                        enabled = !isExportingPdf,
-                        modifier = Modifier.fillMaxWidth().height(50.dp),
-                        shape = RoundedCornerShape(15.dp),
-                    ) {
-                        if (isExportingPdf) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(18.dp),
-                                color = MaterialTheme.colorScheme.onPrimary,
-                                strokeWidth = 2.dp,
-                            )
-                        } else {
-                            Icon(Icons.Outlined.ReceiptLong, contentDescription = null, modifier = Modifier.size(18.dp))
-                        }
-                        Spacer(Modifier.width(8.dp))
-                        Text(if (isExportingPdf) "Creating PDF…" else "Create PDF")
-                    }
-                    pdfExportMessage?.let { messageText ->
-                        Text(
-                            messageText,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = if (messageText.startsWith("PDF saved")) {
-                                MaterialTheme.colorScheme.primary
-                            } else {
-                                MaterialTheme.colorScheme.error
-                            },
-                        )
-                    }
-                }
-            }
-        }
-        item {
-            Card(
                 shape = RoundedCornerShape(28.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
                 elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
@@ -1209,7 +1111,60 @@ private fun GoalsScreen(
                 body = "Purchases, smoking and craving records stay on this device.",
             )
         }
-    }
+    }        item {
+            Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(26.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
+                Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Box(Modifier.size(48.dp).clip(RoundedCornerShape(16.dp))
+                            .background(MaterialTheme.colorScheme.primaryContainer), contentAlignment = Alignment.Center) {
+                            Icon(Icons.Outlined.ReceiptLong, contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.size(25.dp))
+                        }
+                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                            Text("Spending report", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                            Text("Export your monthly breakdown as a PDF", style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
+                    Text("REPORT PERIOD", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant, letterSpacing = 0.7.sp)
+                    SpendingReportPeriod.entries.chunked(2).forEach { periodRow ->
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            periodRow.forEach { period ->
+                                FilterChip(selected = reportPeriod == period,
+                                    onClick = { reportPeriod = period; pdfExportMessage = null },
+                                    modifier = Modifier.weight(1f),
+                                    label = { Text(when (period) {
+                                        SpendingReportPeriod.CURRENT_MONTH -> "This month"
+                                        SpendingReportPeriod.LAST_3_MONTHS -> "3 months"
+                                        SpendingReportPeriod.LAST_6_MONTHS -> "6 months"
+                                        SpendingReportPeriod.LAST_12_MONTHS -> "12 months"
+                                    }, maxLines = 1, overflow = TextOverflow.Ellipsis) })
+                            }
+                        }
+                    }
+                    Button(onClick = {
+                        val today = LocalDate.now()
+                        createPdfLauncher.launch("BreatheEasy-Spending-${reportPeriod.fileLabel}-$today.pdf")
+                    }, enabled = !isExportingPdf, modifier = Modifier.fillMaxWidth().height(54.dp),
+                        shape = RoundedCornerShape(17.dp)) {
+                        if (isExportingPdf) CircularProgressIndicator(Modifier.size(18.dp),
+                            color = MaterialTheme.colorScheme.onPrimary, strokeWidth = 2.dp)
+                        else Icon(Icons.Outlined.ReceiptLong, contentDescription = null, modifier = Modifier.size(19.dp))
+                        Spacer(Modifier.width(9.dp))
+                        Text(if (isExportingPdf) "Creating PDF…" else "Create PDF", fontWeight = FontWeight.Bold)
+                    }
+                    pdfExportMessage?.let { messageText ->
+                        Text(messageText, style = MaterialTheme.typography.bodySmall,
+                            color = if (messageText.startsWith("PDF saved")) MaterialTheme.colorScheme.primary
+                                else MaterialTheme.colorScheme.error)
+                    }
+                }
+            }
+        }
+
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -1251,8 +1206,8 @@ private fun RecordPurchaseDialog(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        containerColor = MaterialTheme.colorScheme.surface,
-        tonalElevation = 4.dp,
+        containerColor = MaterialTheme.colorScheme.surfaceVariant,
+        tonalElevation = 8.dp,
     ) {
         Column(
             Modifier.fillMaxWidth().imePadding().navigationBarsPadding(),
@@ -1260,7 +1215,8 @@ private fun RecordPurchaseDialog(
         ) {
             Column(
                 Modifier.fillMaxWidth()
-                    .heightIn(max = 460.dp)
+                    .animateContentSize()
+                    .heightIn(max = 620.dp)
                     .verticalScroll(rememberScrollState())
                     .padding(horizontal = 20.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
@@ -1271,8 +1227,8 @@ private fun RecordPurchaseDialog(
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     Box(
-                        Modifier.size(48.dp)
-                            .clip(RoundedCornerShape(16.dp))
+                        Modifier.size(56.dp)
+                            .clip(RoundedCornerShape(18.dp))
                             .background(MaterialTheme.colorScheme.primaryContainer),
                         contentAlignment = Alignment.Center,
                     ) {
@@ -1280,7 +1236,7 @@ private fun RecordPurchaseDialog(
                             Icons.Outlined.ReceiptLong,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                            modifier = Modifier.size(25.dp),
+                            modifier = Modifier.size(29.dp),
                         )
                     }
                     Column(
@@ -1290,105 +1246,81 @@ private fun RecordPurchaseDialog(
                         Text(
                             "Add purchase",
                             style = MaterialTheme.typography.headlineSmall,
-                            fontWeight = FontWeight.Bold,
+                            fontWeight = FontWeight.ExtraBold,
+                            letterSpacing = (-0.4).sp,
                         )
                     }
                 }
 
-                Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
-                    Text(
-                        "WHAT DID YOU BUY?",
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        letterSpacing = 0.7.sp,
-                    )
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text("WHAT DID YOU BUY?", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant, letterSpacing = 0.8.sp)
                     PurchaseType.entries.chunked(2).forEach { options ->
-                        Row(
-                            Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        ) {
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(9.dp)) {
                             options.forEach { option ->
-                                FilterChip(
-                                    selected = type == option,
-                                    onClick = { type = option },
-                                    modifier = Modifier.weight(1f),
-                                    label = {
-                                        Text(
-                                            option.label,
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis,
-                                        )
-                                    },
-                                )
+                                val selected = type == option
+                                Surface(modifier = Modifier.weight(1f).heightIn(min = 58.dp).clip(RoundedCornerShape(17.dp))
+                                    .clickable { type = option }.animateContentSize(),
+                                    shape = RoundedCornerShape(17.dp),
+                                    color = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface,
+                                    border = BorderStroke(if (selected) 1.5.dp else 1.dp,
+                                        if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant)) {
+                                    Row(Modifier.fillMaxWidth().padding(horizontal = 13.dp, vertical = 12.dp),
+                                        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                                        Text(option.label, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium,
+                                            fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                                            color = if (selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface,
+                                            maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                        if (selected) Icon(Icons.Outlined.CheckCircle, contentDescription = "Selected",
+                                            tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
+                                    }
+                                }
                             }
                             if (options.size == 1) Spacer(Modifier.weight(1f))
                         }
                     }
                 }
 
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(22.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.62f),
-                    ),
-                    border = BorderStroke(
-                        1.dp,
-                        MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
-                    ),
-                ) {
-                    Column(
-                        Modifier.fillMaxWidth().padding(15.dp),
-                        verticalArrangement = Arrangement.spacedBy(10.dp),
-                    ) {
-                        Text(
-                            "TOTAL",
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.78f),
-                            letterSpacing = 0.7.sp,
-                        )
-                        OutlinedTextField(
-                            value = amount,
-                            onValueChange = {
-                                amount = it.filter { c ->
-                                    c.isDigit() || c == '.' || c == ','
-                                }.take(18)
-                            },
+                Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(25.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.22f)),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)) {
+                    Column(Modifier.fillMaxWidth().padding(17.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text("TOTAL SPEND", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.ExtraBold,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.82f), letterSpacing = 0.9.sp)
+                            Surface(shape = CircleShape, color = MaterialTheme.colorScheme.primary.copy(alpha = 0.13f)) {
+                                Text(currency.isoCode, modifier = Modifier.padding(horizontal = 11.dp, vertical = 6.dp),
+                                    style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer)
+                            }
+                        }
+                        OutlinedTextField(value = amount,
+                            onValueChange = { amount = it.filter { c -> c.isDigit() || c == '.' || c == ',' }.take(18) },
                             modifier = Modifier.fillMaxWidth(),
-                            placeholder = {
-                                Text(if (currency.fractionDigits == 0) "0" else "0.00")
-                            },
-                            textStyle = MaterialTheme.typography.headlineMedium.copy(
-                                fontWeight = FontWeight.Bold,
-                            ),
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                            singleLine = true,
+                            placeholder = { Text(if (currency.fractionDigits == 0) "0" else "0.00") },
+                            textStyle = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.ExtraBold,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer),
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), singleLine = true,
                             isError = amount.isNotBlank() && amountMinor == null,
                             supportingText = {
-                                if (amount.isNotBlank() && amountMinor == null) {
-                                    Text(
-                                        "Enter a valid ${currency.isoCode} amount.",
-                                        color = MaterialTheme.colorScheme.error,
-                                    )
-                                }
-                            },
-                        )
-                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Text(
-                                "CURRENCY",
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.78f),
-                                fontWeight = FontWeight.Bold,
-                                letterSpacing = 0.6.sp,
-                            )
-                            Text(
-                                "${currency.displayName} (${currency.isoCode})",
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer,
-                            )
+                                if (amount.isNotBlank() && amountMinor == null) Text("Enter a valid ${currency.isoCode} amount.",
+                                    color = MaterialTheme.colorScheme.error)
+                                else if (amountMinor != null) Text("Total purchase amount",
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.72f))
+                            })
+                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween) {
+                            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                Text("PAYING IN", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.68f), letterSpacing = 0.7.sp)
+                                Text(currency.displayName, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            }
+                            if (amountMinor != null) Text(Money.format(amountMinor, currency, includeCode = true),
+                                style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.ExtraBold,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer, maxLines = 1)
                         }
                     }
                 }
@@ -1408,8 +1340,8 @@ private fun RecordPurchaseDialog(
                     }
                     Surface(
                         shape = RoundedCornerShape(16.dp),
-                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                        color = MaterialTheme.colorScheme.secondaryContainer,
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.24f)),
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
@@ -1455,7 +1387,7 @@ private fun RecordPurchaseDialog(
                 }
 
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    TextButton(
+                    FilledTonalButton(
                         onClick = { showDetails = !showDetails },
                         contentPadding = androidx.compose.foundation.layout.PaddingValues(
                             horizontal = 0.dp,
@@ -1467,7 +1399,9 @@ private fun RecordPurchaseDialog(
                             fontWeight = FontWeight.SemiBold,
                         )
                     }
-                    if (showDetails) {
+                    AnimatedVisibility(visible = showDetails, enter = expandVertically() + fadeIn(),
+                        exit = shrinkVertically() + fadeOut()) {
+                        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         OutlinedTextField(
                             value = brand,
                             onValueChange = { brand = it.take(60) },
@@ -1509,6 +1443,7 @@ private fun RecordPurchaseDialog(
                             modifier = Modifier.fillMaxWidth(),
                             minLines = 2,
                         )
+                        }
                     }
                 }
 
@@ -1522,7 +1457,7 @@ private fun RecordPurchaseDialog(
             }
 
             Column(
-                Modifier.fillMaxWidth().padding(horizontal = 20.dp),
+                Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 4.dp),
                 verticalArrangement = Arrangement.spacedBy(7.dp),
             ) {
                 Button(
@@ -1542,15 +1477,15 @@ private fun RecordPurchaseDialog(
                         )
                     },
                     enabled = canSave,
-                    modifier = Modifier.fillMaxWidth().height(54.dp),
-                    shape = RoundedCornerShape(17.dp),
+                    modifier = Modifier.fillMaxWidth().height(58.dp),
+                    shape = RoundedCornerShape(19.dp),
                 ) {
                     Row(
                         Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween,
                     ) {
-                        Text("Save", modifier = Modifier.weight(1f), fontWeight = FontWeight.Bold)
+                        Text("Save purchase", modifier = Modifier.weight(1f), fontWeight = FontWeight.ExtraBold)
                         Text(
                             amountMinor?.let { Money.format(it, currency, includeCode = true) }.orEmpty(),
                             modifier = Modifier.weight(1f),
