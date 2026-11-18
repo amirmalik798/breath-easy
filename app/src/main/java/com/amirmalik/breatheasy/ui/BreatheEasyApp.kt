@@ -283,12 +283,12 @@ fun BreatheEasyApp(viewModel: BreatheEasyViewModel) {
                         busy = busy,
                         onLogSmoke = { trigger, note -> viewModel.logSmoke(trigger, note) },
                         onOpenCravings = { selectedTab = MainTab.CRAVINGS },
-                        onRecordPurchase = { showPurchaseScreen = true },
+                        onRecordPurchase = { if (!busy) showPurchaseScreen = true },
                         onDeletePurchase = { purchaseToDeleteId = it.id },
                     )
                     MainTab.SPENDING -> SpendingScreen(
                         snapshot = snapshot,
-                        onRecordPurchase = { showPurchaseScreen = true },
+                        onRecordPurchase = { if (!busy) showPurchaseScreen = true },
                         onDeletePurchase = { purchaseToDeleteId = it.id },
                     )
                     MainTab.CRAVINGS -> CravingsScreen(
