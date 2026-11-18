@@ -102,6 +102,7 @@ import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -163,7 +164,9 @@ fun BreatheEasyApp(viewModel: BreatheEasyViewModel) {
     var selectedTab by rememberSaveable { mutableStateOf(MainTab.TODAY) }
     var showPurchaseDialog by rememberSaveable { mutableStateOf(false) }
     var showCravingDialog by rememberSaveable { mutableStateOf(false) }
-    var purchaseToDelete by remember { mutableStateOf<Purchase?>(null) }
+    var purchaseToDeleteId by rememberSaveable { mutableStateOf<String?>(null) }
+    val purchaseToDelete = snapshot.purchases.firstOrNull { it.id == purchaseToDeleteId }
+    var pendingDeleteId by rememberSaveable { mutableStateOf<String?>(null) }
     val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(message) {
@@ -172,6 +175,18 @@ fun BreatheEasyApp(viewModel: BreatheEasyViewModel) {
                 resultMessage.startsWith("Purchase added to your ledger") -> showPurchaseDialog = false
                 resultMessage.startsWith("Craving recorded as resisted") ||
                     resultMessage.startsWith("Craving and cigarette recorded") -> showCravingDialog = false
+            }
+            val deletingId = pendingDeleteId
+            if (deletingId != null) {
+                val removedFromSnapshot = snapshot.purchases.none { it.id == deletingId }
+                val writeReportedSuccess = resultMessage.startsWith("Purchase removed.")
+                // A failed delete leaves the confirmation open but re-enables Retry.
+                // If the write committed but reloading failed, close the modal and let
+                // the app-level reload error prompt the user to refresh the stale view.
+                pendingDeleteId = null
+                if (removedFromSnapshot || writeReportedSuccess) {
+                    purchaseToDeleteId = null
+                }
             }
             snackbarHostState.showSnackbar(resultMessage)
             viewModel.clearMessage()
@@ -256,12 +271,12 @@ fun BreatheEasyApp(viewModel: BreatheEasyViewModel) {
                         onLogSmoke = { trigger, note -> viewModel.logSmoke(trigger, note) },
                         onOpenCravings = { selectedTab = MainTab.CRAVINGS },
                         onRecordPurchase = { showPurchaseDialog = true },
-                        onDeletePurchase = { purchaseToDelete = it },
+                        onDeletePurchase = { purchaseToDeleteId = it.id },
                     )
                     MainTab.SPENDING -> SpendingScreen(
                         snapshot = snapshot,
                         onRecordPurchase = { showPurchaseDialog = true },
-                        onDeletePurchase = { purchaseToDelete = it },
+                        onDeletePurchase = { purchaseToDeleteId = it.id },
                     )
                     MainTab.CRAVINGS -> CravingsScreen(
                         snapshot = snapshot,
@@ -319,18 +334,31 @@ fun BreatheEasyApp(viewModel: BreatheEasyViewModel) {
     }
     purchaseToDelete?.let { purchase ->
         AlertDialog(
-            onDismissRequest = { purchaseToDelete = null },
+            onDismissRequest = { if (pendingDeleteId == null) purchaseToDeleteId = null },
             title = { Text("Delete this purchase?") },
             text = { Text("${purchase.brand.ifBlank { purchase.type.label }} · ${Money.format(purchase.amountMinor, purchase.currency)} will be removed from the ledger and monthly totals. Cigarette stock will be recalculated.") },
             confirmButton = {
-                Button(onClick = {
-                    viewModel.deletePurchase(purchase.id)
-                    purchaseToDelete = null
-                }, colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)) {
-                    Text("Delete")
+                Button(
+                    onClick = {
+                        pendingDeleteId = purchase.id
+                        viewModel.deletePurchase(purchase.id)
+                    },
+                    enabled = pendingDeleteId == null && !busy,
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
+                ) {
+                    if (pendingDeleteId == purchase.id) {
+                        CircularProgressIndicator(Modifier.size(18.dp), color = MaterialTheme.colorScheme.onError, strokeWidth = 2.dp)
+                        Spacer(Modifier.width(8.dp))
+                    }
+                    Text(if (pendingDeleteId == purchase.id) "Deleting…" else "Delete")
                 }
             },
-            dismissButton = { TextButton(onClick = { purchaseToDelete = null }) { Text("Cancel") } },
+            dismissButton = {
+                TextButton(
+                    onClick = { purchaseToDeleteId = null },
+                    enabled = pendingDeleteId == null && !busy,
+                ) { Text("Cancel") }
+            },
         )
     }
 }
@@ -631,7 +659,11 @@ private fun SpendingScreen(
     var isPickingPdfDestination by rememberSaveable { mutableStateOf(false) }
     var pdfExportMessage by rememberSaveable { mutableStateOf<String?>(null) }
     var monthOffset by rememberSaveable { mutableIntStateOf(0) }
-    val selectedMonth = YearMonth.now().minusMonths(monthOffset.toLong())
+    val selectedMonth = YearMonth.now(ZoneId.systemDefault()).minusMonths(monthOffset.toLong())
+    val latestSnapshot = rememberUpdatedState(snapshot)
+    val latestCurrency = rememberUpdatedState(prefs.displayCurrency)
+    val latestPeriod = rememberUpdatedState(reportPeriod)
+    val latestSelectedMonth = rememberUpdatedState(selectedMonth)
     DisposableEffect(Unit) {
         onDispose {
             isExportingPdf = false
@@ -645,9 +677,13 @@ private fun SpendingScreen(
         if (destination != null) {
             isExportingPdf = true
             pdfExportMessage = null
-            val purchasesForReport = snapshot.purchases
-            val currencyForReport = prefs.displayCurrency
-            val periodForReport = reportPeriod
+            // The SAF result may arrive after the screen has recomposed or the
+            // selected reporting period has changed. Snapshot all inputs at the
+            // moment the document is actually created.
+            val purchasesForReport = latestSnapshot.value.purchases
+            val currencyForReport = latestCurrency.value
+            val periodForReport = latestPeriod.value
+            val monthForReport = latestSelectedMonth.value
             exportScope.launch {
                 val result = try {
                     withContext(Dispatchers.IO) {
@@ -657,7 +693,7 @@ private fun SpendingScreen(
                             purchases = purchasesForReport,
                             currency = currencyForReport,
                             period = periodForReport,
-                            currentMonth = selectedMonth,
+                            currentMonth = monthForReport,
                         )
                     }
                     Result.success(Unit)
@@ -669,9 +705,7 @@ private fun SpendingScreen(
                 isExportingPdf = false
                 pdfExportMessage = result.fold(
                     onSuccess = { "PDF saved." },
-                    onFailure = { error ->
-                        "PDF export failed. Please try again."
-                    },
+                    onFailure = { "PDF export failed. Please try again." },
                 )
             }
         }
@@ -977,14 +1011,30 @@ private fun CravingsScreen(
 ) {
     var running by rememberSaveable { mutableStateOf(false) }
     var seconds by rememberSaveable { mutableIntStateOf(0) }
+    var lastTickElapsedMillis by rememberSaveable { mutableLongStateOf(0L) }
+
+    // Derive elapsed time from Android's monotonic clock, not coroutine wake-up
+    // counts. This avoids drift if the UI thread or device is briefly busy.
     LaunchedEffect(running) {
-        while (running) {
-            delay(1_000)
-            seconds++
+        if (running) {
+            while (true) {
+                delay(250)
+                val now = android.os.SystemClock.elapsedRealtime()
+                val elapsed = (now - lastTickElapsedMillis).coerceAtLeast(0L)
+                if (elapsed >= 1_000L) {
+                    val wholeSeconds = (elapsed / 1_000L).toInt()
+                    seconds = (seconds.toLong() + wholeSeconds)
+                        .coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
+                    lastTickElapsedMillis += wholeSeconds * 1_000L
+                }
+            }
         }
     }
     DisposableEffect(Unit) {
-        onDispose { running = false }
+        onDispose {
+            running = false
+            lastTickElapsedMillis = 0L
+        }
     }
     val phases = listOf("Breathe in", "Hold", "Breathe out", "Rest")
     val phase = phases[(seconds / 4) % phases.size]
@@ -1075,7 +1125,18 @@ private fun CravingsScreen(
                         style = MaterialTheme.typography.bodySmall,
                     )
                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        Button(onClick = { running = !running }, colors = ButtonDefaults.buttonColors(
+                        Button(onClick = {
+                            if (running) {
+                                val now = android.os.SystemClock.elapsedRealtime()
+                                val elapsed = (now - lastTickElapsedMillis).coerceAtLeast(0L)
+                                seconds = (seconds.toLong() + elapsed / 1_000L)
+                                    .coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
+                                running = false
+                            } else {
+                                lastTickElapsedMillis = android.os.SystemClock.elapsedRealtime()
+                                running = true
+                            }
+                        }, colors = ButtonDefaults.buttonColors(
                             containerColor = MaterialTheme.colorScheme.primary,
                             contentColor = MaterialTheme.colorScheme.onPrimary,
                         )) {
@@ -1087,7 +1148,11 @@ private fun CravingsScreen(
                                 },
                             )
                         }
-                        OutlinedButton(onClick = { running = false; seconds = 0 }) { Text("Reset") }
+                        OutlinedButton(onClick = {
+                            running = false
+                            lastTickElapsedMillis = 0L
+                            seconds = 0
+                        }) { Text("Reset") }
                     }
                     if (seconds > 0) Text("Session ${seconds / 60}:${(seconds % 60).toString().padStart(2, '0')}",
                         color = MaterialTheme.colorScheme.onPrimaryContainer,
@@ -1318,17 +1383,18 @@ private fun RecordPurchaseDialog(
     onDismiss: () -> Unit,
     onSave: (Purchase) -> Unit,
 ) {
-    var type by remember { mutableStateOf(PurchaseType.PACK) }
-    var quantity by remember { mutableStateOf("1") }
-    var amount by remember { mutableStateOf("") }
+    var type by rememberSaveable { mutableStateOf(PurchaseType.PACK) }
+    var quantity by rememberSaveable { mutableStateOf("1") }
+    var amount by rememberSaveable { mutableStateOf("") }
     val currency = preferences.displayCurrency
-    var brand by remember { mutableStateOf("") }
-    var location by remember { mutableStateOf("") }
-    var note by remember { mutableStateOf("") }
-    var planned by remember { mutableStateOf(true) }
-    var purchasedAtMillis by remember {
+    var brand by rememberSaveable { mutableStateOf("") }
+    var location by rememberSaveable { mutableStateOf("") }
+    var note by rememberSaveable { mutableStateOf("") }
+    var planned by rememberSaveable { mutableStateOf(true) }
+    var purchasedAtMillis by rememberSaveable {
         mutableLongStateOf(
-            LocalDate.now().atTime(12, 0).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli(),
+            LocalDate.now(ZoneId.systemDefault()).atTime(12, 0)
+                .atZone(ZoneId.systemDefault()).toInstant().toEpochMilli(),
         )
     }
     var showDatePicker by rememberSaveable { mutableStateOf(false) }
@@ -1724,10 +1790,10 @@ private fun RecordCravingDialog(
     onDismiss: () -> Unit,
     onSave: (CravingEvent) -> Unit,
 ) {
-    var outcome by remember { mutableStateOf(CravingOutcome.RESISTED) }
-    var trigger by remember { mutableStateOf(CravingTrigger.STRESS) }
-    var intensity by remember { mutableIntStateOf(3) }
-    var note by remember { mutableStateOf("") }
+    var outcome by rememberSaveable { mutableStateOf(CravingOutcome.RESISTED) }
+    var trigger by rememberSaveable { mutableStateOf(CravingTrigger.STRESS) }
+    var intensity by rememberSaveable { mutableIntStateOf(3) }
+    var note by rememberSaveable { mutableStateOf("") }
     var submitPending by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(busy) {
         if (!busy) submitPending = false
