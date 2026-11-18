@@ -157,6 +157,7 @@ import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
 import java.util.Locale
+import java.util.UUID
 
 private val ScreenHorizontalPadding = 20.dp
 
@@ -482,7 +483,7 @@ private fun TodayScreen(
                             Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(5.dp)) {
                                 Text("Daily target", style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onPrimaryContainer)
-                                Text("$smokedToday of ${prefs.dailyTarget} cigarettes",
+                                Text("Personal goal · ${prefs.dailyTarget} cigarettes per day",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.82f))
                                 Text(
@@ -491,10 +492,7 @@ private fun TodayScreen(
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.72f),
                                 )
-                                Text(targetProgress.statusLabel,
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer,
-                                    style = MaterialTheme.typography.labelLarge,
-                                    fontWeight = FontWeight.SemiBold)
+                                DailyTargetStatus(progress = targetProgress)
                             }
                         }
                     } else {
@@ -518,7 +516,7 @@ private fun TodayScreen(
                             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                                 Text("Daily target", style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onPrimaryContainer)
-                                Text("$smokedToday of ${prefs.dailyTarget} cigarettes",
+                                Text("Personal goal · ${prefs.dailyTarget} cigarettes per day",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.82f))
                                 if (prefs.baselinePerDay > 0) {
@@ -528,10 +526,7 @@ private fun TodayScreen(
                                         color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.72f),
                                     )
                                 }
-                                Text(targetProgress.statusLabel,
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer,
-                                    style = MaterialTheme.typography.labelLarge,
-                                    fontWeight = FontWeight.SemiBold)
+                                DailyTargetStatus(progress = targetProgress)
                             }
                         }
                     }
@@ -994,11 +989,6 @@ private fun SpendingScreen(
         }
         item {
             SectionHeader("Purchase ledger")
-            Text(
-                "All currencies are shown in their original amounts; only ${prefs.displayCurrency.isoCode} is included in totals.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
             val ledgerPurchases = snapshot.purchases.filter { purchase ->
                 YearMonth.from(Instant.ofEpochMilli(purchase.purchasedAtMillis).atZone(ZoneId.systemDefault())) == selectedMonth
             }
@@ -1514,6 +1504,7 @@ private fun RecordPurchaseScreen(
     var type by rememberSaveable { mutableStateOf(PurchaseType.PACK) }
     var quantity by rememberSaveable { mutableStateOf("1") }
     var amount by rememberSaveable { mutableStateOf("") }
+    var purchaseDraftId by rememberSaveable { mutableStateOf(UUID.randomUUID().toString()) }
     val currency = preferences.displayCurrency
     var brand by rememberSaveable { mutableStateOf("") }
     var location by rememberSaveable { mutableStateOf("") }
@@ -1600,6 +1591,7 @@ private fun RecordPurchaseScreen(
                             submitPending = true
                             onSave(
                                 Purchase(
+                                    id = purchaseDraftId,
                                     purchasedAtMillis = purchasedAtMillis,
                                     type = type,
                                     quantity = quantityValue ?: 1,
@@ -1815,22 +1807,40 @@ private fun RecordPurchaseScreen(
                 }
 
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    FilledTonalButton(
+                    OutlinedButton(
                         onClick = { showDetails = !showDetails },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(16.dp),
                         contentPadding = androidx.compose.foundation.layout.PaddingValues(
-                            horizontal = 0.dp,
-                            vertical = 2.dp,
+                            horizontal = 16.dp,
+                            vertical = 12.dp,
                         ),
                     ) {
-                        Text(
-                            if (showDetails) "Hide details" else "Add details",
-                            fontWeight = FontWeight.SemiBold,
-                        )
-                        Icon(
-                            if (showDetails) Icons.Outlined.ExpandLess else Icons.Outlined.ExpandMore,
-                            contentDescription = null,
-                            modifier = Modifier.size(18.dp),
-                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Column(
+                                modifier = Modifier.weight(1f),
+                                verticalArrangement = Arrangement.spacedBy(2.dp),
+                            ) {
+                                Text(
+                                    if (showDetails) "Optional details" else "Add optional details",
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                )
+                                Text(
+                                    "Brand, shop, purchase context and notes",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                            Icon(
+                                if (showDetails) Icons.Outlined.ExpandLess else Icons.Outlined.ExpandMore,
+                                contentDescription = if (showDetails) "Hide optional details" else "Show optional details",
+                                modifier = Modifier.size(20.dp),
+                            )
+                        }
                     }
                     AnimatedVisibility(visible = showDetails, enter = expandVertically() + fadeIn(),
                         exit = shrinkVertically() + fadeOut()) {
@@ -1944,6 +1954,8 @@ private fun RecordCravingDialog(
     var trigger by rememberSaveable { mutableStateOf(CravingTrigger.STRESS) }
     var intensity by rememberSaveable { mutableIntStateOf(3) }
     var note by rememberSaveable { mutableStateOf("") }
+    var cravingDraftId by rememberSaveable { mutableStateOf(UUID.randomUUID().toString()) }
+    var cravingOccurredAtMillis by rememberSaveable { mutableLongStateOf(System.currentTimeMillis()) }
     var submitPending by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(busy) {
         if (!busy) submitPending = false
@@ -2000,7 +2012,14 @@ private fun RecordCravingDialog(
             Button(
                 onClick = {
                     submitPending = true
-                    onSave(CravingEvent(outcome = outcome, trigger = trigger, intensity = intensity, note = note))
+                    onSave(CravingEvent(
+                        id = cravingDraftId,
+                        occurredAtMillis = cravingOccurredAtMillis,
+                        outcome = outcome,
+                        trigger = trigger,
+                        intensity = intensity,
+                        note = note,
+                    ))
                 },
                 enabled = !saving,
             ) {
@@ -2125,6 +2144,92 @@ private fun String.asciiMoneyInput(decimalSeparator: Char, maxLength: Int): Stri
             character == decimalSeparator || character == '.' || character == ',' -> append(character)
         }
         if (length >= maxLength) break
+    }
+}
+
+@Composable
+private fun DailyTargetStatus(progress: DailyTargetProgress) {
+    val (title, detail, containerColor, contentColor, statusIcon) = when {
+        progress.excessCigarettes > 0L -> {
+            val count = progress.excessCigarettes
+            listOf(
+                "$count ${if (count == 1L) "cigarette" else "cigarettes"} above your daily goal",
+                "No judgement — this is useful information. Tomorrow is another day.",
+            ) to Unit
+        }
+        progress.remainingCigarettes > 0L -> {
+            val count = progress.remainingCigarettes
+            listOf(
+                "$count ${if (count == 1L) "cigarette" else "cigarettes"} left to your daily goal",
+                "You're within the personal target you set for today.",
+            ) to Unit
+        }
+        else -> {
+            listOf(
+                "Daily goal reached",
+                "You've reached the target you set for today.",
+            ) to Unit
+        }
+    }.let { pair ->
+        val copy = pair.first
+        val isAbove = progress.excessCigarettes > 0L
+        val isReached = progress.excessCigarettes == 0L && progress.remainingCigarettes == 0L
+        val container = when {
+            isAbove -> MaterialTheme.colorScheme.tertiaryContainer
+            isReached -> MaterialTheme.colorScheme.secondaryContainer
+            else -> MaterialTheme.colorScheme.surfaceVariant
+        }
+        val content = when {
+            isAbove -> MaterialTheme.colorScheme.onTertiaryContainer
+            isReached -> MaterialTheme.colorScheme.onSecondaryContainer
+            else -> MaterialTheme.colorScheme.onSurfaceVariant
+        }
+        val icon = when {
+            isAbove -> Icons.Outlined.Info
+            isReached -> Icons.Outlined.CheckCircle
+            else -> Icons.Outlined.Flag
+        }
+        arrayOf(copy[0], copy[1], container, content, icon)
+    }
+
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = containerColor as Color,
+        shape = RoundedCornerShape(15.dp),
+        border = BorderStroke(1.dp, (contentColor as Color).copy(alpha = 0.18f)),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 11.dp, vertical = 9.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Box(
+                modifier = Modifier.size(32.dp)
+                    .clip(CircleShape)
+                    .background((contentColor as Color).copy(alpha = 0.10f)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    statusIcon as androidx.compose.ui.graphics.vector.ImageVector,
+                    contentDescription = null,
+                    tint = contentColor as Color,
+                    modifier = Modifier.size(18.dp),
+                )
+            }
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(
+                    title as String,
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = contentColor as Color,
+                )
+                Text(
+                    detail as String,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = (contentColor as Color).copy(alpha = 0.82f),
+                )
+            }
+        }
     }
 }
 

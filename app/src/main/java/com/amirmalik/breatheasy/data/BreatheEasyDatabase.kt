@@ -166,6 +166,7 @@ internal class BreatheEasyDatabase(context: Context) :
     }
 
     fun insertPurchase(purchase: Purchase) {
+        val db = writableDatabase
         val values = ContentValues().apply {
             put("id", purchase.id)
             put("purchased_at_ms", purchase.purchasedAtMillis)
@@ -179,7 +180,35 @@ internal class BreatheEasyDatabase(context: Context) :
             put("note", purchase.note)
             put("created_at_ms", System.currentTimeMillis())
         }
-        writableDatabase.insertOrThrow("purchases", null, values)
+        val inserted = db.insertWithOnConflict(
+            "purchases",
+            null,
+            values,
+            SQLiteDatabase.CONFLICT_IGNORE,
+        )
+        if (inserted != -1L) return
+
+        // A restored form may retry after its original insert committed but before
+        // the success UI was delivered. The stable ID makes that retry idempotent.
+        val samePurchase = db.rawQuery(
+            """SELECT purchased_at_ms, product_type, quantity, amount_minor, currency_code,
+                brand, location, planned, note FROM purchases WHERE id = ?""".trimIndent(),
+            arrayOf(purchase.id),
+        ).use { cursor ->
+            cursor.moveToFirst() &&
+                cursor.getLong(0) == purchase.purchasedAtMillis &&
+                cursor.getString(1) == purchase.type.name &&
+                cursor.getInt(2) == purchase.quantity &&
+                cursor.getLong(3) == purchase.amountMinor &&
+                cursor.getString(4) == purchase.currency.isoCode &&
+                cursor.getString(5) == purchase.brand &&
+                cursor.getString(6) == purchase.location &&
+                cursor.getInt(7) == if (purchase.planned) 1 else 0 &&
+                cursor.getString(8) == purchase.note
+        }
+        check(samePurchase) {
+            "This purchase entry ID is already associated with different details. Start a new entry."
+        }
     }
 
     fun deletePurchase(id: String): Boolean =
@@ -209,16 +238,76 @@ internal class BreatheEasyDatabase(context: Context) :
                 put("note", event.note)
                 put("breathing_seconds", event.breathingSeconds)
             }
-            db.insertOrThrow("craving_events", null, values)
+            val inserted = db.insertWithOnConflict(
+                "craving_events",
+                null,
+                values,
+                SQLiteDatabase.CONFLICT_IGNORE,
+            )
+
+            if (inserted == -1L) {
+                val sameCraving = db.rawQuery(
+                    """SELECT occurred_at_ms, outcome, trigger_code, intensity, note, breathing_seconds
+                        FROM craving_events WHERE id = ?""".trimIndent(),
+                    arrayOf(event.id),
+                ).use { cursor ->
+                    cursor.moveToFirst() &&
+                        cursor.getLong(0) == event.occurredAtMillis &&
+                        cursor.getString(1) == event.outcome.name &&
+                        cursor.getString(2) == event.trigger.name &&
+                        cursor.getInt(3) == event.intensity &&
+                        cursor.getString(4) == event.note &&
+                        cursor.getInt(5) == event.breathingSeconds
+                }
+                check(sameCraving) {
+                    "This craving entry ID is already associated with different details. Start a new entry."
+                }
+            }
+
             if (event.outcome == CravingOutcome.SMOKED) {
+                val smokeId = "craving-${event.id}"
                 val smokeValues = ContentValues().apply {
-                    put("id", "craving-${event.id}")
+                    put("id", smokeId)
                     put("smoked_at_ms", event.occurredAtMillis)
                     put("quantity", 1)
                     put("trigger_code", event.trigger.name)
                     put("note", "Logged from craving entry")
                 }
-                db.insertOrThrow("smoke_events", null, smokeValues)
+                if (inserted != -1L) {
+                    db.insertOrThrow("smoke_events", null, smokeValues)
+                } else {
+                    val sameSmoke = db.rawQuery(
+                        "SELECT smoked_at_ms, quantity, trigger_code, note FROM smoke_events WHERE id = ?",
+                        arrayOf(smokeId),
+                    ).use { cursor ->
+                        cursor.moveToFirst() &&
+                            cursor.getLong(0) == event.occurredAtMillis &&
+                            cursor.getInt(1) == 1 &&
+                            cursor.getString(2) == event.trigger.name &&
+                            cursor.getString(3) == "Logged from craving entry"
+                    }
+                    if (!sameSmoke) {
+                        val repaired = db.insertWithOnConflict(
+                            "smoke_events",
+                            null,
+                            smokeValues,
+                            SQLiteDatabase.CONFLICT_IGNORE,
+                        )
+                        if (repaired == -1L) {
+                            val matches = db.rawQuery(
+                                "SELECT smoked_at_ms, quantity, trigger_code, note FROM smoke_events WHERE id = ?",
+                                arrayOf(smokeId),
+                            ).use { cursor ->
+                                cursor.moveToFirst() &&
+                                    cursor.getLong(0) == event.occurredAtMillis &&
+                                    cursor.getInt(1) == 1 &&
+                                    cursor.getString(2) == event.trigger.name &&
+                                    cursor.getString(3) == "Logged from craving entry"
+                            }
+                            check(matches) { "The linked smoking record conflicts with this craving entry." }
+                        }
+                    }
+                }
             }
             db.setTransactionSuccessful()
         } finally {
