@@ -22,14 +22,14 @@ Choose a preferred reporting currency in **Goals & settings**. To combine differ
 
 ## Build
 
-Requirements: Android Studio with the Android 17 / API 37 SDK platform, JDK 17, and internet access for the first Gradle distribution and dependency downloads.
+Requirements: Android Studio with the Android 17 / API 37 preview SDK platform and Build Tools 37.0.0, JDK 17, and internet access for the first Gradle distribution and dependency downloads.
 
 ```bash
 sh gradlew :app:testDebugUnitTest
 sh gradlew :app:assembleDebug
 ```
 
-On Windows, use `gradlew.bat` with the same tasks. The bootstrap scripts download the pinned Gradle 9.6.0 distribution. Android Gradle Plugin 9.5.0 and Kotlin 2.4.21 are pinned in the build configuration.
+On Windows, use `gradlew.bat` with the same tasks. The bootstrap scripts download the pinned Gradle 9.6.0 distribution. Android Gradle Plugin 9.5.0 is used with AGP's built-in Kotlin support and the Kotlin Compose compiler plugin 2.4.10.
 
 ## Privacy and local data
 
