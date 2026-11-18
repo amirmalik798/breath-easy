@@ -4,6 +4,7 @@ import com.amirmalik.breatheasy.data.CurrencyCode
 import java.math.BigDecimal
 import java.math.RoundingMode
 import java.text.NumberFormat
+import java.text.DecimalFormatSymbols
 import java.util.Locale
 
 object Money {
