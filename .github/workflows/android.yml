@@ -33,8 +33,15 @@ jobs:
         with:
           packages: platform-tools
 
-      - name: Install required Android SDK platform
-        run: sdkmanager "platforms;android-37" "build-tools;36.0.0"
+      - name: Install Android 17 preview SDK
+        run: |
+          sdkmanager --channel=3 "platforms;android-37.0" "build-tools;37.0.0"
+          # The Android 17 preview package is distributed as android-37.0.
+          # AGP looks up compileSdk 37 as android-37, so provide the conventional alias.
+          if [ -d "$ANDROID_HOME/platforms/android-37.0" ] && [ ! -e "$ANDROID_HOME/platforms/android-37" ]; then
+            ln -s android-37.0 "$ANDROID_HOME/platforms/android-37"
+          fi
+          test -d "$ANDROID_HOME/platforms/android-37"
 
       - name: Run unit tests
         run: gradle :app:testDebugUnitTest
