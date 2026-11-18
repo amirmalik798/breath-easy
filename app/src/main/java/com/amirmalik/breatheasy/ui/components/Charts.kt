@@ -86,7 +86,7 @@ fun MonthlySpendingChart(
                         color = MaterialTheme.colorScheme.onSurface,
                     )
                     Text(
-                        "Amounts in \${currency.isoCode}",
+                        "Amounts in ${currency.isoCode}",
                         style = MaterialTheme.typography.labelSmall,
                         color = muted,
                     )
@@ -134,7 +134,7 @@ fun MonthlySpendingChart(
                         color = MaterialTheme.colorScheme.onSurface,
                     )
                     Text(
-                        "Record a \${currency.isoCode} purchase to start building your monthly trend.",
+                        "Record a ${currency.isoCode} purchase to start building your monthly trend.",
                         style = MaterialTheme.typography.bodySmall,
                         color = muted,
                         textAlign = TextAlign.Center,
