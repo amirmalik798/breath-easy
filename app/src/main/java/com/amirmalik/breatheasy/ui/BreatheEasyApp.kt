@@ -977,14 +977,30 @@ private fun CravingsScreen(
 ) {
     var running by rememberSaveable { mutableStateOf(false) }
     var seconds by rememberSaveable { mutableIntStateOf(0) }
+    var lastTickElapsedMillis by rememberSaveable { mutableLongStateOf(0L) }
+
+    // Use monotonic elapsed time instead of counting coroutine wake-ups. This avoids
+    // timer drift when the device is busy, and keeps the breathing session paused
+    // while the user is on another tab.
     LaunchedEffect(running) {
-        while (running) {
-            delay(1_000)
-            seconds++
+        if (running) {
+            while (running) {
+                delay(250)
+                val now = android.os.SystemClock.elapsedRealtime()
+                val elapsed = (now - lastTickElapsedMillis).coerceAtLeast(0L)
+                if (elapsed >= 1_000L) {
+                    val wholeSeconds = (elapsed / 1_000L).toInt()
+                    seconds = (seconds + wholeSeconds).coerceAtMost(Int.MAX_VALUE)
+                    lastTickElapsedMillis += wholeSeconds * 1_000L
+                }
+            }
         }
     }
     DisposableEffect(Unit) {
-        onDispose { running = false }
+        onDispose {
+            running = false
+            lastTickElapsedMillis = 0L
+        }
     }
     val phases = listOf("Breathe in", "Hold", "Breathe out", "Rest")
     val phase = phases[(seconds / 4) % phases.size]
@@ -1075,7 +1091,15 @@ private fun CravingsScreen(
                         style = MaterialTheme.typography.bodySmall,
                     )
                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        Button(onClick = { running = !running }, colors = ButtonDefaults.buttonColors(
+                        Button(onClick = {
+                            if (running) {
+                                running = false
+                                lastTickElapsedMillis = 0L
+                            } else {
+                                lastTickElapsedMillis = android.os.SystemClock.elapsedRealtime()
+                                running = true
+                            }
+                        }, colors = ButtonDefaults.buttonColors(
                             containerColor = MaterialTheme.colorScheme.primary,
                             contentColor = MaterialTheme.colorScheme.onPrimary,
                         )) {
@@ -1087,7 +1111,11 @@ private fun CravingsScreen(
                                 },
                             )
                         }
-                        OutlinedButton(onClick = { running = false; seconds = 0 }) { Text("Reset") }
+                        OutlinedButton(onClick = {
+                            running = false
+                            lastTickElapsedMillis = 0L
+                            seconds = 0
+                        }) { Text("Reset") }
                     }
                     if (seconds > 0) Text("Session ${seconds / 60}:${(seconds % 60).toString().padStart(2, '0')}",
                         color = MaterialTheme.colorScheme.onPrimaryContainer,
