@@ -1349,17 +1349,18 @@ private fun RecordPurchaseDialog(
     onDismiss: () -> Unit,
     onSave: (Purchase) -> Unit,
 ) {
-    var type by remember { mutableStateOf(PurchaseType.PACK) }
-    var quantity by remember { mutableStateOf("1") }
-    var amount by remember { mutableStateOf("") }
+    var type by rememberSaveable { mutableStateOf(PurchaseType.PACK) }
+    var quantity by rememberSaveable { mutableStateOf("1") }
+    var amount by rememberSaveable { mutableStateOf("") }
     val currency = preferences.displayCurrency
-    var brand by remember { mutableStateOf("") }
-    var location by remember { mutableStateOf("") }
-    var note by remember { mutableStateOf("") }
-    var planned by remember { mutableStateOf(true) }
-    var purchasedAtMillis by remember {
+    var brand by rememberSaveable { mutableStateOf("") }
+    var location by rememberSaveable { mutableStateOf("") }
+    var note by rememberSaveable { mutableStateOf("") }
+    var planned by rememberSaveable { mutableStateOf(true) }
+    var purchasedAtMillis by rememberSaveable {
         mutableLongStateOf(
-            LocalDate.now().atTime(12, 0).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli(),
+            LocalDate.now(ZoneId.systemDefault()).atTime(12, 0)
+                .atZone(ZoneId.systemDefault()).toInstant().toEpochMilli(),
         )
     }
     var showDatePicker by rememberSaveable { mutableStateOf(false) }
