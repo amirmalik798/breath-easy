@@ -53,8 +53,11 @@ object BusinessRules {
         purchase.totalCigarettes
     }
 
-    fun validateSmokeEvent(event: SmokeEvent) {
+    fun validateSmokeEvent(event: SmokeEvent, now: Instant = Instant.now()) {
         require(event.id.isNotBlank()) { "Smoking log id is required." }
+        require(event.smokedAtMillis <= now.toEpochMilli()) {
+            "Smoking log time cannot be in the future."
+        }
         require(event.quantity in 1..MAX_SMOKE_EVENT_QUANTITY) {
             "Smoke quantity must be between 1 and $MAX_SMOKE_EVENT_QUANTITY."
         }
@@ -63,8 +66,11 @@ object BusinessRules {
         }
     }
 
-    fun validateCravingEvent(event: CravingEvent) {
+    fun validateCravingEvent(event: CravingEvent, now: Instant = Instant.now()) {
         require(event.id.isNotBlank()) { "Craving log id is required." }
+        require(event.occurredAtMillis <= now.toEpochMilli()) {
+            "Craving log time cannot be in the future."
+        }
         require(event.intensity in 1..5) { "Craving intensity must be between 1 and 5." }
         require(event.breathingSeconds >= 0) { "Breathing duration cannot be negative." }
         require(event.note.length <= MAX_NOTE_LENGTH) {
