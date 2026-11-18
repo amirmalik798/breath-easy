@@ -210,6 +210,8 @@ fun ProgressArc(
     strokeWidth: androidx.compose.ui.unit.Dp = 12.dp,
 ) {
     val primary = MaterialTheme.colorScheme.primary
+    val secondary = MaterialTheme.colorScheme.secondary
+    val tertiary = MaterialTheme.colorScheme.tertiary
     val track = MaterialTheme.colorScheme.surfaceVariant
     Canvas(modifier = modifier) {
         val stroke = strokeWidth.toPx()
@@ -228,8 +230,8 @@ fun ProgressArc(
             brush = Brush.sweepGradient(
                 colors = listOf(
                     primary,
-                    MaterialTheme.colorScheme.secondary,
-                    MaterialTheme.colorScheme.tertiary,
+                    secondary,
+                    tertiary,
                     primary,
                 ),
             ),
