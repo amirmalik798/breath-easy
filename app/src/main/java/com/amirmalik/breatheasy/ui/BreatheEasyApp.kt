@@ -180,11 +180,6 @@ fun BreatheEasyApp(viewModel: BreatheEasyViewModel) {
                 pendingDeleteId = null
                 purchaseToDelete = null
             }
-            if (pendingDeleteId != null) {
-                // The ViewModel message is emitted after the delete succeeds or fails.
-                pendingDeleteId = null
-                purchaseToDelete = null
-            }
             snackbarHostState.showSnackbar(resultMessage)
             viewModel.clearMessage()
         }
