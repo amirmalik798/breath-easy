@@ -857,7 +857,7 @@ private fun SpendingScreen(
                                 Text(
                                     when {
                                         targetMonthOffset == null -> "Outside the 5-year navigation range"
-                                        point.purchaseCount == 0 -> "No purchases"
+                                        point.purchaseCount == 0 -> "No ${prefs.displayCurrency.isoCode} purchases"
                                         else -> "${point.purchaseCount} purchases · ${prefs.displayCurrency.isoCode}"
                                     },
                                     style = MaterialTheme.typography.labelSmall,
@@ -884,9 +884,14 @@ private fun SpendingScreen(
         }
         item {
             SectionHeader("Spending breakdown")
-            val selectedPurchases = snapshot.purchases.filter { purchase ->
+            val monthPurchases = snapshot.purchases.filter { purchase ->
                 YearMonth.from(Instant.ofEpochMilli(purchase.purchasedAtMillis).atZone(ZoneId.systemDefault())) == selectedMonth
-                    && purchase.currency.isoCode == prefs.displayCurrency.isoCode
+            }
+            val selectedPurchases = monthPurchases.filter {
+                it.currency.isoCode == prefs.displayCurrency.isoCode
+            }
+            val hasOtherCurrencyPurchases = monthPurchases.any {
+                it.currency.isoCode != prefs.displayCurrency.isoCode
             }
             val breakdown = selectedPurchases.groupBy { it.type }.mapValues { (_, rows) -> rows.sumOf { it.amountMinor } }
             val maxBreakdown = breakdown.values.maxOrNull()?.coerceAtLeast(1L) ?: 1L
@@ -900,9 +905,13 @@ private fun SpendingScreen(
                         Modifier.fillMaxWidth().padding(18.dp),
                         verticalArrangement = Arrangement.spacedBy(5.dp),
                     ) {
-                        Text("Nothing to break down yet", fontWeight = FontWeight.SemiBold)
+                        Text("No ${prefs.displayCurrency.isoCode} spending to break down", fontWeight = FontWeight.SemiBold)
                         Text(
-                            "Record a purchase in this month to see how your spending is distributed.",
+                            if (hasOtherCurrencyPurchases) {
+                                "Other-currency purchases remain in the ledger, but are excluded from this total. No conversion is applied."
+                            } else {
+                                "Record a ${prefs.displayCurrency.isoCode} purchase in this month to see how your spending is distributed."
+                            },
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -941,6 +950,11 @@ private fun SpendingScreen(
         }
         item {
             SectionHeader("Purchase ledger")
+            Text(
+                "All currencies are shown in their original amounts; only ${prefs.displayCurrency.isoCode} is included in totals.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
             val ledgerPurchases = snapshot.purchases.filter { purchase ->
                 YearMonth.from(Instant.ofEpochMilli(purchase.purchasedAtMillis).atZone(ZoneId.systemDefault())) == selectedMonth
             }
