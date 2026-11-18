@@ -246,7 +246,8 @@ internal class BreatheEasyDatabase(context: Context) :
                     Purchase(
                         id = cursor.getString(0),
                         purchasedAtMillis = cursor.getLong(1),
-                        type = enumValueOrDefault(cursor.getString(2), PurchaseType.PACK),
+                        type = enumValueOrNull<PurchaseType>(cursor.getString(2))
+                            ?: throw IllegalStateException("A purchase contains an unsupported product type."),
                         quantity = cursor.getInt(3),
                         amountMinor = cursor.getLong(4),
                         currency = CurrencyCode.fromCodeOrNull(cursor.getString(5))
@@ -291,7 +292,8 @@ internal class BreatheEasyDatabase(context: Context) :
                     CravingEvent(
                         id = cursor.getString(0),
                         occurredAtMillis = cursor.getLong(1),
-                        outcome = enumValueOrDefault(cursor.getString(2), CravingOutcome.RESISTED),
+                        outcome = enumValueOrNull<CravingOutcome>(cursor.getString(2))
+                            ?: throw IllegalStateException("A craving contains an unsupported outcome."),
                         trigger = enumValueOrDefault(cursor.getString(3), CravingTrigger.OTHER),
                         intensity = cursor.getInt(4).coerceIn(1, 5),
                         note = cursor.getString(5),
@@ -318,8 +320,11 @@ internal class BreatheEasyDatabase(context: Context) :
         putSetting(db, key, value)
     }
 
+    private inline fun <reified T : Enum<T>> enumValueOrNull(value: String): T? =
+        enumValues<T>().firstOrNull { it.name == value }
+
     private inline fun <reified T : Enum<T>> enumValueOrDefault(value: String, fallback: T): T =
-        enumValues<T>().firstOrNull { it.name == value } ?: fallback
+        enumValueOrNull<T>(value) ?: fallback
 
     companion object {
         private const val DATABASE_NAME = "breathe_easy.db"
