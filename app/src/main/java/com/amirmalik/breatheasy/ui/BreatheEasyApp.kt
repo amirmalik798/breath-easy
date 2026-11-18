@@ -677,8 +677,13 @@ private fun SpendingScreen(
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text("Spending", style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text("Spending", style = MaterialTheme.typography.headlineMedium,
+                            fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
+                        Text("Understand your habits and track every purchase.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
                 }
                 FilledTonalButton(onClick = onRecordPurchase) {
                     Icon(Icons.Outlined.Add, contentDescription = null, modifier = Modifier.size(18.dp))
@@ -699,8 +704,10 @@ private fun SpendingScreen(
                             Text("${selectedMonth.month.getDisplayName(TextStyle.FULL, Locale.getDefault())} ${selectedMonth.year}",
                                 style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onPrimaryContainer)
-                            Text(prefs.displayCurrency.isoCode,
+                            Text("TOTAL SPENT · ${prefs.displayCurrency.isoCode}",
                                 style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                letterSpacing = 0.7.sp,
                                 color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.78f))
                         }
                         Text(
@@ -746,6 +753,9 @@ private fun SpendingScreen(
             ) {
                 Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text("Cigarettes logged", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                    Text("Your recorded daily totals, grouped by month.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
                     MonthlyConsumptionChart(usagePoints)
                 }
             }
@@ -806,19 +816,42 @@ private fun SpendingScreen(
                     && purchase.currency.isoCode == prefs.displayCurrency.isoCode
             }
             val breakdown = selectedPurchases.groupBy { it.type }.mapValues { (_, rows) -> rows.sumOf { it.amountMinor } }
-            Card(shape = RoundedCornerShape(24.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
+            val maxBreakdown = breakdown.values.maxOrNull()?.coerceAtLeast(1L) ?: 1L
+            Card(
+                shape = RoundedCornerShape(24.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+            ) {
                 if (breakdown.isEmpty()) {
-                    Text("No ${prefs.displayCurrency.isoCode} purchases this month.", Modifier.padding(18.dp),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    EmptyPanel(
+                        title = "Nothing to break down yet",
+                        body = "Record a purchase in this month to see how your spending is distributed.",
+                    )
                 } else {
-                    Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        PurchaseType.entries.forEach { type ->
+                    Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                        PurchaseType.entries.forEachIndexed { index, type ->
                             val amount = breakdown[type] ?: 0L
                             if (amount > 0L) {
-                                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                    Text(type.label, style = MaterialTheme.typography.bodyMedium)
-                                    Text(Money.format(amount, prefs.displayCurrency), fontWeight = FontWeight.SemiBold)
+                                Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically) {
+                                        Text(type.label, style = MaterialTheme.typography.bodyMedium,
+                                            fontWeight = FontWeight.SemiBold)
+                                        Text(Money.format(amount, prefs.displayCurrency),
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.primary)
+                                    }
+                                    Box(
+                                        Modifier.fillMaxWidth().height(9.dp).clip(RoundedCornerShape(50))
+                                            .background(MaterialTheme.colorScheme.surfaceVariant),
+                                    ) {
+                                        Box(
+                                            Modifier.fillMaxWidth((amount.toDouble() / maxBreakdown.toDouble()).toFloat())
+                                                .height(9.dp).clip(RoundedCornerShape(50))
+                                                .background(if (index % 2 == 0) MaterialTheme.colorScheme.primary
+                                                    else MaterialTheme.colorScheme.secondary),
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -975,6 +1008,28 @@ private fun CravingsScreen(
                             Text(if (running) phase else "box breathing",
                                 color = MaterialTheme.colorScheme.onPrimaryContainer,
                                 style = MaterialTheme.typography.labelMedium)
+                        }
+                    }
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        phases.forEach { phaseName ->
+                            val active = running && phase == phaseName
+                            Surface(
+                                modifier = Modifier.weight(1f),
+                                shape = RoundedCornerShape(50),
+                                color = if (active) MaterialTheme.colorScheme.primary
+                                    else MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.08f),
+                            ) {
+                                Text(
+                                    phaseName,
+                                    modifier = Modifier.padding(horizontal = 3.dp, vertical = 7.dp),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    textAlign = TextAlign.Center,
+                                    maxLines = 1,
+                                    color = if (active) MaterialTheme.colorScheme.onPrimary
+                                        else MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.72f),
+                                    fontWeight = if (active) FontWeight.Bold else FontWeight.Medium,
+                                )
+                            }
                         }
                     }
                     Text(
