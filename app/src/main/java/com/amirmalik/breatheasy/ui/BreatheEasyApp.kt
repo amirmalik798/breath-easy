@@ -1039,7 +1039,7 @@ private fun CravingsScreen(
                 }
             }
         }
-        item { SectionHeader("Recent moments", "Your last recorded cravings") }
+        item { SectionHeader("Recent moments") }
         if (snapshot.cravingEvents.isEmpty()) {
             item {
                 EmptyPanel("Nothing logged yet", "Your craving history will appear here — privately on this device.")
