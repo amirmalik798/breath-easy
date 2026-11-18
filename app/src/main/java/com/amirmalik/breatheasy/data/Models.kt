@@ -119,8 +119,10 @@ data class Purchase(
     val planned: Boolean = true,
     val note: String = "",
 ) {
-    val totalCigarettes: Int?
-        get() = type.cigarettesPerUnit?.let { unit -> Math.multiplyExact(quantity, unit) }
+    val totalCigarettes: Long?
+        get() = type.cigarettesPerUnit?.let { unit ->
+            Math.multiplyExact(quantity.toLong(), unit.toLong())
+        }
 }
 
 data class SmokeEvent(
