@@ -1020,8 +1020,8 @@ private fun CravingsScreen(
                         }
                     }
                     Text(
-                        if (running) "Breathe gently. Never force or hold your breath."
-                        else "Breathe gently. Stop if uncomfortable.",
+                        if (running) "Breathe naturally; skip the hold if it feels uncomfortable."
+                        else "Follow the rhythm gently; skip any uncomfortable phase.",
                         color = MaterialTheme.colorScheme.onPrimaryContainer,
                         style = MaterialTheme.typography.bodySmall,
                     )
@@ -1175,7 +1175,14 @@ private fun GoalsScreen(
                         value = target,
                         onValueChange = { target = it.asciiDigitsOnly(maxLength = 3) },
                         label = { Text("Daily tracking target (cigarettes)") },
-                        supportingText = { Text("Personal target, not a safe-use limit.") },
+                        isError = target.toIntOrNull() !in 1..200,
+                        supportingText = {
+                            when {
+                                target.isBlank() -> Text("Required · enter 1–200.")
+                                target.toIntOrNull() !in 1..200 -> Text("Enter a value from 1 to 200.")
+                                else -> Text("Personal target, not a safe-use limit.")
+                            }
+                        },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth(),
@@ -1184,6 +1191,13 @@ private fun GoalsScreen(
                         value = baseline,
                         onValueChange = { baseline = it.asciiDigitsOnly(maxLength = 3) },
                         label = { Text("Previous daily baseline (cigarettes)") },
+                        isError = baseline.toIntOrNull() !in 0..200,
+                        supportingText = {
+                            when {
+                                baseline.isBlank() -> Text("Required · enter 0–200.")
+                                baseline.toIntOrNull() !in 0..200 -> Text("Enter a value from 0 to 200.")
+                            }
+                        },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth(),
@@ -1192,7 +1206,14 @@ private fun GoalsScreen(
                         value = startingStock,
                         onValueChange = { startingStock = it.asciiDigitsOnly(maxLength = 6) },
                         label = { Text("Starting stock on hand (cigarettes)") },
-                        supportingText = { Text("Used for your stock estimate.") },
+                        isError = startingStock.toIntOrNull() !in 0..100_000,
+                        supportingText = {
+                            when {
+                                startingStock.isBlank() -> Text("Required · enter 0–100,000.")
+                                startingStock.toIntOrNull() !in 0..100_000 -> Text("Enter a value from 0 to 100,000.")
+                                else -> Text("Used for your stock estimate.")
+                            }
+                        },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth(),
