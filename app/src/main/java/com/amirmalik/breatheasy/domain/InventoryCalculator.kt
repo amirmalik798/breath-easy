@@ -14,8 +14,12 @@ object InventoryCalculator {
         smokeEvents: List<SmokeEvent>,
     ): Long {
         require(startingStock >= 0) { "Starting stock cannot be negative" }
-        val purchased = purchases.sumOf { (it.totalCigarettes ?: 0).toLong() }
-        val smoked = smokeEvents.sumOf { it.quantity.toLong() }
-        return Math.addExact(startingStock.toLong(), purchased) - smoked
+        val purchased = purchases.fold(0L) { total, purchase ->
+            Math.addExact(total, purchase.totalCigarettes ?: 0L)
+        }
+        val smoked = smokeEvents.fold(0L) { total, event ->
+            Math.addExact(total, event.quantity.toLong())
+        }
+        return Math.subtractExact(Math.addExact(startingStock.toLong(), purchased), smoked)
     }
 }
