@@ -61,24 +61,26 @@ fun MonthlySpendingChart(
             val slot = chartWidth / values.size
             val barWidth = (slot * 0.42f).coerceAtMost(28.dp.toPx())
             values.forEachIndexed { index, value ->
-                val fraction = (value / maxValue).coerceIn(0f, 1f)
-                val height = chartHeight * fraction
-                val x = left + slot * index + (slot - barWidth) / 2f
-                val y = bottom - height
-                drawRoundRect(
-                    brush = Brush.verticalGradient(
-                        colors = if (index == values.lastIndex) {
-                            listOf(primary, primary.copy(alpha = 0.58f))
-                        } else {
-                            listOf(primary.copy(alpha = 0.76f), primary.copy(alpha = 0.28f))
-                        },
-                        startY = y,
-                        endY = bottom,
-                    ),
-                    topLeft = Offset(x, y),
-                    size = Size(barWidth, height.coerceAtLeast(3.dp.toPx())),
-                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(7.dp.toPx()),
-                )
+                if (value > 0f) {
+                    val fraction = (value / maxValue).coerceIn(0f, 1f)
+                    val height = chartHeight * fraction
+                    val x = left + slot * index + (slot - barWidth) / 2f
+                    val y = bottom - height
+                    drawRoundRect(
+                        brush = Brush.verticalGradient(
+                            colors = if (index == values.lastIndex) {
+                                listOf(primary, primary.copy(alpha = 0.58f))
+                            } else {
+                                listOf(primary.copy(alpha = 0.76f), primary.copy(alpha = 0.28f))
+                            },
+                            startY = y,
+                            endY = bottom,
+                        ),
+                        topLeft = Offset(x, y),
+                        size = Size(barWidth, height),
+                        cornerRadius = androidx.compose.ui.geometry.CornerRadius(7.dp.toPx()),
+                    )
+                }
             }
 
             // A subtle trend line keeps comparisons legible when bars are close in height.
