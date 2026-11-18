@@ -108,7 +108,7 @@ class AnalyticsCalculatorTest {
                 currency = CurrencyCode.fromCode("USD"),
             ),
             Purchase(
-                purchasedAtMillis = Instant.parse("2026-11-01T07:30:00Z").toEpochMilli(),
+                purchasedAtMillis = Instant.parse("2026-11-01T08:30:00Z").toEpochMilli(),
                 type = PurchaseType.PACK, quantity = 1, amountMinor = 1_200,
                 currency = CurrencyCode.fromCode("USD"),
             ),
