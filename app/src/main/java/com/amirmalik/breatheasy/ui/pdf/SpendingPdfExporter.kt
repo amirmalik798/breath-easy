@@ -191,7 +191,11 @@ object SpendingPdfExporter {
         val allPurchases = reports.flatMap { it.purchases }
         val total = sumAmounts(allPurchases)
         val purchaseCount = allPurchases.size
-        val averagePerMonth = formatAverage(total, reports.size, currency)
+        val isSingleMonth = reports.size == 1
+        val averageDivisor = if (isSingleMonth) reports.first().month.lengthOfMonth() else reports.size
+        val averageLabel = if (isSingleMonth) "AVERAGE PER DAY" else "AVERAGE PER MONTH"
+        val averageSupportingText = if (isSingleMonth) "per calendar day" else currency.isoCode
+        val averagePerPeriod = formatAverage(total, averageDivisor, currency)
         val firstMonth = reports.first().month
         val lastMonth = reports.last().month
         val dateRange = formatMonthStart(firstMonth) + " — " + formatMonthEnd(lastMonth)
@@ -208,7 +212,7 @@ object SpendingPdfExporter {
         )
         drawMetricCard(
             canvas, RectF(388f, 213f, 557f, 296f),
-            "AVERAGE PER MONTH", averagePerMonth, currency.isoCode,
+            averageLabel, averagePerPeriod, averageSupportingText,
         )
 
         val trendLastRowBottom = 335f + 27f + reports.lastIndex * 22.5f + 8f
@@ -279,7 +283,11 @@ object SpendingPdfExporter {
         currency: CurrencyCode,
         top: Float,
     ) {
-        drawText(canvas, "MONTH-BY-MONTH SPENDING", 38f, top, 9f, ink, bold = true)
+        drawText(
+            canvas,
+            if (reports.size == 1) "SELECTED MONTH SPENDING" else "MONTH-BY-MONTH SPENDING",
+            38f, top, 9f, ink, bold = true,
+        )
         drawText(canvas, "Amounts in ${currency.isoCode}", 557f, top, 7.5f, muted, align = Paint.Align.RIGHT)
 
         val maxTotal = max(reports.maxOfOrNull { it.totalMinor }?.toFloat() ?: 0f, 1f)
