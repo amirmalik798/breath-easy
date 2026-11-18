@@ -132,6 +132,7 @@ import com.amirmalik.breatheasy.data.CravingOutcome
 import com.amirmalik.breatheasy.data.CravingTrigger
 import com.amirmalik.breatheasy.data.Purchase
 import com.amirmalik.breatheasy.data.PurchaseType
+import com.amirmalik.breatheasy.data.SmokeEvent
 import com.amirmalik.breatheasy.domain.AnalyticsCalculator
 import com.amirmalik.breatheasy.domain.Money
 import com.amirmalik.breatheasy.domain.InventoryCalculator
