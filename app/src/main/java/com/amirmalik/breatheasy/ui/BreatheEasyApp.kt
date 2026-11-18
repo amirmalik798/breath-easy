@@ -315,9 +315,8 @@ private fun TodayScreen(
         item {
             Card(
                 shape = RoundedCornerShape(28.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
             ) {
                 Row(
                     Modifier.fillMaxWidth().padding(18.dp),
@@ -329,30 +328,30 @@ private fun TodayScreen(
                             modifier = Modifier.fillMaxSize())
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Text(smokedToday.toString(), style = MaterialTheme.typography.headlineLarge,
-                                fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                                fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onPrimaryContainer)
                             Text("today", style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.78f))
                         }
                     }
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(7.dp)) {
                         Text("Your daily rhythm", style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.SemiBold)
+                            fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onPrimaryContainer)
                         Text("$smokedToday of ${prefs.dailyTarget} cigarettes in your personal target",
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.82f))
                         val remaining = (prefs.dailyTarget - smokedToday).coerceAtLeast(0)
                         Text(
                             if (remaining > 0) "$remaining below your target" else "Your target has been reached",
-                            color = MaterialTheme.colorScheme.primary,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer,
                             style = MaterialTheme.typography.labelLarge,
                             fontWeight = FontWeight.SemiBold,
                         )
                         Text("A personal tracking goal — not medical advice.",
                             style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.72f))
                     }
                 }
-                Divider(color = MaterialTheme.colorScheme.outlineVariant)
+                Divider(color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.16f))
                 Row(Modifier.fillMaxWidth().padding(14.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     Button(onClick = { onLogSmoke(CravingTrigger.OTHER, "") }, modifier = Modifier.weight(1f)) {
                         Icon(Icons.Outlined.Add, contentDescription = null, modifier = Modifier.size(18.dp))
@@ -375,6 +374,7 @@ private fun TodayScreen(
                     value = resisted.toString(),
                     caption = "today",
                     icon = Icons.Outlined.CheckCircle,
+                    highlight = true,
                 )
                 MetricCard(
                     modifier = Modifier.weight(1f),
@@ -866,7 +866,8 @@ private fun CravingsScreen(
                         }
                     }
                     Text(
-                        "A gentle paced-breathing prompt. Keep breathing comfortably and stop if you feel unwell.",
+                        if (running) "Follow the pace gently. There is no need to force or hold your breath."
+                        else "A gentle 4-second rhythm for each phase. Breathe comfortably and stop if you feel unwell.",
                         color = MaterialTheme.colorScheme.onPrimaryContainer,
                         style = MaterialTheme.typography.bodySmall,
                     )
@@ -1316,22 +1317,29 @@ private fun MetricCard(
     value: String,
     caption: String,
     icon: androidx.compose.ui.graphics.vector.ImageVector,
+    highlight: Boolean = false,
 ) {
+    val container = if (highlight) MaterialTheme.colorScheme.secondaryContainer
+        else MaterialTheme.colorScheme.surface
+    val content = if (highlight) MaterialTheme.colorScheme.onSecondaryContainer
+        else MaterialTheme.colorScheme.onSurface
     Card(
         modifier = modifier,
         shape = RoundedCornerShape(22.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        colors = CardDefaults.cardColors(containerColor = container),
+        border = if (highlight) null else BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
     ) {
         Column(Modifier.padding(15.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(22.dp))
+            Icon(icon, contentDescription = null,
+                tint = if (highlight) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(22.dp))
             Text(eyebrow, style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant)
+                color = content.copy(alpha = 0.72f))
             Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
                 Text(value, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary)
+                    color = content)
                 Text(caption, style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = content.copy(alpha = 0.72f),
                     modifier = Modifier.padding(bottom = 4.dp))
             }
         }
