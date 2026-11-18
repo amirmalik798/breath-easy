@@ -1,23 +1,81 @@
 package com.amirmalik.breatheasy.data
 
+import android.content.Context
+import android.telephony.TelephonyManager
 import java.time.Instant
 import java.time.YearMonth
+import java.util.Currency
+import java.util.Locale
 import java.util.UUID
 
-/** ISO currency choices exposed explicitly by BreatheEasy. */
-enum class CurrencyCode(
+/**
+ * Currency metadata backed by the platform ISO-4217 currency database.
+ * Currency is selected once at database creation and then remains stable for this install.
+ */
+data class CurrencyCode(
     val isoCode: String,
     val displayName: String,
     val symbol: String,
     val fractionDigits: Int,
 ) {
-    USD("USD", "US Dollar", "$", 2),
-    PKR("PKR", "Pakistani Rupee", "Rs", 2),
-    RWF("RWF", "Rwandan Franc", "FRw", 0);
-
     companion object {
-        fun fromCode(value: String?): CurrencyCode =
-            entries.firstOrNull { it.isoCode == value } ?: RWF
+        fun fromCode(value: String?): CurrencyCode {
+            val currency = value
+                ?.trim()
+                ?.uppercase(Locale.ROOT)
+                ?.takeIf { it.matches(Regex("[A-Z]{3}")) }
+                ?.let { code -> runCatching { Currency.getInstance(code) }.getOrNull() }
+                ?.let(::fromJavaCurrency)
+            return currency ?: fromLocale(Locale.getDefault())
+        }
+
+        fun fromCountry(countryCode: String?): CurrencyCode? {
+            val country = countryCode?.trim()?.uppercase(Locale.ROOT)
+                ?.takeIf { it.matches(Regex("[A-Z]{2}")) } ?: return null
+            val currency = runCatching {
+                Currency.getInstance(Locale("", country))
+            }.getOrNull() ?: return null
+            return fromJavaCurrency(currency)
+        }
+
+        /**
+         * Prefer the country of the currently registered mobile network when available.
+         * Wi-Fi-only devices and phones without service fall back to the configured device
+         * region. This does not request location or phone-state permissions.
+         */
+        fun detect(context: Context): CurrencyCode {
+            val networkCountry = runCatching {
+                val telephony = context.getSystemService(Context.TELEPHONY_SERVICE) as? TelephonyManager
+                telephony?.networkCountryIso
+            }.getOrNull()
+            fromCountry(networkCountry)?.let { return it }
+
+            val configuredLocales = context.resources.configuration.locales
+            for (index in 0 until configuredLocales.size()) {
+                fromCountry(configuredLocales[index].country)?.let { return it }
+            }
+
+            return fromLocale(Locale.getDefault(Locale.Category.FORMAT))
+        }
+
+        fun fromLocale(locale: Locale): CurrencyCode {
+            val currency = runCatching { Currency.getInstance(locale) }.getOrNull()
+                ?: runCatching { Currency.getInstance(Locale.US) }.getOrThrow()
+            return fromJavaCurrency(currency)
+                ?: fromJavaCurrency(Currency.getInstance(Locale.US))!!
+        }
+
+        private fun fromJavaCurrency(currency: Currency): CurrencyCode? {
+            val digits = currency.defaultFractionDigits
+            if (digits < 0) return null
+            val displayLocale = Locale.getDefault(Locale.Category.DISPLAY)
+            return CurrencyCode(
+                isoCode = currency.currencyCode,
+                displayName = currency.getDisplayName(displayLocale),
+                symbol = currency.getSymbol(displayLocale),
+                fractionDigits = digits,
+            )
+        }
     }
 }
 
@@ -29,19 +87,11 @@ enum class PurchaseType(val label: String, val cigarettesPerUnit: Int?) {
 }
 
 enum class CravingOutcome { RESISTED, SMOKED }
-
 enum class CravingTrigger(val label: String) {
     STRESS("Stress"), COFFEE("Coffee"), AFTER_MEAL("After a meal"),
     SOCIAL("Social situation"), BOREDOM("Boredom"), ALCOHOL("Alcohol"),
     OTHER("Other"),
 }
-
-data class FxSnapshot(
-    /** Number of PKR for one USD. Null means the user has not configured this rate. */
-    val pkrPerUsd: String?,
-    /** Number of RWF for one USD. Null means the user has not configured this rate. */
-    val rwfPerUsd: String?,
-)
 
 data class Purchase(
     val id: String = UUID.randomUUID().toString(),
@@ -54,7 +104,6 @@ data class Purchase(
     val location: String = "",
     val planned: Boolean = true,
     val note: String = "",
-    val fxSnapshot: FxSnapshot = FxSnapshot(null, null),
 ) {
     val totalCigarettes: Int?
         get() = type.cigarettesPerUnit?.let { unit -> Math.multiplyExact(quantity, unit) }
@@ -79,17 +128,13 @@ data class CravingEvent(
 )
 
 data class AppPreferences(
-    val displayCurrency: CurrencyCode = CurrencyCode.RWF,
+    val displayCurrency: CurrencyCode = CurrencyCode.fromLocale(Locale.getDefault()),
     /** User-defined pacing target; not a medically recommended limit. */
     val dailyTarget: Int = 4,
     val baselinePerDay: Int = 15,
     /** Cigarettes physically on hand before the user begins logging purchases. */
     val startingStockCigarettes: Int = 0,
-    val pkrPerUsd: String = "",
-    val rwfPerUsd: String = "",
-) {
-    fun fxSnapshot() = FxSnapshot(pkrPerUsd.toRateOrNull(), rwfPerUsd.toRateOrNull())
-}
+)
 
 data class AppSnapshot(
     val preferences: AppPreferences = AppPreferences(),
@@ -107,5 +152,3 @@ data class AppSnapshot(
         YearMonth.from(Instant.ofEpochMilli(it.purchasedAtMillis).atZone(java.time.ZoneId.systemDefault())) == month
     }
 }
-
-internal fun String.toRateOrNull(): String? = trim().takeIf { it.isNotEmpty() }
