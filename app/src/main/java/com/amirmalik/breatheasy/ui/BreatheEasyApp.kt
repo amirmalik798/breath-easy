@@ -178,8 +178,6 @@ fun BreatheEasyApp(viewModel: BreatheEasyViewModel) {
                     Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
                         Text("BreatheEasy", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.ExtraBold,
                             letterSpacing = (-0.6).sp, color = MaterialTheme.colorScheme.primary)
-                        Text("A little progress, every day", style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant, letterSpacing = 0.15.sp)
                     }
                 },
                 actions = {
@@ -527,7 +525,7 @@ private fun TodayScreen(
                 Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f)) {
-                            Text("Spent this month", color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            Text("This month", color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 style = MaterialTheme.typography.labelLarge)
                             Text(
                                 Money.format(spend.totalMinor, prefs.displayCurrency),
