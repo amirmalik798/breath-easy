@@ -118,6 +118,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.amirmalik.breatheasy.data.AppPreferences
 import com.amirmalik.breatheasy.data.AppSnapshot
 import com.amirmalik.breatheasy.data.CravingEvent
@@ -535,8 +538,8 @@ private fun TodayScreen(
                 )
                 MetricCard(
                     modifier = Modifier.weight(1f),
-                    eyebrow = "Purchases logged",
-                    value = snapshot.purchasesFor(month).size.toString(),
+                    eyebrow = "${prefs.displayCurrency.isoCode} purchases",
+                    value = spend.purchaseCount.toString(),
                     caption = "this month",
                     icon = Icons.Outlined.Waves,
                 )
@@ -1009,9 +1012,31 @@ private fun CravingsScreen(
     snapshot: AppSnapshot,
     onRecordCraving: () -> Unit,
 ) {
-    var running by rememberSaveable { mutableStateOf(false) }
-    var seconds by rememberSaveable { mutableIntStateOf(0) }
-    var lastTickElapsedMillis by rememberSaveable { mutableLongStateOf(0L) }
+    // Persist elapsed session time, but never restore an actively running timer
+    // after process/activity recreation. Time away from the screen must not count.
+    val runningState = remember { mutableStateOf(false) }
+    var running by runningState
+    val secondsState = rememberSaveable { mutableIntStateOf(0) }
+    var seconds by secondsState
+    val lastTickState = remember { mutableLongStateOf(0L) }
+    var lastTickElapsedMillis by lastTickState
+    val lifecycleOwner = LocalLifecycleOwner.current
+
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_STOP && runningState.value) {
+                val now = android.os.SystemClock.elapsedRealtime()
+                val elapsedSeconds = (now - lastTickState.longValue).coerceAtLeast(0L) / 1_000L
+                val availableSeconds = (Int.MAX_VALUE - secondsState.intValue).toLong()
+                val increment = elapsedSeconds.coerceAtMost(availableSeconds)
+                secondsState.intValue += increment.toInt()
+                lastTickState.longValue = 0L
+                runningState.value = false
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
 
     // Derive elapsed time from Android's monotonic clock, not coroutine wake-up
     // counts. This avoids drift if the UI thread or device is briefly busy.
@@ -1022,10 +1047,12 @@ private fun CravingsScreen(
                 val now = android.os.SystemClock.elapsedRealtime()
                 val elapsed = (now - lastTickElapsedMillis).coerceAtLeast(0L)
                 if (elapsed >= 1_000L) {
-                    val wholeSeconds = (elapsed / 1_000L).toInt()
-                    seconds = (seconds.toLong() + wholeSeconds)
-                        .coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
-                    lastTickElapsedMillis += wholeSeconds * 1_000L
+                    val wholeSeconds = (elapsed / 1_000L)
+                        .coerceAtMost((Int.MAX_VALUE - seconds).toLong())
+                    if (wholeSeconds > 0L) {
+                        seconds = (seconds.toLong() + wholeSeconds).toInt()
+                        lastTickElapsedMillis += wholeSeconds * 1_000L
+                    }
                 }
             }
         }
@@ -1119,8 +1146,11 @@ private fun CravingsScreen(
                         }
                     }
                     Text(
-                        if (running) "Breathe naturally; skip the hold if it feels uncomfortable."
-                        else "Follow the rhythm gently; skip any uncomfortable phase.",
+                        when {
+                            running -> "Breathe naturally; skip the hold if it feels uncomfortable."
+                            seconds > 0 -> "Session paused. Resume when you're ready; skip any uncomfortable phase."
+                            else -> "Follow the rhythm gently; skip any uncomfortable phase."
+                        },
                         color = MaterialTheme.colorScheme.onPrimaryContainer,
                         style = MaterialTheme.typography.bodySmall,
                     )
@@ -1129,8 +1159,10 @@ private fun CravingsScreen(
                             if (running) {
                                 val now = android.os.SystemClock.elapsedRealtime()
                                 val elapsed = (now - lastTickElapsedMillis).coerceAtLeast(0L)
-                                seconds = (seconds.toLong() + elapsed / 1_000L)
-                                    .coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
+                                val increment = (elapsed / 1_000L)
+                                    .coerceAtMost((Int.MAX_VALUE - seconds).toLong())
+                                seconds = (seconds.toLong() + increment).toInt()
+                                lastTickElapsedMillis = 0L
                                 running = false
                             } else {
                                 lastTickElapsedMillis = android.os.SystemClock.elapsedRealtime()
@@ -1519,7 +1551,10 @@ private fun RecordPurchaseDialog(
                                 )
                             },
                             modifier = Modifier.fillMaxWidth(),
-                            placeholder = { Text(if (currency.fractionDigits == 0) "0" else "0.00") },
+                            placeholder = {
+                                val separator = DecimalFormatSymbols.getInstance(Locale.getDefault()).decimalSeparator
+                                Text(if (currency.fractionDigits == 0) "0" else "0${separator}00")
+                            },
                             textStyle = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.ExtraBold,
                                 color = MaterialTheme.colorScheme.onPrimaryContainer),
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), singleLine = true,

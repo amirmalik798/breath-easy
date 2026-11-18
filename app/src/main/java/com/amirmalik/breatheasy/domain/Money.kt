@@ -12,11 +12,17 @@ object Money {
     fun parseToMinor(input: String, currency: CurrencyCode): Long? {
         return try {
             val raw = input.trim()
-            val decimalSeparator = DecimalFormatSymbols.getInstance(Locale.getDefault()).decimalSeparator
+            val symbols = DecimalFormatSymbols.getInstance(Locale.getDefault())
+            val decimalSeparator = symbols.decimalSeparator
+            val groupingSeparator = symbols.groupingSeparator
+            // A locale's grouping character must never be reinterpreted as a decimal
+            // separator (for example, German "1.000" must not become 1.00).
+            val containsGroupingSeparator =
+                groupingSeparator != decimalSeparator && raw.contains(groupingSeparator)
             val normalized = if (decimalSeparator == '.') raw else raw.replace(decimalSeparator, '.')
-            // Reject grouping separators instead of guessing whether a comma means
-            // thousands or a decimal fraction. This prevents an accidental 100x error.
-            if (normalized.isEmpty() || !normalized.matches(Regex("(?:[0-9]+(?:\\.[0-9]*)?|\\.[0-9]+)"))) {
+            if (containsGroupingSeparator || normalized.isEmpty() ||
+                !normalized.matches(Regex("(?:[0-9]+(?:\\.[0-9]*)?|\\.[0-9]+)"))
+            ) {
                 null
             } else {
                 BigDecimal(normalized)

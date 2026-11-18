@@ -49,6 +49,11 @@ class MoneyTest {
             java.util.Locale.setDefault(java.util.Locale.GERMANY)
             assertEquals(1_250L, Money.parseToMinor("12,50", CurrencyCode.fromCode("USD")))
             assertNull(Money.parseToMinor("1.000,00", CurrencyCode.fromCode("USD")))
+            // A grouping dot must not be reinterpreted as a decimal fraction.
+            assertNull(Money.parseToMinor("1.000", CurrencyCode.fromCode("USD")))
+            assertNull(Money.parseToMinor("12.50", CurrencyCode.fromCode("USD")))
+            java.util.Locale.setDefault(java.util.Locale.US)
+            assertNull(Money.parseToMinor("1,000", CurrencyCode.fromCode("USD")))
         } finally {
             java.util.Locale.setDefault(originalLocale)
         }
