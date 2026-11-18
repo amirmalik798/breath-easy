@@ -69,7 +69,7 @@ object Money {
 
         val prefix = result.substring(0, firstDigitIndex)
         val prefixHasCurrency = prefix.any {
-            it.isLetter() || Character.getType(it) == Character.CURRENCY_SYMBOL
+            it.isLetter() || Character.getType(it) == Character.CURRENCY_SYMBOL.toInt()
         }
         if (prefixHasCurrency && prefix.isNotEmpty() && !prefix.last().isWhitespace()) {
             result = result.substring(0, firstDigitIndex) + " " + result.substring(firstDigitIndex)
@@ -78,7 +78,7 @@ object Money {
         val lastDigitIndex = result.indexOfLast(Char::isDigit)
         val suffix = result.substring(lastDigitIndex + 1)
         val suffixHasCurrency = suffix.any {
-            it.isLetter() || Character.getType(it) == Character.CURRENCY_SYMBOL
+            it.isLetter() || Character.getType(it) == Character.CURRENCY_SYMBOL.toInt()
         }
         if (suffixHasCurrency && suffix.isNotEmpty() && !suffix.first().isWhitespace()) {
             result = result.substring(0, lastDigitIndex + 1) + " " + suffix
