@@ -74,34 +74,33 @@ object SpendingPdfExporter {
         zoneId: ZoneId = ZoneId.systemDefault(),
     ) {
         val monthPages = buildMonthPages(purchases, currency, period, currentMonth, zoneId)
-        val output = context.contentResolver.openOutputStream(destination, "w")
-            ?: throw IOException("The selected location could not be opened for writing.")
-        val document = PdfDocument()
-
-        try {
-            val generatedAtMillis = System.currentTimeMillis()
-            monthPages.forEachIndexed { index, monthPage ->
-                val pageInfo = PdfDocument.PageInfo.Builder(PAGE_WIDTH, PAGE_HEIGHT, index + 1).create()
-                val pdfPage = document.startPage(pageInfo)
-                try {
-                    drawPage(
-                        canvas = pdfPage.canvas,
-                        monthPage = monthPage,
-                        currency = currency,
-                        pageNumber = index + 1,
-                        totalPages = monthPages.size,
-                        generatedAtMillis = generatedAtMillis,
-                        zoneId = zoneId,
-                    )
-                } finally {
-                    document.finishPage(pdfPage)
+        // Own the PDF document before opening the destination. Both resources are
+        // closed even when the provider rejects the URI or writing fails midway.
+        PdfDocument().use { document ->
+            val output = context.contentResolver.openOutputStream(destination, "w")
+                ?: throw IOException("The selected location could not be opened for writing.")
+            output.use { stream ->
+                val generatedAtMillis = System.currentTimeMillis()
+                monthPages.forEachIndexed { index, monthPage ->
+                    val pageInfo = PdfDocument.PageInfo.Builder(PAGE_WIDTH, PAGE_HEIGHT, index + 1).create()
+                    val pdfPage = document.startPage(pageInfo)
+                    try {
+                        drawPage(
+                            canvas = pdfPage.canvas,
+                            monthPage = monthPage,
+                            currency = currency,
+                            pageNumber = index + 1,
+                            totalPages = monthPages.size,
+                            generatedAtMillis = generatedAtMillis,
+                            zoneId = zoneId,
+                        )
+                    } finally {
+                        document.finishPage(pdfPage)
+                    }
                 }
+                document.writeTo(stream)
+                stream.flush()
             }
-            document.writeTo(output)
-            output.flush()
-        } finally {
-            runCatching { document.close() }
-            runCatching { output.close() }
         }
     }
 

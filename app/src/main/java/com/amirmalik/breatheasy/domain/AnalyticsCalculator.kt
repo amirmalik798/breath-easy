@@ -68,7 +68,7 @@ object AnalyticsCalculator {
             val month = selectedMonth.minusMonths(offset.toLong())
             val total = events.asSequence()
                 .filter { YearMonth.from(Instant.ofEpochMilli(it.smokedAtMillis).atZone(zoneId)) == month }
-                .sumOf { it.quantity.toLong() }
+                .fold(0L) { count, event -> Math.addExact(count, event.quantity.toLong()) }
             MonthlyConsumptionPoint(month, total)
         }
     }

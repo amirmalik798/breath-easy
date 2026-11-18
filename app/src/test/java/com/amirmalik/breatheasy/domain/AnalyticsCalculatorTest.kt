@@ -128,4 +128,27 @@ class AnalyticsCalculatorTest {
         assertEquals(1, report.purchaseCount)
     }
 
+    @Test
+    fun monthlyConsumptionDoesNotOverflowAtIntRange() {
+        val events = listOf(
+            SmokeEvent(
+                smokedAtMillis = Instant.parse("2026-11-03T10:00:00Z").toEpochMilli(),
+                quantity = Int.MAX_VALUE,
+            ),
+            SmokeEvent(
+                smokedAtMillis = Instant.parse("2026-11-04T10:00:00Z").toEpochMilli(),
+                quantity = Int.MAX_VALUE,
+            ),
+        )
+
+        val result = AnalyticsCalculator.monthlyConsumption(
+            events,
+            YearMonth.of(2026, 11),
+            monthCount = 1,
+            zoneId = utc,
+        ).single()
+
+        assertEquals(Int.MAX_VALUE.toLong() * 2L, result.cigaretteCount)
+    }
+
 }
