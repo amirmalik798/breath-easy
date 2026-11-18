@@ -85,7 +85,9 @@ object AnalyticsCalculator {
         }
         return MonthlySpendPoint(
             month = month,
-            totalMinor = matchingPurchases.sumOf { it.amountMinor },
+            totalMinor = matchingPurchases.fold(0L) { total, purchase ->
+                Math.addExact(total, purchase.amountMinor)
+            },
             purchaseCount = matchingPurchases.size,
         )
     }
