@@ -218,8 +218,16 @@ internal class BreatheEasyDatabase(context: Context) :
         db.rawQuery("SELECT setting_key, setting_value FROM app_settings", null).use { cursor ->
             while (cursor.moveToNext()) values[cursor.getString(0)] = cursor.getString(1)
         }
+        val storedCurrencyCode = values["display_currency"]
+        val displayCurrency = CurrencyCode.fromCodeOrNull(storedCurrencyCode)
+            ?: CurrencyCode.detect(appContext).also { detected ->
+                // Repair a missing or invalid setting once. Do not let a later locale
+                // change reinterpret an already persisted currency choice on every read.
+                putSetting(db, "display_currency", detected.isoCode)
+            }
+
         return AppPreferences(
-            displayCurrency = CurrencyCode.fromCode(values["display_currency"]),
+            displayCurrency = displayCurrency,
             dailyTarget = values["daily_target"]?.toIntOrNull()?.coerceIn(1, 200) ?: 4,
             baselinePerDay = values["baseline_per_day"]?.toIntOrNull()?.coerceIn(0, 200) ?: 15,
             startingStockCigarettes = values["starting_stock_cigarettes"]?.toIntOrNull()?.coerceIn(0, 100_000) ?: 0,
@@ -241,7 +249,8 @@ internal class BreatheEasyDatabase(context: Context) :
                         type = enumValueOrDefault(cursor.getString(2), PurchaseType.PACK),
                         quantity = cursor.getInt(3),
                         amountMinor = cursor.getLong(4),
-                        currency = CurrencyCode.fromCode(cursor.getString(5)),
+                        currency = CurrencyCode.fromCodeOrNull(cursor.getString(5))
+                            ?: throw IllegalStateException("A purchase contains an unsupported currency code."),
                         brand = cursor.getString(6),
                         location = cursor.getString(7),
                         planned = cursor.getInt(8) == 1,
