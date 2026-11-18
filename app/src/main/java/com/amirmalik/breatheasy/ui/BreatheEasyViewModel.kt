@@ -18,8 +18,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import java.time.LocalDate
-import java.time.ZoneId
 
 class BreatheEasyViewModel(application: Application) : AndroidViewModel(application) {
     private val repository = BreatheEasyRepository(application)
@@ -93,13 +91,6 @@ class BreatheEasyViewModel(application: Application) : AndroidViewModel(applicat
                     _busy.value = false
                 }
             }
-        }
-    }
-
-    companion object {
-        fun todayRangeMillis(): LongRange {
-            val zone = ZoneId.systemDefault()
-            return DateTimeRanges.dayRangeMillis(LocalDate.now(zone), zone)
         }
     }
 

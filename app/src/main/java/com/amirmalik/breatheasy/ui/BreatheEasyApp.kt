@@ -119,6 +119,7 @@ import com.amirmalik.breatheasy.data.PurchaseType
 import com.amirmalik.breatheasy.domain.AnalyticsCalculator
 import com.amirmalik.breatheasy.domain.Money
 import com.amirmalik.breatheasy.domain.InventoryCalculator
+import com.amirmalik.breatheasy.domain.DateTimeRanges
 import com.amirmalik.breatheasy.ui.components.MonthlySpendingChart
 import com.amirmalik.breatheasy.ui.components.MonthlyConsumptionChart
 import com.amirmalik.breatheasy.ui.pdf.SpendingPdfExporter
@@ -302,8 +303,11 @@ private fun TodayScreen(
     onDeletePurchase: (Purchase) -> Unit,
 ) {
     val prefs = snapshot.preferences
-    val todayDate = java.time.LocalDate.now()
-    val todayRange = remember(todayDate) { BreatheEasyViewModel.todayRangeMillis() }
+    val todayZone = ZoneId.systemDefault()
+    val todayDate = LocalDate.now(todayZone)
+    val todayRange = remember(todayDate, todayZone) {
+        DateTimeRanges.dayRangeMillis(todayDate, todayZone)
+    }
     val smokedToday = snapshot.cigarettesFor(todayRange.first, todayRange.last + 1)
     val resisted = snapshot.cravingEvents.count {
         it.outcome == CravingOutcome.RESISTED && it.occurredAtMillis in todayRange
