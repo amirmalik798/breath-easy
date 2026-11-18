@@ -137,4 +137,26 @@ class BusinessRulesTest {
         assertEquals(null, CurrencyCode.fromCodeOrNull("ZZZ"))
         assertEquals("USD", CurrencyCode.fromCodeOrNull("usd")?.isoCode)
     }
+    @Test
+    fun futureSmokingAndCravingEventsAreRejected() {
+        val future = Instant.parse("2026-11-18T08:00:01Z")
+        assertRejected {
+            BusinessRules.validateSmokeEvent(
+                SmokeEvent(smokedAtMillis = future.toEpochMilli()),
+                now = now,
+            )
+        }
+        assertRejected {
+            BusinessRules.validateCravingEvent(
+                CravingEvent(
+                    occurredAtMillis = future.toEpochMilli(),
+                    outcome = CravingOutcome.RESISTED,
+                    trigger = CravingTrigger.STRESS,
+                    intensity = 3,
+                ),
+                now = now,
+            )
+        }
+    }
+
 }
