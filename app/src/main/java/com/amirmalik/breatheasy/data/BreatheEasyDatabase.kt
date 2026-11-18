@@ -5,7 +5,6 @@ import android.content.Context
 import android.database.Cursor
 import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
-import com.amirmalik.breatheasy.domain.InventoryCalculator
 import com.amirmalik.breatheasy.domain.StockPolicy
 
 /**
@@ -367,10 +366,28 @@ internal class BreatheEasyDatabase(context: Context) :
             if (cursor.moveToFirst()) cursor.getString(0).toIntOrNull()?.coerceIn(0, 100_000) ?: 0
             else 0
         }
-        return InventoryCalculator.remainingCigarettes(
-            startingStock = startingStock,
-            purchases = readPurchases(db),
-            smokeEvents = readSmokeEvents(db),
+
+        var purchasedCigarettes = 0L
+        db.rawQuery("SELECT product_type, quantity FROM purchases", null).use { cursor ->
+            while (cursor.moveToNext()) {
+                val type = enumValueOrNull<PurchaseType>(cursor.getString(0))
+                    ?: throw IllegalStateException("A purchase contains an unsupported product type.")
+                val cigarettesPerUnit = type.cigarettesPerUnit ?: continue
+                val count = Math.multiplyExact(cursor.getLong(1), cigarettesPerUnit.toLong())
+                purchasedCigarettes = Math.addExact(purchasedCigarettes, count)
+            }
+        }
+
+        var smokedCigarettes = 0L
+        db.rawQuery("SELECT quantity FROM smoke_events", null).use { cursor ->
+            while (cursor.moveToNext()) {
+                smokedCigarettes = Math.addExact(smokedCigarettes, cursor.getLong(0))
+            }
+        }
+
+        return Math.subtractExact(
+            Math.addExact(startingStock.toLong(), purchasedCigarettes),
+            smokedCigarettes,
         )
     }
 

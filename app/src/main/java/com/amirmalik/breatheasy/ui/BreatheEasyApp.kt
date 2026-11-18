@@ -433,10 +433,12 @@ private fun TodayScreen(
     val prefs = snapshot.preferences
     var smokePending by rememberSaveable { mutableStateOf(false) }
     var smokeDraftId by rememberSaveable { mutableStateOf(UUID.randomUUID().toString()) }
+    var smokeDraftAtMillis by rememberSaveable { mutableLongStateOf(System.currentTimeMillis()) }
     LaunchedEffect(busy, snapshot.smokeEvents) {
         if (!busy) {
             if (snapshot.smokeEvents.any { it.id == smokeDraftId }) {
                 smokeDraftId = UUID.randomUUID().toString()
+                smokeDraftAtMillis = System.currentTimeMillis()
             }
             smokePending = false
         }
@@ -566,7 +568,11 @@ private fun TodayScreen(
                             } else {
                                 smokePending = true
                                 onLogSmoke(
-                                    SmokeEvent(id = smokeDraftId, trigger = CravingTrigger.OTHER),
+                                    SmokeEvent(
+                                        id = smokeDraftId,
+                                        smokedAtMillis = smokeDraftAtMillis,
+                                        trigger = CravingTrigger.OTHER,
+                                    ),
                                     false,
                                 )
                             }
@@ -770,7 +776,11 @@ private fun TodayScreen(
                 showStockConfirmation = false
                 smokePending = true
                 onLogSmoke(
-                    SmokeEvent(id = smokeDraftId, trigger = CravingTrigger.OTHER),
+                    SmokeEvent(
+                                        id = smokeDraftId,
+                                        smokedAtMillis = smokeDraftAtMillis,
+                                        trigger = CravingTrigger.OTHER,
+                                    ),
                     true,
                 )
             },
