@@ -174,9 +174,11 @@ fun BreatheEasyApp(viewModel: BreatheEasyViewModel) {
         topBar = {
             TopAppBar(
                 title = {
-                    Column(verticalArrangement = Arrangement.spacedBy(0.dp)) {
+                    Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
                         Text("BreatheEasy", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.ExtraBold,
                             letterSpacing = (-0.6).sp, color = MaterialTheme.colorScheme.primary)
+                        Text("A little progress, every day", style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant, letterSpacing = 0.15.sp)
                     }
                 },
                 actions = {
@@ -206,8 +208,15 @@ fun BreatheEasyApp(viewModel: BreatheEasyViewModel) {
                         selected = selectedTab == tab,
                         onClick = { selectedTab = tab },
                         icon = { Icon(icon, contentDescription = tab.label) },
-                        label = { Text(tab.label) },
+                        label = { Text(tab.label, fontWeight = if (selectedTab == tab) FontWeight.Bold else FontWeight.Medium) },
                         alwaysShowLabel = true,
+                        colors = androidx.compose.material3.NavigationBarItemDefaults.colors(
+                            selectedIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                            selectedTextColor = MaterialTheme.colorScheme.primary,
+                            indicatorColor = MaterialTheme.colorScheme.primaryContainer,
+                            unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                            unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        ),
                     )
                 }
             }
@@ -927,8 +936,13 @@ private fun CravingsScreen(
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         item {
-            Text("Cravings", style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text("Cravings", style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
+                Text("Pause, reset, and choose your next step.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
         }
         item {
             Card(
@@ -1085,8 +1099,13 @@ private fun GoalsScreen(
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         item {
-            Text("Goals", style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text("Goals", style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
+                Text("Shape your targets and keep your records organised.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
         }
         item {
             Card(shape = RoundedCornerShape(24.dp),
@@ -1625,30 +1644,37 @@ private fun MetricCard(
     val content = if (highlight) MaterialTheme.colorScheme.onSecondaryContainer
         else MaterialTheme.colorScheme.onSurface
     Card(
-        modifier = modifier,
-        shape = RoundedCornerShape(22.dp),
+        modifier = modifier.animateContentSize(),
+        shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(containerColor = container),
         border = if (highlight) null else BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        elevation = CardDefaults.cardElevation(defaultElevation = if (highlight) 1.dp else 0.dp),
     ) {
-        Column(Modifier.padding(15.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Icon(icon, contentDescription = null,
-                tint = if (highlight) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(22.dp))
-            Text(eyebrow, style = MaterialTheme.typography.labelSmall,
-                color = content.copy(alpha = 0.72f))
-            Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-                Text(value, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold,
-                    color = content)
+        Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Box(
+                Modifier.size(36.dp).clip(RoundedCornerShape(12.dp))
+                    .background(content.copy(alpha = 0.09f)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(icon, contentDescription = null, tint = if (highlight)
+                    MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(20.dp))
+            }
+            Text(eyebrow, style = MaterialTheme.typography.labelMedium,
+                color = content.copy(alpha = 0.76f), maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(value, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.ExtraBold,
+                    color = content, maxLines = 1)
                 Text(caption, style = MaterialTheme.typography.labelSmall,
-                    color = content.copy(alpha = 0.72f),
-                    modifier = Modifier.padding(bottom = 4.dp))
+                    color = content.copy(alpha = 0.72f), modifier = Modifier.padding(bottom = 4.dp),
+                    maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
         }
     }
 }
 
 @Composable
-private fun PurchaseRow(purchase: Purchase, onDelete: () -> Unit) {
+fun PurchaseRow(purchase: Purchase, onDelete: () -> Unit) {
     Row(
         Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 13.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -1697,11 +1723,29 @@ private fun SectionHeader(title: String) {
 
 @Composable
 private fun EmptyPanel(title: String, body: String) {
-    OutlinedCard(shape = RoundedCornerShape(22.dp), modifier = Modifier.fillMaxWidth()) {
-        Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-            Text(body, style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant)
+    Card(
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+    ) {
+        Row(
+            Modifier.fillMaxWidth().padding(18.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            Box(
+                Modifier.size(46.dp).clip(RoundedCornerShape(15.dp))
+                    .background(MaterialTheme.colorScheme.primaryContainer),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(Icons.Outlined.Spa, contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.size(23.dp))
+            }
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Text(body, style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
         }
     }
 }
