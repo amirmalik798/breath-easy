@@ -71,14 +71,14 @@ class BreatheEasyViewModel(application: Application) : AndroidViewModel(applicat
         repository.deletePurchase(id)
     }
 
-    fun logSmoke(trigger: com.amirmalik.breatheasy.data.CravingTrigger, note: String = "") =
+    fun logSmoke(event: SmokeEvent, allowNegativeStock: Boolean = false) =
         perform(successMessage = null) {
-            repository.logSmoke(SmokeEvent(trigger = trigger, note = note))
+            repository.logSmoke(event, allowNegativeStock)
         }
 
-    fun logCraving(event: CravingEvent) = perform(
+    fun logCraving(event: CravingEvent, allowNegativeStock: Boolean = false) = perform(
         if (event.outcome == CravingOutcome.RESISTED) "Craving recorded as resisted" else "Craving and cigarette recorded",
-    ) { repository.logCraving(event) }
+    ) { repository.logCraving(event, allowNegativeStock) }
 
     fun clearMessage() { _message.value = null }
 

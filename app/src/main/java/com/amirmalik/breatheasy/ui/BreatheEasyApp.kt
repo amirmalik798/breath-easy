@@ -179,6 +179,17 @@ fun BreatheEasyApp(viewModel: BreatheEasyViewModel) {
     val purchaseToDelete = snapshot.purchases.firstOrNull { it.id == purchaseToDeleteId }
     var pendingDeleteId by remember { mutableStateOf<String?>(null) }
     val snackbarHostState = remember { SnackbarHostState() }
+    val trackedStock = remember(
+        snapshot.preferences.startingStockCigarettes,
+        snapshot.purchases,
+        snapshot.smokeEvents,
+    ) {
+        InventoryCalculator.remainingCigarettes(
+            startingStock = snapshot.preferences.startingStockCigarettes,
+            purchases = snapshot.purchases,
+            smokeEvents = snapshot.smokeEvents,
+        )
+    }
 
     LaunchedEffect(message) {
         message?.let { resultMessage ->
@@ -318,7 +329,8 @@ fun BreatheEasyApp(viewModel: BreatheEasyViewModel) {
                     MainTab.TODAY -> TodayScreen(
                         snapshot = snapshot,
                         busy = busy,
-                        onLogSmoke = { trigger, note -> viewModel.logSmoke(trigger, note) },
+                        trackedStock = trackedStock,
+                        onLogSmoke = viewModel::logSmoke,
                         onOpenCravings = { selectedTab = MainTab.CRAVINGS },
                         onRecordPurchase = { if (!busy) showPurchaseScreen = true },
                         onDeletePurchase = { purchaseToDeleteId = it.id },
@@ -372,6 +384,7 @@ fun BreatheEasyApp(viewModel: BreatheEasyViewModel) {
     if (showCravingDialog) {
         RecordCravingDialog(
             busy = busy,
+            trackedStock = trackedStock,
             onDismiss = { showCravingDialog = false },
             onSave = viewModel::logCraving,
         )
@@ -411,16 +424,24 @@ fun BreatheEasyApp(viewModel: BreatheEasyViewModel) {
 private fun TodayScreen(
     snapshot: AppSnapshot,
     busy: Boolean,
-    onLogSmoke: (CravingTrigger, String) -> Unit,
+    trackedStock: Long,
+    onLogSmoke: (SmokeEvent, Boolean) -> Unit,
     onOpenCravings: () -> Unit,
     onRecordPurchase: () -> Unit,
     onDeletePurchase: (Purchase) -> Unit,
 ) {
     val prefs = snapshot.preferences
     var smokePending by rememberSaveable { mutableStateOf(false) }
-    LaunchedEffect(busy) {
-        if (!busy) smokePending = false
+    var smokeDraftId by rememberSaveable { mutableStateOf(UUID.randomUUID().toString()) }
+    LaunchedEffect(busy, snapshot.smokeEvents) {
+        if (!busy) {
+            if (snapshot.smokeEvents.any { it.id == smokeDraftId }) {
+                smokeDraftId = UUID.randomUUID().toString()
+            }
+            smokePending = false
+        }
     }
+    var showStockConfirmation by rememberSaveable { mutableStateOf(false) }
     val loggingSmoke = busy && smokePending
     val todayZone = ZoneId.systemDefault()
     val todayDate = LocalDate.now(todayZone)
@@ -444,14 +465,6 @@ private fun TodayScreen(
     }
     val todayLabel = DateTimeFormatter.ofPattern("EEEE, d MMMM", Locale.getDefault()).format(todayDate)
     val recentPurchases = remember(snapshot.purchases) { snapshot.purchases.take(3) }
-    val stock = remember(prefs.startingStockCigarettes, snapshot.purchases, snapshot.smokeEvents) {
-        InventoryCalculator.remainingCigarettes(
-            startingStock = prefs.startingStockCigarettes,
-            purchases = snapshot.purchases,
-            smokeEvents = snapshot.smokeEvents,
-        )
-    }
-
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = androidx.compose.foundation.layout.PaddingValues(
@@ -548,10 +561,17 @@ private fun TodayScreen(
                 Row(Modifier.fillMaxWidth().padding(14.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     Button(
                         onClick = {
-                            smokePending = true
-                            onLogSmoke(CravingTrigger.OTHER, "")
+                            if (trackedStock <= 0L) {
+                                showStockConfirmation = true
+                            } else {
+                                smokePending = true
+                                onLogSmoke(
+                                    SmokeEvent(id = smokeDraftId, trigger = CravingTrigger.OTHER),
+                                    false,
+                                )
+                            }
                         },
-                        enabled = !busy && !smokePending,
+                        enabled = !busy && !snapshot.isLoading && !smokePending,
                         modifier = Modifier.weight(1f),
                     ) {
                         if (loggingSmoke) {
@@ -596,31 +616,78 @@ private fun TodayScreen(
         item {
             Card(
                 shape = RoundedCornerShape(22.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                colors = CardDefaults.cardColors(
+                    containerColor = if (trackedStock < 0L) {
+                        MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.42f)
+                    } else {
+                        MaterialTheme.colorScheme.surface
+                    },
+                ),
+                border = BorderStroke(
+                    1.dp,
+                    if (trackedStock < 0L) MaterialTheme.colorScheme.tertiary.copy(alpha = 0.55f)
+                    else MaterialTheme.colorScheme.outlineVariant,
+                ),
             ) {
                 Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                    val stockContentColor = if (trackedStock < 0L) {
+                        MaterialTheme.colorScheme.onTertiaryContainer
+                    } else {
+                        MaterialTheme.colorScheme.onSurface
+                    }
                     Box(Modifier.size(42.dp).clip(RoundedCornerShape(14.dp))
-                        .background(MaterialTheme.colorScheme.secondaryContainer), contentAlignment = Alignment.Center) {
-                        Icon(Icons.Outlined.Waves, contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSecondaryContainer)
+                        .background(
+                            if (trackedStock < 0L) MaterialTheme.colorScheme.tertiary.copy(alpha = 0.14f)
+                            else MaterialTheme.colorScheme.secondaryContainer,
+                        ), contentAlignment = Alignment.Center) {
+                        Icon(
+                            if (trackedStock < 0L) Icons.Outlined.Info else Icons.Outlined.Waves,
+                            contentDescription = null,
+                            tint = if (trackedStock < 0L) MaterialTheme.colorScheme.tertiary
+                                else MaterialTheme.colorScheme.onSecondaryContainer,
+                        )
                     }
                     Spacer(Modifier.width(12.dp))
-                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                        Text("Estimated stock", fontWeight = FontWeight.SemiBold)
-                        if (stock >= 0L) {
-                            Text("${stock} cigarettes · ${stock / 20} packs + ${stock % 20} loose",
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                        Text(
+                            when {
+                                trackedStock < 0L -> "Stock needs reconciliation"
+                                trackedStock == 0L -> "No cigarettes tracked in stock"
+                                else -> "Estimated stock"
+                            },
+                            fontWeight = FontWeight.SemiBold,
+                            color = stockContentColor,
+                        )
+                        when {
+                            trackedStock > 0L -> Text(
+                                "${trackedStock} cigarettes · ${trackedStock / 20} packs + ${trackedStock % 20} loose",
                                 style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        } else {
-                            Text("Consumption exceeds tracked stock by ${-stock} cigarettes",
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            trackedStock == 0L -> Text(
+                                "Your tracked cigarette stock is empty.",
                                 style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.tertiary)
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            else -> {
+                                Text(
+                                    "Your log is ${-trackedStock} cigarettes ahead of tracked stock.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = stockContentColor,
+                                )
+                                Text(
+                                    "Record missing purchases or update starting stock to reconcile the estimate.",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = stockContentColor.copy(alpha = 0.88f),
+                                )
+                            }
                         }
                         Text(
                             "Estimate assumes 20 cigarettes per pack and 200 per carton; rolling tobacco is excluded.",
                             style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            color = if (trackedStock < 0L) stockContentColor.copy(alpha = 0.82f)
+                                else MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                 }
@@ -693,6 +760,22 @@ private fun TodayScreen(
                 }
             }
         }
+    }
+
+    if (showStockConfirmation) {
+        StockConfirmationDialog(
+            remainingCigarettes = trackedStock,
+            onDismiss = { showStockConfirmation = false },
+            onConfirm = {
+                showStockConfirmation = false
+                smokePending = true
+                onLogSmoke(
+                    SmokeEvent(id = smokeDraftId, trigger = CravingTrigger.OTHER),
+                    true,
+                )
+            },
+            enabled = !busy && !smokePending,
+        )
     }
 }
 
@@ -1955,8 +2038,9 @@ private fun RecordPurchaseScreen(
 @Composable
 private fun RecordCravingDialog(
     busy: Boolean,
+    trackedStock: Long,
     onDismiss: () -> Unit,
-    onSave: (CravingEvent) -> Unit,
+    onSave: (CravingEvent, Boolean) -> Unit,
 ) {
     var outcome by rememberSaveable { mutableStateOf(CravingOutcome.RESISTED) }
     var trigger by rememberSaveable { mutableStateOf(CravingTrigger.STRESS) }
@@ -1965,10 +2049,28 @@ private fun RecordCravingDialog(
     var cravingDraftId by rememberSaveable { mutableStateOf(UUID.randomUUID().toString()) }
     var cravingOccurredAtMillis by rememberSaveable { mutableLongStateOf(System.currentTimeMillis()) }
     var submitPending by rememberSaveable { mutableStateOf(false) }
+    var showStockConfirmation by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(busy) {
         if (!busy) submitPending = false
     }
     val saving = busy || submitPending
+
+    fun submitCraving(allowNegativeStock: Boolean) {
+        submitPending = true
+        showStockConfirmation = false
+        onSave(
+            CravingEvent(
+                id = cravingDraftId,
+                occurredAtMillis = cravingOccurredAtMillis,
+                outcome = outcome,
+                trigger = trigger,
+                intensity = intensity,
+                note = note,
+            ),
+            allowNegativeStock,
+        )
+    }
+
     AlertDialog(
         onDismissRequest = { if (!saving) onDismiss() },
         title = { Text("Record a craving", fontWeight = FontWeight.Bold) },
@@ -2019,15 +2121,11 @@ private fun RecordCravingDialog(
         confirmButton = {
             Button(
                 onClick = {
-                    submitPending = true
-                    onSave(CravingEvent(
-                        id = cravingDraftId,
-                        occurredAtMillis = cravingOccurredAtMillis,
-                        outcome = outcome,
-                        trigger = trigger,
-                        intensity = intensity,
-                        note = note,
-                    ))
+                    if (outcome == CravingOutcome.SMOKED && trackedStock <= 0L) {
+                        showStockConfirmation = true
+                    } else {
+                        submitCraving(allowNegativeStock = false)
+                    }
                 },
                 enabled = !saving,
             ) {
@@ -2048,6 +2146,15 @@ private fun RecordCravingDialog(
             TextButton(onClick = onDismiss, enabled = !saving) { Text("Cancel") }
         },
     )
+
+    if (showStockConfirmation) {
+        StockConfirmationDialog(
+            remainingCigarettes = trackedStock,
+            onDismiss = { showStockConfirmation = false },
+            onConfirm = { submitCraving(allowNegativeStock = true) },
+            enabled = !saving,
+        )
+    }
 }
 
 @Composable
@@ -2231,6 +2338,50 @@ private fun DailyTargetStatus(progress: DailyTargetProgress) {
             }
         }
     }
+}
+
+@Composable
+private fun StockConfirmationDialog(
+    remainingCigarettes: Long,
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit,
+    enabled: Boolean,
+) {
+    val isEmpty = remainingCigarettes == 0L
+    val deficit = if (remainingCigarettes < 0L) -remainingCigarettes else 0L
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        icon = {
+            Icon(
+                Icons.Outlined.Info,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.tertiary,
+            )
+        },
+        title = {
+            Text(if (isEmpty) "No tracked cigarettes left" else "Tracked stock is below zero")
+        },
+        text = {
+            Text(
+                if (isEmpty) {
+                    "Your tracked stock is empty. If you actually smoked a cigarette, you can still record it. Confirming will show −1 until you reconcile your stock."
+                } else {
+                    "Your tracked stock is already $deficit cigarettes below zero. If you actually smoked another cigarette, you can record it; the difference will increase."
+                },
+            )
+        },
+        confirmButton = {
+            Button(onClick = onConfirm, enabled = enabled) {
+                Text("I smoked — log it")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss, enabled = enabled) {
+                Text("Cancel")
+            }
+        },
+    )
 }
 
 @Composable

@@ -5,6 +5,8 @@ import android.content.Context
 import android.database.Cursor
 import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
+import com.amirmalik.breatheasy.domain.InventoryCalculator
+import com.amirmalik.breatheasy.domain.StockPolicy
 
 /**
  * Small, offline-first SQLite store. Financial values are persisted as integer minor units;
@@ -214,18 +216,50 @@ internal class BreatheEasyDatabase(context: Context) :
     fun deletePurchase(id: String): Boolean =
         writableDatabase.delete("purchases", "id = ?", arrayOf(id)) == 1
 
-    fun insertSmokeEvent(event: SmokeEvent) {
-        val values = ContentValues().apply {
-            put("id", event.id)
-            put("smoked_at_ms", event.smokedAtMillis)
-            put("quantity", event.quantity)
-            put("trigger_code", event.trigger.name)
-            put("note", event.note)
+    fun insertSmokeEvent(event: SmokeEvent, allowNegativeStock: Boolean = false) {
+        val db = writableDatabase
+        db.beginTransaction()
+        try {
+            // A retry with the same event ID must remain idempotent, even if the
+            // original insert already reduced stock to zero or below.
+            val existingMatches = db.rawQuery(
+                "SELECT smoked_at_ms, quantity, trigger_code, note FROM smoke_events WHERE id = ?",
+                arrayOf(event.id),
+            ).use { cursor ->
+                if (!cursor.moveToFirst()) {
+                    null
+                } else {
+                    cursor.getLong(0) == event.smokedAtMillis &&
+                        cursor.getInt(1) == event.quantity &&
+                        cursor.getString(2) == event.trigger.name &&
+                        cursor.getString(3) == event.note
+                }
+            }
+            if (existingMatches != null) {
+                check(existingMatches) { "This smoking entry ID is already associated with different details." }
+                db.setTransactionSuccessful()
+                return
+            }
+
+            StockPolicy.requireAvailable(
+                remainingCigarettes = readTrackedStock(db),
+                allowNegativeStock = allowNegativeStock,
+            )
+            val values = ContentValues().apply {
+                put("id", event.id)
+                put("smoked_at_ms", event.smokedAtMillis)
+                put("quantity", event.quantity)
+                put("trigger_code", event.trigger.name)
+                put("note", event.note)
+            }
+            db.insertOrThrow("smoke_events", null, values)
+            db.setTransactionSuccessful()
+        } finally {
+            db.endTransaction()
         }
-        writableDatabase.insertOrThrow("smoke_events", null, values)
     }
 
-    fun insertCravingEvent(event: CravingEvent) {
+    fun insertCravingEvent(event: CravingEvent, allowNegativeStock: Boolean = false) {
         val db = writableDatabase
         db.beginTransaction()
         try {
@@ -265,6 +299,12 @@ internal class BreatheEasyDatabase(context: Context) :
             }
 
             if (event.outcome == CravingOutcome.SMOKED) {
+                if (inserted != -1L) {
+                    StockPolicy.requireAvailable(
+                        remainingCigarettes = readTrackedStock(db),
+                        allowNegativeStock = allowNegativeStock,
+                    )
+                }
                 val smokeId = "craving-${event.id}"
                 val smokeValues = ContentValues().apply {
                     put("id", smokeId)
@@ -313,6 +353,25 @@ internal class BreatheEasyDatabase(context: Context) :
         } finally {
             db.endTransaction()
         }
+    }
+
+    /**
+     * Calculate tracked inventory from the same SQLite transaction as a smoking write.
+     * This prevents stale UI snapshots or another entry path from bypassing stock checks.
+     */
+    private fun readTrackedStock(db: SQLiteDatabase): Long {
+        val startingStock = db.rawQuery(
+            "SELECT setting_value FROM app_settings WHERE setting_key = ?",
+            arrayOf("starting_stock_cigarettes"),
+        ).use { cursor ->
+            if (cursor.moveToFirst()) cursor.getString(0).toIntOrNull()?.coerceIn(0, 100_000) ?: 0
+            else 0
+        }
+        return InventoryCalculator.remainingCigarettes(
+            startingStock = startingStock,
+            purchases = readPurchases(db),
+            smokeEvents = readSmokeEvents(db),
+        )
     }
 
     private fun readPreferences(db: SQLiteDatabase): AppPreferences {
