@@ -53,17 +53,16 @@ object SpendingPdfExporter {
     private const val CONTINUATION_ROWS = 15
     private const val ROW_HEIGHT = 35f
 
-    private val ink = Color.rgb(27, 44, 37)
-    private val forest = Color.rgb(19, 43, 34)
-    private val forestLight = Color.rgb(37, 68, 54)
-    private val mint = Color.rgb(179, 224, 195)
-    private val pageColor = Color.rgb(247, 249, 246)
-    private val paper = Color.WHITE
-    private val muted = Color.rgb(107, 121, 112)
-    private val border = Color.rgb(222, 230, 223)
-    private val track = Color.rgb(232, 238, 232)
-    private val accent = Color.rgb(102, 159, 125)
-    private val softAccent = Color.rgb(225, 239, 228)
+    private val ink = Color.rgb(33, 27, 24)
+    private val panel = Color.rgb(23, 22, 27)
+        private val highlight = Color.rgb(255, 224, 204)
+    private val pageColor = Color.rgb(246, 242, 239)
+    private val paper = Color.rgb(255, 252, 250)
+    private val muted = Color.rgb(109, 98, 91)
+    private val border = Color.rgb(226, 214, 207)
+    private val track = Color.rgb(236, 227, 222)
+    private val accent = Color.rgb(232, 93, 4)
+    private val softAccent = Color.rgb(255, 224, 204)
 
     private data class MonthReport(
         val month: YearMonth,
@@ -235,22 +234,22 @@ object SpendingPdfExporter {
         dateRange: String,
         currency: CurrencyCode,
     ) {
-        canvas.drawRoundRect(RectF(28f, 26f, 567f, 190f), 24f, 24f, fillPaint(forest))
-        val ring = strokePaint(Color.argb(35, 179, 224, 195), 1.3f)
+        canvas.drawRoundRect(RectF(28f, 26f, 567f, 190f), 24f, 24f, fillPaint(panel))
+        val ring = strokePaint(Color.argb(38, 255, 116, 23), 1.3f)
         canvas.drawCircle(526f, 64f, 76f, ring)
         canvas.drawCircle(526f, 64f, 54f, ring)
 
-        drawText(canvas, "B R E A T H E  E A S Y", 52f, 58f, 10f, mint, bold = true)
-        drawText(canvas, "PERSONAL FINANCE", 542f, 58f, 7.5f, Color.rgb(204, 219, 207), align = Paint.Align.RIGHT)
+        drawText(canvas, "B R E A T H E  E A S Y", 52f, 58f, 10f, highlight, bold = true)
+        drawText(canvas, "PERSONAL FINANCE", 542f, 58f, 7.5f, Color.rgb(255, 230, 213), align = Paint.Align.RIGHT)
         drawText(canvas, "SPENDING REPORT", 52f, 94f, 23f, paper, bold = true)
         drawText(canvas, "PERIOD OVERVIEW  ·  ${period.label.uppercase(Locale.getDefault())}",
-            52f, 118f, 8f, Color.rgb(203, 218, 207), bold = true)
+            52f, 118f, 8f, Color.rgb(255, 230, 213), bold = true)
         drawText(canvas, dateRange, 52f, 145f, 11f, paper, bold = true)
-        canvas.drawLine(52f, 160f, 543f, 160f, strokePaint(Color.argb(54, 220, 239, 225), 1f))
+        canvas.drawLine(52f, 160f, 543f, 160f, strokePaint(Color.argb(54, 255, 116, 23), 1f))
         drawFittedText(
             canvas,
             "Includes ${currency.isoCode} purchases only · Other currencies are excluded (not converted)",
-            52f, 179f, 490f, textPaint(7f, Color.rgb(203, 218, 207)),
+            52f, 179f, 490f, textPaint(7f, Color.rgb(255, 230, 213)),
         )
     }
 
@@ -263,7 +262,7 @@ object SpendingPdfExporter {
         accentCard: Boolean = false,
     ) {
         val background = if (accentCard) softAccent else paper
-        val valueColor = if (accentCard) forest else ink
+        val valueColor = if (accentCard) panel else ink
         canvas.drawRoundRect(rect, 14f, 14f, fillPaint(background))
         canvas.drawRoundRect(rect, 14f, 14f, strokePaint(border, 0.8f))
         drawText(canvas, label, rect.left + 13f, rect.top + 22f, 7f, muted, bold = true)
@@ -375,8 +374,8 @@ object SpendingPdfExporter {
         report: MonthReport,
         currency: CurrencyCode,
     ) {
-        canvas.drawRoundRect(RectF(28f, 26f, 567f, 178f), 22f, 22f, fillPaint(forest))
-        drawText(canvas, "B R E A T H E  E A S Y  /  MONTHLY DETAIL", 52f, 58f, 9f, mint, bold = true)
+        canvas.drawRoundRect(RectF(28f, 26f, 567f, 178f), 22f, 22f, fillPaint(panel))
+        drawText(canvas, "B R E A T H E  E A S Y  /  MONTHLY DETAIL", 52f, 58f, 9f, highlight, bold = true)
         val monthName = report.month.month.getDisplayName(TextStyle.FULL, Locale.getDefault())
         drawFittedText(
             canvas, "$monthName ${report.month.year}", 52f, 98f, 345f,
@@ -385,12 +384,12 @@ object SpendingPdfExporter {
         drawText(
             canvas,
             "${report.purchases.size} ${if (report.purchases.size == 1) "purchase" else "purchases"} recorded",
-            52f, 121f, 8.5f, Color.rgb(203, 218, 207),
+            52f, 121f, 8.5f, Color.rgb(255, 230, 213),
         )
         val start = report.month.atDay(1).format(DateTimeFormatter.ofPattern("d MMM yyyy", Locale.getDefault()))
         val end = report.month.atEndOfMonth().format(DateTimeFormatter.ofPattern("d MMM yyyy", Locale.getDefault()))
-        drawText(canvas, "$start  —  $end", 52f, 147f, 8f, Color.rgb(203, 218, 207))
-        drawText(canvas, currency.isoCode, 542f, 147f, 8f, mint, bold = true, align = Paint.Align.RIGHT)
+        drawText(canvas, "$start  —  $end", 52f, 147f, 8f, Color.rgb(255, 230, 213))
+        drawText(canvas, currency.isoCode, 542f, 147f, 8f, highlight, bold = true, align = Paint.Align.RIGHT)
     }
 
     private fun drawMonthlyMetrics(
@@ -449,13 +448,13 @@ object SpendingPdfExporter {
         report: MonthReport,
         currency: CurrencyCode,
     ) {
-        canvas.drawRoundRect(RectF(28f, 26f, 567f, 150f), 22f, 22f, fillPaint(forest))
-        drawText(canvas, "B R E A T H E  E A S Y  /  SPENDING REPORT", 52f, 58f, 9f, mint, bold = true)
+        canvas.drawRoundRect(RectF(28f, 26f, 567f, 150f), 22f, 22f, fillPaint(panel))
+        drawText(canvas, "B R E A T H E  E A S Y  /  SPENDING REPORT", 52f, 58f, 9f, highlight, bold = true)
         val monthName = report.month.month.getDisplayName(TextStyle.FULL, Locale.getDefault())
         drawText(canvas, "$monthName ${report.month.year}", 52f, 98f, 22f, paper, bold = true)
-        drawText(canvas, "PURCHASE DETAILS  ·  CONTINUED", 52f, 123f, 8f, Color.rgb(203, 218, 207), bold = true)
+        drawText(canvas, "PURCHASE DETAILS  ·  CONTINUED", 52f, 123f, 8f, Color.rgb(255, 230, 213), bold = true)
         drawText(
-            canvas, Money.format(report.totalMinor, currency), 542f, 98f, 14f, mint,
+            canvas, Money.format(report.totalMinor, currency), 542f, 98f, 14f, highlight,
             bold = true, align = Paint.Align.RIGHT,
         )
     }

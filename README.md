@@ -1,6 +1,6 @@
 # BreatheEasy
 
-BreatheEasy is an offline-first native Android companion for mindful smoking reduction, craving awareness, and transparent spending insights. The Kotlin + Jetpack Compose UI follows the calm forest-and-sage direction of the supplied Google Stitch concept.
+BreatheEasy is an offline-first native Android companion for mindful smoking reduction, craving awareness, and transparent spending insights. The Kotlin + Jetpack Compose UI uses a warm orange-and-charcoal visual system with clear light and dark themes.
 
 ## Included in this initial implementation
 
