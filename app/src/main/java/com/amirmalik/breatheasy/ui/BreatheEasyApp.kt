@@ -630,6 +630,8 @@ private fun SpendingScreen(
     var isExportingPdf by rememberSaveable { mutableStateOf(false) }
     var isPickingPdfDestination by rememberSaveable { mutableStateOf(false) }
     var pdfExportMessage by rememberSaveable { mutableStateOf<String?>(null) }
+    var monthOffset by rememberSaveable { mutableIntStateOf(0) }
+    val selectedMonth = YearMonth.now().minusMonths(monthOffset.toLong())
     DisposableEffect(Unit) {
         onDispose {
             isExportingPdf = false
@@ -674,8 +676,6 @@ private fun SpendingScreen(
             }
         }
     }
-    var monthOffset by rememberSaveable { mutableIntStateOf(0) }
-    val selectedMonth = YearMonth.now().minusMonths(monthOffset.toLong())
     val summary = remember(snapshot.purchases, selectedMonth, prefs.displayCurrency) {
         AnalyticsCalculator.spending(snapshot.purchases, selectedMonth, prefs.displayCurrency, 12)
     }
