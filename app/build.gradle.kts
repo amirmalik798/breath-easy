@@ -6,6 +6,7 @@ plugins {
 android {
     namespace = "com.amirmalik.breatheasy"
     compileSdk = 37
+    buildToolsVersion = "37.0.0"
 
     defaultConfig {
         applicationId = "com.amirmalik.breatheasy"
