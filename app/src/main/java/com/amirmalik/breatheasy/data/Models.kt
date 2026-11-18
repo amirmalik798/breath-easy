@@ -20,15 +20,25 @@ data class CurrencyCode(
     val fractionDigits: Int,
 ) {
     companion object {
-        fun fromCode(value: String?): CurrencyCode {
-            val currency = value
-                ?.trim()
-                ?.uppercase(Locale.ROOT)
-                ?.takeIf { it.matches(Regex("[A-Z]{3}")) }
-                ?.let { code -> runCatching { Currency.getInstance(code) }.getOrNull() }
-                ?.let(::fromJavaCurrency)
-            return currency ?: fromLocale(Locale.getDefault())
+        /**
+         * Resolve a known ISO-4217 currency code without substituting the current
+         * device locale. Use this for persisted transaction data so an invalid
+         * historical code is never silently reinterpreted as another currency.
+         */
+        fun fromCodeOrNull(value: String?): CurrencyCode? {
+            val code = value?.trim()?.uppercase(Locale.ROOT)
+                ?.takeIf { it.matches(Regex("[A-Z]{3}")) } ?: return null
+            val currency = runCatching { Currency.getInstance(code) }.getOrNull()
+                ?: return null
+            return fromJavaCurrency(currency)
         }
+
+        /**
+         * Convenience resolver for defaults and optional values. Persisted transaction
+         * records should use [fromCodeOrNull] and handle an unknown code explicitly.
+         */
+        fun fromCode(value: String?): CurrencyCode =
+            fromCodeOrNull(value) ?: fromLocale(Locale.getDefault())
 
         fun fromCountry(countryCode: String?): CurrencyCode? {
             val country = countryCode?.trim()?.uppercase(Locale.ROOT)
