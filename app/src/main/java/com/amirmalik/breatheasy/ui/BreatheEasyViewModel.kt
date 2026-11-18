@@ -77,7 +77,7 @@ class BreatheEasyViewModel(application: Application) : AndroidViewModel(applicat
         }
 
     fun logCraving(event: CravingEvent, confirmUnstockedSmoking: Boolean = false) = perform(
-        if (event.outcome == CravingOutcome.RESISTED) "Craving recorded as resisted" else "Craving and cigarette recorded",
+        if (event.outcome == CravingOutcome.RESISTED) "Craving recorded as resisted" else "Craving entry saved",
     ) { repository.logCraving(event, confirmUnstockedSmoking) }
 
     fun clearMessage() { _message.value = null }

@@ -197,7 +197,7 @@ fun BreatheEasyApp(viewModel: BreatheEasyViewModel) {
             when {
                 resultMessage.startsWith("Purchase added to your ledger") -> showPurchaseScreen = false
                 resultMessage.startsWith("Craving recorded as resisted") ||
-                    resultMessage.startsWith("Craving and cigarette recorded") -> showCravingDialog = false
+                    resultMessage.startsWith("Craving entry saved") -> showCravingDialog = false
             }
             val deletingId = pendingDeleteId
             if (deletingId != null) {
