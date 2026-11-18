@@ -36,7 +36,7 @@ fun MonthlySpendingChart(
     val primary = MaterialTheme.colorScheme.primary
     val grid = MaterialTheme.colorScheme.outlineVariant
     val muted = MaterialTheme.colorScheme.onSurfaceVariant
-    val values = points.map { it.convertedMinor.toFloat() }
+    val values = points.map { it.totalMinor.toFloat() }
     val maxValue = max(values.maxOrNull() ?: 0f, 1f)
 
     Column(modifier = modifier.fillMaxWidth()) {
@@ -118,7 +118,7 @@ fun MonthlySpendingChart(
             }
         }
         Text(
-            text = "Amounts are purchases recorded in ${currency.isoCode}; missing FX conversions are excluded and disclosed below.",
+            text = "Only purchases recorded in ${currency.isoCode} are included.",
             color = muted,
             style = MaterialTheme.typography.labelSmall,
             modifier = Modifier.padding(top = 8.dp),
