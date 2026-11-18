@@ -5,6 +5,19 @@ import org.junit.Test
 
 class AppSnapshotTest {
     @Test
+    fun smokingTotalsIncludeCigarettesRecordedWithoutTrackedStock() {
+        val snapshot = AppSnapshot(
+            smokeEvents = listOf(
+                SmokeEvent(quantity = 1, stockQuantity = 0),
+                SmokeEvent(quantity = 2, stockQuantity = 1),
+            ),
+            isLoading = false,
+        )
+
+        assertEquals(3L, snapshot.cigarettesFor(0L, Long.MAX_VALUE))
+    }
+
+    @Test
     fun dailyConsumptionUsesLongArithmeticForLongHistories() {
         val snapshot = AppSnapshot(
             preferences = AppPreferences(displayCurrency = CurrencyCode.fromCode("USD")),

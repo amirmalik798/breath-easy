@@ -22,15 +22,7 @@ class StockPolicyTest {
     }
 
     @Test
-    fun requiresConfirmationWhenTrackedStockIsAlreadyNegative() {
-        val error = assertThrows(TrackedStockUnavailableException::class.java) {
-            StockPolicy.requireAvailable(remainingCigarettes = -4L)
-        }
-        assertEquals(-4L, error.remainingCigarettes)
-    }
-
-    @Test
-    fun requiresConfirmationWhenAnEntryExceedsPositiveStock() {
+    fun requiresConfirmationWhenEntryExceedsAvailableStock() {
         val error = assertThrows(TrackedStockUnavailableException::class.java) {
             StockPolicy.requireAvailable(remainingCigarettes = 1L, requestedCigarettes = 2)
         }
@@ -39,20 +31,22 @@ class StockPolicyTest {
     }
 
     @Test
-    fun explicitConfirmationAllowsRecordingActualSmokingBelowAvailableStock() {
-        StockPolicy.requireAvailable(remainingCigarettes = 0L, allowNegativeStock = true)
-        StockPolicy.requireAvailable(remainingCigarettes = -4L, allowNegativeStock = true)
+    fun confirmationAllowsActualSmokingWithoutAuthorizingNegativeStock() {
+        StockPolicy.requireAvailable(remainingCigarettes = 0L, confirmUnstockedSmoking = true)
         StockPolicy.requireAvailable(
             remainingCigarettes = 1L,
             requestedCigarettes = 3,
-            allowNegativeStock = true,
+            confirmUnstockedSmoking = true,
         )
     }
 
     @Test
-    fun rejectsInvalidRequestedQuantity() {
+    fun rejectsInvalidRequestedQuantityAndNegativeInventory() {
         assertThrows(IllegalArgumentException::class.java) {
             StockPolicy.requireAvailable(remainingCigarettes = 5L, requestedCigarettes = 0)
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            StockPolicy.requireAvailable(remainingCigarettes = -1L)
         }
     }
 }
