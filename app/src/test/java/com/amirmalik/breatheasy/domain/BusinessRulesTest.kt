@@ -61,7 +61,7 @@ class BusinessRulesTest {
 
     @Test
     fun currentDateIsEvaluatedInTheSelectedTimeZone() {
-        // 00:30 UTC is still the previous calendar day in Los Angeles.
+        // 07:30 UTC is 23:30 on the previous local calendar day in Los Angeles.
         BusinessRules.validatePurchase(
             purchase(date = "2026-11-18T07:30:00Z"),
             now = Instant.parse("2026-11-18T07:00:00Z"),

@@ -38,3 +38,13 @@ Records are stored in the app-private SQLite database on the device. This initia
 ## Validation status
 
 Money formatting and parsing use each selected currency's ISO minor-unit precision. Monthly spending analytics filter by the single installation currency and never combine unlike currencies.
+
+## Entry validation and consistency
+
+New records are validated at the repository boundary, not only in the visible forms. Purchases require a positive total amount, a supported ISO-4217 currency with matching minor-unit precision, a quantity from 1 to 10,000, and a purchase date no later than the current local calendar date. Smoking entries accept 1 to 100 cigarettes per event; craving intensity is limited to 1–5.
+
+A craving recorded as **Smoked** creates one matching smoking event in the same SQLite transaction. Either both records are saved or neither is saved. A **Resisted** craving does not alter cigarette consumption.
+
+Stock is an estimate: opening stock + recorded pack/carton/loose-cigarette purchases − cigarettes explicitly logged as smoked. Full packs count as 20 cigarettes and cartons as 200. Rolling tobacco is excluded because its yield is user-dependent. Negative stock is retained as a reconciliation signal rather than preventing a smoking entry.
+
+The previous daily baseline is shown as a personal reference alongside the daily tracking target. Neither value is presented as a medically recommended safe limit.
