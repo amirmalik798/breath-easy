@@ -3,8 +3,7 @@ package com.amirmalik.breatheasy.domain
 import com.amirmalik.breatheasy.data.CurrencyCode
 import java.math.BigDecimal
 import java.math.RoundingMode
-import java.text.DecimalFormat
-import java.text.DecimalFormatSymbols
+import java.text.NumberFormat
 import java.util.Locale
 
 object Money {
@@ -34,9 +33,12 @@ object Money {
 
     fun format(minor: Long, currency: CurrencyCode, includeCode: Boolean = false): String {
         val value = BigDecimal.valueOf(minor, currency.fractionDigits)
-        val pattern = if (currency.fractionDigits == 0) "#,##0" else "#,##0." + "0".repeat(currency.fractionDigits)
-        val formatter = DecimalFormat(pattern, DecimalFormatSymbols.getInstance(Locale.getDefault()))
-        val amount = formatter.format(value)
-        return if (includeCode) "${currency.symbol} $amount ${currency.isoCode}" else "${currency.symbol} $amount"
+        val formatter = NumberFormat.getCurrencyInstance(Locale.getDefault()).apply {
+            this.currency = java.util.Currency.getInstance(currency.isoCode)
+            minimumFractionDigits = currency.fractionDigits
+            maximumFractionDigits = currency.fractionDigits
+        }
+        val formatted = formatter.format(value)
+        return if (includeCode) "$formatted (${currency.isoCode})" else formatted
     }
 }
