@@ -164,6 +164,7 @@ fun BreatheEasyApp(viewModel: BreatheEasyViewModel) {
     var showPurchaseDialog by rememberSaveable { mutableStateOf(false) }
     var showCravingDialog by rememberSaveable { mutableStateOf(false) }
     var purchaseToDelete by remember { mutableStateOf<Purchase?>(null) }
+    var pendingDeleteId by rememberSaveable { mutableStateOf<String?>(null) }
     val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(message) {
@@ -172,6 +173,12 @@ fun BreatheEasyApp(viewModel: BreatheEasyViewModel) {
                 resultMessage.startsWith("Purchase added to your ledger") -> showPurchaseDialog = false
                 resultMessage.startsWith("Craving recorded as resisted") ||
                     resultMessage.startsWith("Craving and cigarette recorded") -> showCravingDialog = false
+            }
+            if (pendingDeleteId != null) {
+                // Do not dismiss the confirmation until the repository returns the
+                // operation result. A failed delete must remain visible to the user.
+                pendingDeleteId = null
+                purchaseToDelete = null
             }
             snackbarHostState.showSnackbar(resultMessage)
             viewModel.clearMessage()
@@ -319,18 +326,31 @@ fun BreatheEasyApp(viewModel: BreatheEasyViewModel) {
     }
     purchaseToDelete?.let { purchase ->
         AlertDialog(
-            onDismissRequest = { purchaseToDelete = null },
+            onDismissRequest = { if (pendingDeleteId == null) purchaseToDelete = null },
             title = { Text("Delete this purchase?") },
             text = { Text("${purchase.brand.ifBlank { purchase.type.label }} · ${Money.format(purchase.amountMinor, purchase.currency)} will be removed from the ledger and monthly totals. Cigarette stock will be recalculated.") },
             confirmButton = {
-                Button(onClick = {
-                    viewModel.deletePurchase(purchase.id)
-                    purchaseToDelete = null
-                }, colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)) {
-                    Text("Delete")
+                Button(
+                    onClick = {
+                        pendingDeleteId = purchase.id
+                        viewModel.deletePurchase(purchase.id)
+                    },
+                    enabled = pendingDeleteId == null && !busy,
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
+                ) {
+                    if (pendingDeleteId == purchase.id) {
+                        CircularProgressIndicator(Modifier.size(18.dp), color = MaterialTheme.colorScheme.onError, strokeWidth = 2.dp)
+                        Spacer(Modifier.width(8.dp))
+                    }
+                    Text(if (pendingDeleteId == purchase.id) "Deleting…" else "Delete")
                 }
             },
-            dismissButton = { TextButton(onClick = { purchaseToDelete = null }) { Text("Cancel") } },
+            dismissButton = {
+                TextButton(
+                    onClick = { purchaseToDelete = null },
+                    enabled = pendingDeleteId == null && !busy,
+                ) { Text("Cancel") }
+            },
         )
     }
 }
