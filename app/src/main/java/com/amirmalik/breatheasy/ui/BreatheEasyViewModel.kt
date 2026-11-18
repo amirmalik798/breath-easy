@@ -96,11 +96,18 @@ class BreatheEasyViewModel(application: Application) : AndroidViewModel(applicat
     }
 
     companion object {
+        fun dayRangeMillis(date: LocalDate, zone: ZoneId): LongRange {
+            val start = date.atStartOfDay(zone).toInstant().toEpochMilli()
+            val endExclusive = date.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli()
+            return start until endExclusive
+        }
+
         fun todayRangeMillis(): LongRange {
             val zone = ZoneId.systemDefault()
-            val start = LocalDate.now(zone).atStartOfDay(zone).toInstant().toEpochMilli()
-            val end = LocalDate.now(zone).plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli()
-            return start until end
+            // Capture the local date once so a midnight rollover cannot produce a
+            // two-day range between the start and end calculations.
+            val today = LocalDate.now(zone)
+            return dayRangeMillis(today, zone)
         }
     }
 
