@@ -169,7 +169,7 @@ fun BreatheEasyApp(viewModel: BreatheEasyViewModel) {
     var showCravingDialog by rememberSaveable { mutableStateOf(false) }
     var purchaseToDeleteId by rememberSaveable { mutableStateOf<String?>(null) }
     val purchaseToDelete = snapshot.purchases.firstOrNull { it.id == purchaseToDeleteId }
-    var pendingDeleteId by rememberSaveable { mutableStateOf<String?>(null) }
+    var pendingDeleteId by remember { mutableStateOf<String?>(null) }
     val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(message) {
@@ -658,7 +658,8 @@ private fun SpendingScreen(
     val context = LocalContext.current
     val exportScope = rememberCoroutineScope()
     var reportPeriod by rememberSaveable { mutableStateOf(SpendingReportPeriod.CURRENT_MONTH) }
-    var isExportingPdf by rememberSaveable { mutableStateOf(false) }
+    // This work is in-memory and cannot survive process recreation.
+    var isExportingPdf by remember { mutableStateOf(false) }
     var isPickingPdfDestination by rememberSaveable { mutableStateOf(false) }
     var pdfExportMessage by rememberSaveable { mutableStateOf<String?>(null) }
     var monthOffset by rememberSaveable { mutableIntStateOf(0) }
@@ -1286,9 +1287,15 @@ private fun GoalsScreen(
     onSave: (AppPreferences) -> Unit,
     busy: Boolean,
 ) {
-    var target by remember(snapshot.preferences) { mutableStateOf(snapshot.preferences.dailyTarget.toString()) }
-    var baseline by remember(snapshot.preferences) { mutableStateOf(snapshot.preferences.baselinePerDay.toString()) }
-    var startingStock by remember(snapshot.preferences) { mutableStateOf(snapshot.preferences.startingStockCigarettes.toString()) }
+    var target by rememberSaveable(snapshot.preferences.dailyTarget) {
+        mutableStateOf(snapshot.preferences.dailyTarget.toString())
+    }
+    var baseline by rememberSaveable(snapshot.preferences.baselinePerDay) {
+        mutableStateOf(snapshot.preferences.baselinePerDay.toString())
+    }
+    var startingStock by rememberSaveable(snapshot.preferences.startingStockCigarettes) {
+        mutableStateOf(snapshot.preferences.startingStockCigarettes.toString())
+    }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -1450,9 +1457,17 @@ private fun RecordPurchaseDialog(
         .withZone(ZoneId.systemDefault())
         .format(Instant.ofEpochMilli(purchasedAtMillis))
 
+    val latestSaving = rememberUpdatedState(saving)
+    val sheetState = rememberModalBottomSheetState(
+        skipPartiallyExpanded = true,
+        confirmValueChange = { targetValue ->
+            targetValue != androidx.compose.material3.SheetValue.Hidden || !latestSaving.value
+        },
+    )
+
     ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        onDismissRequest = { if (!saving) onDismiss() },
+        sheetState = sheetState,
         containerColor = MaterialTheme.colorScheme.surfaceVariant,
         tonalElevation = 8.dp,
     ) {
@@ -1971,7 +1986,7 @@ fun PurchaseRow(purchase: Purchase, onDelete: () -> Unit) {
                 overflow = TextOverflow.Ellipsis,
             )
             Text(
-                "${purchase.quantity} × ${purchase.type.label.lowercase()} · ${DateTimeFormatter.ofPattern("d MMM, h:mm a", Locale.getDefault()).withZone(ZoneId.systemDefault()).format(Instant.ofEpochMilli(purchase.purchasedAtMillis))}",
+                "${purchase.quantity} × ${purchase.type.label.lowercase()} · ${DateTimeFormatter.ofPattern("d MMM yyyy", Locale.getDefault()).withZone(ZoneId.systemDefault()).format(Instant.ofEpochMilli(purchase.purchasedAtMillis))}",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
