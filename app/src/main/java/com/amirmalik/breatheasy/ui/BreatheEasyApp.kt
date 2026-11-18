@@ -427,17 +427,30 @@ private fun TodayScreen(
     val todayRange = remember(todayDate, todayZone) {
         DateTimeRanges.dayRangeMillis(todayDate, todayZone)
     }
-    val smokedToday = snapshot.cigarettesFor(todayRange.first, todayRange.last + 1)
-    val targetProgress = DailyTargetProgress.calculate(smokedToday, prefs.dailyTarget)
-    val resisted = snapshot.cravingEvents.count {
-        it.outcome == CravingOutcome.RESISTED && it.occurredAtMillis in todayRange
+    val smokedToday = remember(snapshot.smokeEvents, todayRange) {
+        snapshot.cigarettesFor(todayRange.first, todayRange.last + 1)
+    }
+    val targetProgress = remember(smokedToday, prefs.dailyTarget) {
+        DailyTargetProgress.calculate(smokedToday, prefs.dailyTarget)
+    }
+    val resisted = remember(snapshot.cravingEvents, todayRange) {
+        snapshot.cravingEvents.count {
+            it.outcome == CravingOutcome.RESISTED && it.occurredAtMillis in todayRange
+        }
     }
     val month = YearMonth.from(todayDate)
     val spend = remember(snapshot.purchases, prefs.displayCurrency, month) {
         AnalyticsCalculator.spending(snapshot.purchases, month, prefs.displayCurrency, 6)
     }
     val todayLabel = DateTimeFormatter.ofPattern("EEEE, d MMMM", Locale.getDefault()).format(todayDate)
-    val recentPurchases = snapshot.purchases.take(3)
+    val recentPurchases = remember(snapshot.purchases) { snapshot.purchases.take(3) }
+    val stock = remember(prefs.startingStockCigarettes, snapshot.purchases, snapshot.smokeEvents) {
+        InventoryCalculator.remainingCigarettes(
+            startingStock = prefs.startingStockCigarettes,
+            purchases = snapshot.purchases,
+            smokeEvents = snapshot.smokeEvents,
+        )
+    }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -581,11 +594,6 @@ private fun TodayScreen(
             }
         }
         item {
-            val stock = InventoryCalculator.remainingCigarettes(
-                startingStock = prefs.startingStockCigarettes,
-                purchases = snapshot.purchases,
-                smokeEvents = snapshot.smokeEvents,
-            )
             Card(
                 shape = RoundedCornerShape(22.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -1825,12 +1833,12 @@ private fun RecordPurchaseScreen(
                                 verticalArrangement = Arrangement.spacedBy(2.dp),
                             ) {
                                 Text(
-                                    if (showDetails) "Optional details" else "Add optional details",
+                                    if (showDetails) "Hide details" else "Add details",
                                     fontWeight = FontWeight.SemiBold,
                                     color = MaterialTheme.colorScheme.onSurface,
                                 )
                                 Text(
-                                    "Brand, shop, purchase context and notes",
+                                    "Brand, shop, context and notes — all optional",
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
@@ -2149,54 +2157,46 @@ private fun String.asciiMoneyInput(decimalSeparator: Char, maxLength: Int): Stri
 
 @Composable
 private fun DailyTargetStatus(progress: DailyTargetProgress) {
-    val (title, detail, containerColor, contentColor, statusIcon) = when {
-        progress.excessCigarettes > 0L -> {
+    val isAboveGoal = progress.excessCigarettes > 0L
+    val isGoalReached = progress.remainingCigarettes == 0L && !isAboveGoal
+
+    val title = when {
+        isAboveGoal -> {
             val count = progress.excessCigarettes
-            listOf(
-                "$count ${if (count == 1L) "cigarette" else "cigarettes"} above your daily goal",
-                "No judgement — this is useful information. Tomorrow is another day.",
-            ) to Unit
+            "$count ${if (count == 1L) "cigarette" else "cigarettes"} above your daily goal"
         }
-        progress.remainingCigarettes > 0L -> {
-            val count = progress.remainingCigarettes
-            listOf(
-                "$count ${if (count == 1L) "cigarette" else "cigarettes"} left to your daily goal",
-                "You're within the personal target you set for today.",
-            ) to Unit
-        }
+        isGoalReached -> "Daily goal reached"
         else -> {
-            listOf(
-                "Daily goal reached",
-                "You've reached the target you set for today.",
-            ) to Unit
+            val count = progress.remainingCigarettes
+            "$count ${if (count == 1L) "cigarette" else "cigarettes"} left to your daily goal"
         }
-    }.let { pair ->
-        val copy = pair.first
-        val isAbove = progress.excessCigarettes > 0L
-        val isReached = progress.excessCigarettes == 0L && progress.remainingCigarettes == 0L
-        val container = when {
-            isAbove -> MaterialTheme.colorScheme.tertiaryContainer
-            isReached -> MaterialTheme.colorScheme.secondaryContainer
-            else -> MaterialTheme.colorScheme.surfaceVariant
-        }
-        val content = when {
-            isAbove -> MaterialTheme.colorScheme.onTertiaryContainer
-            isReached -> MaterialTheme.colorScheme.onSecondaryContainer
-            else -> MaterialTheme.colorScheme.onSurfaceVariant
-        }
-        val icon = when {
-            isAbove -> Icons.Outlined.Info
-            isReached -> Icons.Outlined.CheckCircle
-            else -> Icons.Outlined.Flag
-        }
-        arrayOf(copy[0], copy[1], container, content, icon)
+    }
+    val detail = when {
+        isAboveGoal -> "No judgement — this is useful information. Tomorrow is another day."
+        isGoalReached -> "You've reached the target you set for today."
+        else -> "You're within the personal target you set for today."
+    }
+    val containerColor = when {
+        isAboveGoal -> MaterialTheme.colorScheme.tertiaryContainer
+        isGoalReached -> MaterialTheme.colorScheme.secondaryContainer
+        else -> MaterialTheme.colorScheme.surfaceVariant
+    }
+    val contentColor = when {
+        isAboveGoal -> MaterialTheme.colorScheme.onTertiaryContainer
+        isGoalReached -> MaterialTheme.colorScheme.onSecondaryContainer
+        else -> MaterialTheme.colorScheme.onSurfaceVariant
+    }
+    val statusIcon = when {
+        isAboveGoal -> Icons.Outlined.Info
+        isGoalReached -> Icons.Outlined.CheckCircle
+        else -> Icons.Outlined.Flag
     }
 
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        color = containerColor as Color,
+        color = containerColor,
         shape = RoundedCornerShape(15.dp),
-        border = BorderStroke(1.dp, (contentColor as Color).copy(alpha = 0.18f)),
+        border = BorderStroke(1.dp, contentColor.copy(alpha = 0.18f)),
     ) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 11.dp, vertical = 9.dp),
@@ -2206,27 +2206,27 @@ private fun DailyTargetStatus(progress: DailyTargetProgress) {
             Box(
                 modifier = Modifier.size(32.dp)
                     .clip(CircleShape)
-                    .background((contentColor as Color).copy(alpha = 0.10f)),
+                    .background(contentColor.copy(alpha = 0.10f)),
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
-                    statusIcon as androidx.compose.ui.graphics.vector.ImageVector,
+                    statusIcon,
                     contentDescription = null,
-                    tint = contentColor as Color,
+                    tint = contentColor,
                     modifier = Modifier.size(18.dp),
                 )
             }
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text(
-                    title as String,
+                    title,
                     style = MaterialTheme.typography.labelLarge,
                     fontWeight = FontWeight.Bold,
-                    color = contentColor as Color,
+                    color = contentColor,
                 )
                 Text(
-                    detail as String,
+                    detail,
                     style = MaterialTheme.typography.labelSmall,
-                    color = (contentColor as Color).copy(alpha = 0.82f),
+                    color = contentColor.copy(alpha = 0.82f),
                 )
             }
         }
