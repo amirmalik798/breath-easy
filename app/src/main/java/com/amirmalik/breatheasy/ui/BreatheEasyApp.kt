@@ -215,6 +215,7 @@ fun BreatheEasyApp(viewModel: BreatheEasyViewModel) {
                     )
                     MainTab.SPENDING -> SpendingScreen(
                         snapshot = snapshot,
+                        onRecordPurchase = { showPurchaseDialog = true },
                         onDeletePurchase = { purchaseToDelete = it },
                     )
                     MainTab.CRAVINGS -> CravingsScreen(
@@ -528,7 +529,11 @@ private fun TodayScreen(
 }
 
 @Composable
-private fun SpendingScreen(snapshot: AppSnapshot, onDeletePurchase: (Purchase) -> Unit) {
+private fun SpendingScreen(
+    snapshot: AppSnapshot,
+    onRecordPurchase: () -> Unit,
+    onDeletePurchase: (Purchase) -> Unit,
+) {
     val prefs = snapshot.preferences
     var reportCurrency by rememberSaveable(prefs.displayCurrency) { mutableStateOf(prefs.displayCurrency) }
     var monthOffset by rememberSaveable { mutableIntStateOf(0) }
@@ -548,11 +553,24 @@ private fun SpendingScreen(snapshot: AppSnapshot, onDeletePurchase: (Purchase) -
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         item {
-            Text("Spending insights", style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-            Text("See exactly what you recorded spending on smoking, month by month.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text("Spending insights", style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                    Text("Your smoking costs, clearly and month by month.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                FilledTonalButton(onClick = onRecordPurchase) {
+                    Icon(Icons.Outlined.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(5.dp))
+                    Text("Add")
+                }
+            }
         }
         item {
             CurrencyPicker(selected = reportCurrency, onSelect = { reportCurrency = it })
