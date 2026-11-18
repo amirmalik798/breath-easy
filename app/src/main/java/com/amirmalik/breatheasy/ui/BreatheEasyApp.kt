@@ -816,7 +816,15 @@ private fun SpendingScreen(
             ) {
                 Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text("Cigarettes logged", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                    MonthlyConsumptionChart(usagePoints)
+                    if (snapshot.smokeEvents.isEmpty()) {
+                        Text(
+                            "No cigarette logs yet. Your monthly trend will appear after you start recording.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    } else {
+                        MonthlyConsumptionChart(usagePoints)
+                    }
                 }
             }
         }
