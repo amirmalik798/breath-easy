@@ -10,6 +10,7 @@ import com.amirmalik.breatheasy.data.CravingEvent
 import com.amirmalik.breatheasy.data.CravingOutcome
 import com.amirmalik.breatheasy.data.Purchase
 import com.amirmalik.breatheasy.data.SmokeEvent
+import com.amirmalik.breatheasy.domain.DateTimeRanges
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -96,18 +97,9 @@ class BreatheEasyViewModel(application: Application) : AndroidViewModel(applicat
     }
 
     companion object {
-        fun dayRangeMillis(date: LocalDate, zone: ZoneId): LongRange {
-            val start = date.atStartOfDay(zone).toInstant().toEpochMilli()
-            val endExclusive = date.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli()
-            return start until endExclusive
-        }
-
         fun todayRangeMillis(): LongRange {
             val zone = ZoneId.systemDefault()
-            // Capture the local date once so a midnight rollover cannot produce a
-            // two-day range between the start and end calculations.
-            val today = LocalDate.now(zone)
-            return dayRangeMillis(today, zone)
+            return DateTimeRanges.dayRangeMillis(LocalDate.now(zone), zone)
         }
     }
 

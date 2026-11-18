@@ -3,6 +3,7 @@ package com.amirmalik.breatheasy.ui
 import org.junit.Assert.assertEquals
 import org.junit.Test
 import java.time.LocalDate
+import com.amirmalik.breatheasy.domain.DateTimeRanges
 import java.time.ZoneId
 
 class DayRangeTest {
@@ -10,7 +11,7 @@ class DayRangeTest {
 
     @Test
     fun localDayWindowIsTwentyThreeHoursWhenDaylightSavingStarts() {
-        val range = BreatheEasyViewModel.dayRangeMillis(LocalDate.of(2026, 3, 8), losAngeles)
+        val range = DateTimeRanges.dayRangeMillis(LocalDate.of(2026, 3, 8), losAngeles)
         assertEquals(23L * 60L * 60L * 1_000L, range.last - range.first + 1L)
     }
 
