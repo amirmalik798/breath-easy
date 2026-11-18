@@ -30,9 +30,25 @@ class InventoryCalculatorTest {
             InventoryCalculator.remainingCigarettes(0, purchases, emptyList()))
     }
 
-    @Test fun negativeStockIsRetainedWhenMoreCigarettesAreLoggedThanPurchased() {
-        val events = listOf(SmokeEvent(quantity = 5))
-        assertEquals(-5L, InventoryCalculator.remainingCigarettes(0, emptyList(), events))
+    @Test fun trackedStockNeverBecomesNegativeWhenSmokingExceedsInventory() {
+        val events = listOf(SmokeEvent(quantity = 5, stockQuantity = 5))
+        assertEquals(0L, InventoryCalculator.remainingCigarettes(0, emptyList(), events))
+    }
+
+    @Test fun smokingWithoutStockDoesNotConsumeAPurchaseRecordedLater() {
+        val purchases = listOf(
+            Purchase(type = PurchaseType.PACK, quantity = 1, amountMinor = 2_000, currency = CurrencyCode.fromCode("RWF")),
+        )
+        val events = listOf(SmokeEvent(quantity = 1, stockQuantity = 0))
+        assertEquals(20L, InventoryCalculator.remainingCigarettes(0, purchases, events))
+    }
+
+    @Test fun aPartiallyCoveredSmokingEntryDebitsOnlyAvailableStock() {
+        val purchases = listOf(
+            Purchase(type = PurchaseType.SINGLE, quantity = 1, amountMinor = 100, currency = CurrencyCode.fromCode("RWF")),
+        )
+        val events = listOf(SmokeEvent(quantity = 3, stockQuantity = 1))
+        assertEquals(0L, InventoryCalculator.remainingCigarettes(0, purchases, events))
     }
 
     @Test fun rollingTobaccoDoesNotInventAStickCount() {

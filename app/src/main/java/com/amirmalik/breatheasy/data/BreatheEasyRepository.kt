@@ -34,16 +34,16 @@ class BreatheEasyRepository(context: Context) {
         check(database.deletePurchase(id)) { "This purchase was already removed." }
     }
 
-    suspend fun logSmoke(event: SmokeEvent, allowNegativeStock: Boolean = false) = withContext(Dispatchers.IO) {
+    suspend fun logSmoke(event: SmokeEvent, confirmUnstockedSmoking: Boolean = false) = withContext(Dispatchers.IO) {
         val normalized = event.copy(note = event.note.trim().take(BusinessRules.MAX_NOTE_LENGTH))
         BusinessRules.validateSmokeEvent(normalized)
-        database.insertSmokeEvent(normalized, allowNegativeStock)
+        database.insertSmokeEvent(normalized, confirmUnstockedSmoking)
     }
 
-    suspend fun logCraving(event: CravingEvent, allowNegativeStock: Boolean = false) = withContext(Dispatchers.IO) {
+    suspend fun logCraving(event: CravingEvent, confirmUnstockedSmoking: Boolean = false) = withContext(Dispatchers.IO) {
         val normalized = event.copy(note = event.note.trim().take(BusinessRules.MAX_NOTE_LENGTH))
         BusinessRules.validateCravingEvent(normalized)
-        database.insertCravingEvent(normalized, allowNegativeStock)
+        database.insertCravingEvent(normalized, confirmUnstockedSmoking)
     }
 
     fun close() = database.close()

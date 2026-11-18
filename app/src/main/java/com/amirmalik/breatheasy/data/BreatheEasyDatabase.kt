@@ -49,6 +49,8 @@ internal class BreatheEasyDatabase(context: Context) :
                 id TEXT PRIMARY KEY NOT NULL,
                 smoked_at_ms INTEGER NOT NULL,
                 quantity INTEGER NOT NULL CHECK(quantity > 0),
+                stock_quantity INTEGER NOT NULL DEFAULT 0
+                    CHECK(stock_quantity >= 0 AND stock_quantity <= quantity),
                 trigger_code TEXT NOT NULL,
                 note TEXT NOT NULL DEFAULT ''
             )""".trimIndent(),
@@ -81,11 +83,18 @@ internal class BreatheEasyDatabase(context: Context) :
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
-        if (oldVersion < 2 && newVersion >= 2) {
+        var migratedVersion = oldVersion
+        if (migratedVersion < 2 && newVersion >= 2) {
             migrateV1ToV2(db)
-            return
+            migratedVersion = 2
         }
-        throw IllegalStateException("No database migration path from $oldVersion to $newVersion")
+        if (migratedVersion < 3 && newVersion >= 3) {
+            migrateV2ToV3(db)
+            migratedVersion = 3
+        }
+        if (migratedVersion != newVersion) {
+            throw IllegalStateException("No database migration path from $oldVersion to $newVersion")
+        }
     }
 
     /**
@@ -127,6 +136,82 @@ internal class BreatheEasyDatabase(context: Context) :
             "INSERT OR IGNORE INTO app_settings(setting_key, setting_value) VALUES('display_currency', ?)",
             arrayOf(CurrencyCode.detect(appContext).isoCode),
         )
+    }
+
+    /**
+     * Separate actual smoking from stock depletion. Existing events are replayed in
+     * timestamp order against opening stock and purchases. Every event remains in
+     * smoking history, but it consumes only cigarettes available at that time.
+     * Purchases are processed before smoking events with the same timestamp.
+     */
+    private fun migrateV2ToV3(db: SQLiteDatabase) {
+        db.execSQL(
+            """ALTER TABLE smoke_events ADD COLUMN stock_quantity INTEGER NOT NULL DEFAULT 0
+                CHECK(stock_quantity >= 0 AND stock_quantity <= quantity)""".trimIndent(),
+        )
+
+        val startingStock = db.rawQuery(
+            "SELECT setting_value FROM app_settings WHERE setting_key = ?",
+            arrayOf("starting_stock_cigarettes"),
+        ).use { cursor ->
+            if (cursor.moveToFirst()) cursor.getString(0).toIntOrNull()?.coerceIn(0, 100_000) ?: 0
+            else 0
+        }
+        var availableStock = startingStock.toLong()
+
+        db.execSQL(
+            """CREATE TEMP TABLE smoke_stock_backfill (
+                id TEXT PRIMARY KEY NOT NULL,
+                stock_quantity INTEGER NOT NULL CHECK(stock_quantity >= 0)
+            )""".trimIndent(),
+        )
+
+        db.rawQuery(
+            "SELECT purchased_at_ms, product_type, quantity FROM purchases ORDER BY purchased_at_ms ASC",
+            null,
+        ).use { purchases ->
+            db.rawQuery(
+                "SELECT id, smoked_at_ms, quantity FROM smoke_events ORDER BY smoked_at_ms ASC",
+                null,
+            ).use { smokeEvents ->
+                var hasPurchase = purchases.moveToFirst()
+                var hasSmokeEvent = smokeEvents.moveToFirst()
+
+                while (hasPurchase || hasSmokeEvent) {
+                    val processPurchase = hasPurchase &&
+                        (!hasSmokeEvent || purchases.getLong(0) <= smokeEvents.getLong(1))
+
+                    if (processPurchase) {
+                        val type = enumValueOrNull<PurchaseType>(purchases.getString(1))
+                            ?: throw IllegalStateException("A purchase contains an unsupported product type.")
+                        val cigarettesPerUnit = type.cigarettesPerUnit ?: 0
+                        val added = Math.multiplyExact(purchases.getLong(2), cigarettesPerUnit.toLong())
+                        availableStock = Math.addExact(availableStock, added)
+                        hasPurchase = purchases.moveToNext()
+                    } else {
+                        val id = smokeEvents.getString(0)
+                        val quantity = smokeEvents.getLong(2)
+                        val debited = minOf(availableStock.coerceAtLeast(0L), quantity)
+                        db.execSQL(
+                            "INSERT INTO smoke_stock_backfill(id, stock_quantity) VALUES(?, ?)",
+                            arrayOf(id, debited),
+                        )
+                        availableStock = Math.subtractExact(availableStock, debited)
+                        hasSmokeEvent = smokeEvents.moveToNext()
+                    }
+                }
+            }
+        }
+
+        db.execSQL(
+            """UPDATE smoke_events
+                SET stock_quantity = COALESCE(
+                    (SELECT stock_quantity FROM smoke_stock_backfill
+                     WHERE smoke_stock_backfill.id = smoke_events.id),
+                    0
+                )""".trimIndent(),
+        )
+        db.execSQL("DROP TABLE smoke_stock_backfill")
     }
 
     /**
@@ -215,14 +300,14 @@ internal class BreatheEasyDatabase(context: Context) :
     fun deletePurchase(id: String): Boolean =
         writableDatabase.delete("purchases", "id = ?", arrayOf(id)) == 1
 
-    fun insertSmokeEvent(event: SmokeEvent, allowNegativeStock: Boolean = false) {
+    fun insertSmokeEvent(event: SmokeEvent, confirmUnstockedSmoking: Boolean = false) {
         val db = writableDatabase
         db.beginTransaction()
         try {
-            // A retry with the same event ID must remain idempotent, even if the
-            // original insert already reduced stock to zero or below.
-            val existingMatches = db.rawQuery(
-                "SELECT smoked_at_ms, quantity, trigger_code, note FROM smoke_events WHERE id = ?",
+            // The event ID makes retries idempotent: an event already persisted must
+            // never debit stock a second time.
+            val existing = db.rawQuery(
+                "SELECT smoked_at_ms, quantity, stock_quantity, trigger_code, note FROM smoke_events WHERE id = ?",
                 arrayOf(event.id),
             ).use { cursor ->
                 if (!cursor.moveToFirst()) {
@@ -230,25 +315,27 @@ internal class BreatheEasyDatabase(context: Context) :
                 } else {
                     cursor.getLong(0) == event.smokedAtMillis &&
                         cursor.getInt(1) == event.quantity &&
-                        cursor.getString(2) == event.trigger.name &&
-                        cursor.getString(3) == event.note
+                        cursor.getInt(2) in 0..event.quantity &&
+                        cursor.getString(3) == event.trigger.name &&
+                        cursor.getString(4) == event.note
                 }
             }
-            if (existingMatches != null) {
-                check(existingMatches) { "This smoking entry ID is already associated with different details." }
+            if (existing != null) {
+                check(existing) { "This smoking entry ID is already associated with different details." }
                 db.setTransactionSuccessful()
                 return
             }
 
-            StockPolicy.requireAvailable(
-                remainingCigarettes = readTrackedStock(db),
+            val stockQuantity = stockQuantityFor(
+                db = db,
                 requestedCigarettes = event.quantity,
-                allowNegativeStock = allowNegativeStock,
+                confirmUnstockedSmoking = confirmUnstockedSmoking,
             )
             val values = ContentValues().apply {
                 put("id", event.id)
                 put("smoked_at_ms", event.smokedAtMillis)
                 put("quantity", event.quantity)
+                put("stock_quantity", stockQuantity)
                 put("trigger_code", event.trigger.name)
                 put("note", event.note)
             }
@@ -259,7 +346,7 @@ internal class BreatheEasyDatabase(context: Context) :
         }
     }
 
-    fun insertCravingEvent(event: CravingEvent, allowNegativeStock: Boolean = false) {
+    fun insertCravingEvent(event: CravingEvent, confirmUnstockedSmoking: Boolean = false) {
         val db = writableDatabase
         db.beginTransaction()
         try {
@@ -299,57 +386,44 @@ internal class BreatheEasyDatabase(context: Context) :
             }
 
             if (event.outcome == CravingOutcome.SMOKED) {
-                if (inserted != -1L) {
-                    StockPolicy.requireAvailable(
-                        remainingCigarettes = readTrackedStock(db),
-                        requestedCigarettes = 1,
-                        allowNegativeStock = allowNegativeStock,
-                    )
-                }
                 val smokeId = "craving-${event.id}"
-                val smokeValues = ContentValues().apply {
-                    put("id", smokeId)
-                    put("smoked_at_ms", event.occurredAtMillis)
-                    put("quantity", 1)
-                    put("trigger_code", event.trigger.name)
-                    put("note", "Logged from craving entry")
+                val existingSmokeMatches = db.rawQuery(
+                    "SELECT smoked_at_ms, quantity, stock_quantity, trigger_code, note FROM smoke_events WHERE id = ?",
+                    arrayOf(smokeId),
+                ).use { cursor ->
+                    if (!cursor.moveToFirst()) {
+                        null
+                    } else {
+                        cursor.getLong(0) == event.occurredAtMillis &&
+                            cursor.getInt(1) == 1 &&
+                            cursor.getInt(2) in 0..1 &&
+                            cursor.getString(3) == event.trigger.name &&
+                            cursor.getString(4) == "Logged from craving entry"
+                    }
                 }
-                if (inserted != -1L) {
+
+                if (existingSmokeMatches == null) {
+                    val stockQuantity = stockQuantityFor(
+                        db = db,
+                        requestedCigarettes = 1,
+                        confirmUnstockedSmoking = confirmUnstockedSmoking,
+                    )
+                    val smokeValues = ContentValues().apply {
+                        put("id", smokeId)
+                        put("smoked_at_ms", event.occurredAtMillis)
+                        put("quantity", 1)
+                        put("stock_quantity", stockQuantity)
+                        put("trigger_code", event.trigger.name)
+                        put("note", "Logged from craving entry")
+                    }
                     db.insertOrThrow("smoke_events", null, smokeValues)
                 } else {
-                    val sameSmoke = db.rawQuery(
-                        "SELECT smoked_at_ms, quantity, trigger_code, note FROM smoke_events WHERE id = ?",
-                        arrayOf(smokeId),
-                    ).use { cursor ->
-                        cursor.moveToFirst() &&
-                            cursor.getLong(0) == event.occurredAtMillis &&
-                            cursor.getInt(1) == 1 &&
-                            cursor.getString(2) == event.trigger.name &&
-                            cursor.getString(3) == "Logged from craving entry"
-                    }
-                    if (!sameSmoke) {
-                        val repaired = db.insertWithOnConflict(
-                            "smoke_events",
-                            null,
-                            smokeValues,
-                            SQLiteDatabase.CONFLICT_IGNORE,
-                        )
-                        if (repaired == -1L) {
-                            val matches = db.rawQuery(
-                                "SELECT smoked_at_ms, quantity, trigger_code, note FROM smoke_events WHERE id = ?",
-                                arrayOf(smokeId),
-                            ).use { cursor ->
-                                cursor.moveToFirst() &&
-                                    cursor.getLong(0) == event.occurredAtMillis &&
-                                    cursor.getInt(1) == 1 &&
-                                    cursor.getString(2) == event.trigger.name &&
-                                    cursor.getString(3) == "Logged from craving entry"
-                            }
-                            check(matches) { "The linked smoking record conflicts with this craving entry." }
-                        }
+                    check(existingSmokeMatches) {
+                        "The linked smoking record conflicts with this craving entry."
                     }
                 }
             }
+
             db.setTransactionSuccessful()
         } finally {
             db.endTransaction()
@@ -359,6 +433,25 @@ internal class BreatheEasyDatabase(context: Context) :
     /**
      * Calculate tracked inventory from the same SQLite transaction as a smoking write.
      * This prevents stale UI snapshots or another entry path from bypassing stock checks.
+     */
+    private fun stockQuantityFor(
+        db: SQLiteDatabase,
+        requestedCigarettes: Int,
+        confirmUnstockedSmoking: Boolean,
+    ): Int {
+        val available = readTrackedStock(db).coerceAtLeast(0L)
+        StockPolicy.requireAvailable(
+            remainingCigarettes = available,
+            requestedCigarettes = requestedCigarettes,
+            confirmUnstockedSmoking = confirmUnstockedSmoking,
+        )
+        // Actual smoking is recorded in full; inventory is debited only for what exists.
+        return minOf(available, requestedCigarettes.toLong()).toInt()
+    }
+
+    /**
+     * This is called inside the write transaction so checking availability and
+     * applying its debit cannot race another purchase or smoking entry.
      */
     private fun readTrackedStock(db: SQLiteDatabase): Long {
         val startingStock = db.rawQuery(
@@ -380,17 +473,17 @@ internal class BreatheEasyDatabase(context: Context) :
             }
         }
 
-        var smokedCigarettes = 0L
-        db.rawQuery("SELECT quantity FROM smoke_events", null).use { cursor ->
+        var consumedFromStock = 0L
+        db.rawQuery("SELECT stock_quantity FROM smoke_events", null).use { cursor ->
             while (cursor.moveToNext()) {
-                smokedCigarettes = Math.addExact(smokedCigarettes, cursor.getLong(0))
+                consumedFromStock = Math.addExact(consumedFromStock, cursor.getLong(0))
             }
         }
 
         return Math.subtractExact(
             Math.addExact(startingStock.toLong(), purchasedCigarettes),
-            smokedCigarettes,
-        )
+            consumedFromStock,
+        ).coerceAtLeast(0L)
     }
 
     private fun readPreferences(db: SQLiteDatabase): AppPreferences {
@@ -443,7 +536,7 @@ internal class BreatheEasyDatabase(context: Context) :
     }
 
     private fun readSmokeEvents(db: SQLiteDatabase): List<SmokeEvent> = db.rawQuery(
-        "SELECT id, smoked_at_ms, quantity, trigger_code, note FROM smoke_events ORDER BY smoked_at_ms DESC",
+        "SELECT id, smoked_at_ms, quantity, stock_quantity, trigger_code, note FROM smoke_events ORDER BY smoked_at_ms DESC",
         null,
     ).use { cursor ->
         buildList {
@@ -453,8 +546,9 @@ internal class BreatheEasyDatabase(context: Context) :
                         id = cursor.getString(0),
                         smokedAtMillis = cursor.getLong(1),
                         quantity = cursor.getInt(2),
-                        trigger = enumValueOrDefault(cursor.getString(3), CravingTrigger.OTHER),
-                        note = cursor.getString(4),
+                        stockQuantity = cursor.getInt(3),
+                        trigger = enumValueOrDefault(cursor.getString(4), CravingTrigger.OTHER),
+                        note = cursor.getString(5),
                     ),
                 )
             }
@@ -508,6 +602,6 @@ internal class BreatheEasyDatabase(context: Context) :
 
     companion object {
         private const val DATABASE_NAME = "breathe_easy.db"
-        private const val DATABASE_VERSION = 2
+        private const val DATABASE_VERSION = 3
     }
 }

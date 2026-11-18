@@ -129,9 +129,12 @@ data class Purchase(
 data class SmokeEvent(
     val id: String = UUID.randomUUID().toString(),
     val smokedAtMillis: Long = System.currentTimeMillis(),
+    /** Actual cigarettes smoked. This always contributes to smoking totals. */
     val quantity: Int = 1,
     val trigger: CravingTrigger = CravingTrigger.OTHER,
     val note: String = "",
+    /** Cigarettes taken from tracked stock; zero when smoking without available stock. */
+    val stockQuantity: Int = quantity,
 )
 
 data class CravingEvent(

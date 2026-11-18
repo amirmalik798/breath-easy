@@ -71,14 +71,14 @@ class BreatheEasyViewModel(application: Application) : AndroidViewModel(applicat
         repository.deletePurchase(id)
     }
 
-    fun logSmoke(event: SmokeEvent, allowNegativeStock: Boolean = false) =
+    fun logSmoke(event: SmokeEvent, confirmUnstockedSmoking: Boolean = false) =
         perform(successMessage = null) {
-            repository.logSmoke(event, allowNegativeStock)
+            repository.logSmoke(event, confirmUnstockedSmoking)
         }
 
-    fun logCraving(event: CravingEvent, allowNegativeStock: Boolean = false) = perform(
+    fun logCraving(event: CravingEvent, confirmUnstockedSmoking: Boolean = false) = perform(
         if (event.outcome == CravingOutcome.RESISTED) "Craving recorded as resisted" else "Craving and cigarette recorded",
-    ) { repository.logCraving(event, allowNegativeStock) }
+    ) { repository.logCraving(event, confirmUnstockedSmoking) }
 
     fun clearMessage() { _message.value = null }
 

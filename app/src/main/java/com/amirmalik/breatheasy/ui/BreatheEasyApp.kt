@@ -2066,7 +2066,7 @@ private fun RecordCravingDialog(
     }
     val saving = busy || submitPending
 
-    fun submitCraving(allowNegativeStock: Boolean) {
+    fun submitCraving(confirmUnstockedSmoking: Boolean) {
         submitPending = true
         showStockConfirmation = false
         onSave(
@@ -2078,7 +2078,7 @@ private fun RecordCravingDialog(
                 intensity = intensity,
                 note = note,
             ),
-            allowNegativeStock,
+            confirmUnstockedSmoking,
         )
     }
 
@@ -2135,7 +2135,7 @@ private fun RecordCravingDialog(
                     if (outcome == CravingOutcome.SMOKED && trackedStock <= 0L) {
                         showStockConfirmation = true
                     } else {
-                        submitCraving(allowNegativeStock = false)
+                        submitCraving(confirmUnstockedSmoking = false)
                     }
                 },
                 enabled = !saving,
@@ -2162,7 +2162,7 @@ private fun RecordCravingDialog(
         StockConfirmationDialog(
             remainingCigarettes = trackedStock,
             onDismiss = { showStockConfirmation = false },
-            onConfirm = { submitCraving(allowNegativeStock = true) },
+            onConfirm = { submitCraving(confirmUnstockedSmoking = true) },
             enabled = !saving,
         )
     }
@@ -2358,8 +2358,7 @@ private fun StockConfirmationDialog(
     onConfirm: () -> Unit,
     enabled: Boolean,
 ) {
-    val isEmpty = remainingCigarettes == 0L
-    val deficit = if (remainingCigarettes < 0L) -remainingCigarettes else 0L
+    val displayedStock = remainingCigarettes.coerceAtLeast(0L)
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -2370,16 +2369,10 @@ private fun StockConfirmationDialog(
                 tint = MaterialTheme.colorScheme.tertiary,
             )
         },
-        title = {
-            Text(if (isEmpty) "No tracked cigarettes left" else "Tracked stock is below zero")
-        },
+        title = { Text("No tracked cigarettes left") },
         text = {
             Text(
-                if (isEmpty) {
-                    "Your tracked stock is empty. If you actually smoked a cigarette, you can still record it. Confirming will show −1 until you reconcile your stock."
-                } else {
-                    "Your tracked stock is already $deficit cigarettes below zero. If you actually smoked another cigarette, you can record it; the difference will increase."
-                },
+                "Your tracked stock is $displayedStock. If you actually smoked a cigarette, you can still record it. It will count in your smoking totals, but stock will stay at 0. No purchase or spending entry will be created.",
             )
         },
         confirmButton = {
