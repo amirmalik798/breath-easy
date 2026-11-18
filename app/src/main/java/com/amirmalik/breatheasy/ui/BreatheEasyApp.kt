@@ -166,7 +166,6 @@ fun BreatheEasyApp(viewModel: BreatheEasyViewModel) {
     var purchaseToDeleteId by rememberSaveable { mutableStateOf<String?>(null) }
     val purchaseToDelete = snapshot.purchases.firstOrNull { it.id == purchaseToDeleteId }
     var pendingDeleteId by rememberSaveable { mutableStateOf<String?>(null) }
-    val deleteInProgress = pendingDeleteId != null
     val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(message) {
