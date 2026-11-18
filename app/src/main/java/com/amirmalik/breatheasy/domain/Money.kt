@@ -37,7 +37,7 @@ object Money {
         }
     }
 
-    fun format(minor: Long, currency: CurrencyCode, includeCode: Boolean = true): String {
+    fun format(minor: Long, currency: CurrencyCode, includeCode: Boolean = false): String {
         val value = BigDecimal.valueOf(minor, currency.fractionDigits)
         val pattern = if (currency.fractionDigits == 0) "#,##0" else "#,##0." + "0".repeat(currency.fractionDigits)
         val formatter = DecimalFormat(pattern, DecimalFormatSymbols.getInstance(Locale.getDefault()))
