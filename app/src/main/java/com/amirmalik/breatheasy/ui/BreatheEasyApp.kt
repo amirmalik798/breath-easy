@@ -124,6 +124,7 @@ import com.amirmalik.breatheasy.data.PurchaseType
 import com.amirmalik.breatheasy.domain.AnalyticsCalculator
 import com.amirmalik.breatheasy.domain.Money
 import com.amirmalik.breatheasy.domain.InventoryCalculator
+import com.amirmalik.breatheasy.domain.DailyTargetProgress
 import com.amirmalik.breatheasy.domain.DateTimeRanges
 import com.amirmalik.breatheasy.ui.components.MonthlySpendingChart
 import com.amirmalik.breatheasy.ui.components.MonthlyConsumptionChart
@@ -244,7 +245,7 @@ fun BreatheEasyApp(viewModel: BreatheEasyViewModel) {
                     MainTab.TODAY -> TodayScreen(
                         snapshot = snapshot,
                         onLogSmoke = { trigger, note -> viewModel.logSmoke(trigger, note) },
-                        onOpenCravings = { selectedTab = MainTab.CRAVINGS; showCravingDialog = true },
+                        onOpenCravings = { selectedTab = MainTab.CRAVINGS },
                         onRecordPurchase = { showPurchaseDialog = true },
                         onDeletePurchase = { purchaseToDelete = it },
                     )
@@ -344,6 +345,7 @@ private fun TodayScreen(
         DateTimeRanges.dayRangeMillis(todayDate, todayZone)
     }
     val smokedToday = snapshot.cigarettesFor(todayRange.first, todayRange.last + 1)
+    val targetProgress = DailyTargetProgress.calculate(smokedToday, prefs.dailyTarget)
     val resisted = snapshot.cravingEvents.count {
         it.outcome == CravingOutcome.RESISTED && it.occurredAtMillis in todayRange
     }
@@ -376,7 +378,6 @@ private fun TodayScreen(
                 elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
             ) {
                 BoxWithConstraints(Modifier.fillMaxWidth().padding(18.dp)) {
-                    val remaining = (prefs.dailyTarget - smokedToday).coerceAtLeast(0)
                     val compact = maxWidth < 350.dp
                     if (compact) {
                         Column(
@@ -386,7 +387,7 @@ private fun TodayScreen(
                         ) {
                             Box(Modifier.size(112.dp), contentAlignment = Alignment.Center) {
                                 ProgressArc(
-                                    progress = smokedToday.toFloat() / prefs.dailyTarget.coerceAtLeast(1),
+                                    progress = targetProgress.progressFraction,
                                     modifier = Modifier.fillMaxSize(),
                                 )
                                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -408,7 +409,7 @@ private fun TodayScreen(
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.72f),
                                 )
-                                Text(if (remaining > 0) "$remaining below target" else "Target reached",
+                                Text(targetProgress.statusLabel,
                                     color = MaterialTheme.colorScheme.onPrimaryContainer,
                                     style = MaterialTheme.typography.labelLarge,
                                     fontWeight = FontWeight.SemiBold)
@@ -422,7 +423,7 @@ private fun TodayScreen(
                         ) {
                             Box(Modifier.size(116.dp), contentAlignment = Alignment.Center) {
                                 ProgressArc(
-                                    progress = smokedToday.toFloat() / prefs.dailyTarget.coerceAtLeast(1),
+                                    progress = targetProgress.progressFraction,
                                     modifier = Modifier.fillMaxSize(),
                                 )
                                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -438,7 +439,7 @@ private fun TodayScreen(
                                 Text("$smokedToday of ${prefs.dailyTarget} cigarettes",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.82f))
-                                Text(if (remaining > 0) "$remaining below target" else "Target reached",
+                                Text(targetProgress.statusLabel,
                                     color = MaterialTheme.colorScheme.onPrimaryContainer,
                                     style = MaterialTheme.typography.labelLarge,
                                     fontWeight = FontWeight.SemiBold)
@@ -474,9 +475,7 @@ private fun TodayScreen(
                 MetricCard(
                     modifier = Modifier.weight(1f),
                     eyebrow = "Purchases logged",
-                    value = snapshot.purchasesFor(month)
-                        .count { it.currency.isoCode == prefs.displayCurrency.isoCode }
-                        .toString(),
+                    value = snapshot.purchasesFor(month).size.toString(),
                     caption = "this month",
                     icon = Icons.Outlined.Waves,
                 )
