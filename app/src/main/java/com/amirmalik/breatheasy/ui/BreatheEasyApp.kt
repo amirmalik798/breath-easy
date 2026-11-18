@@ -138,6 +138,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.launch
+import java.text.DecimalFormatSymbols
 import java.time.Instant
 import java.time.LocalDate
 import java.time.YearMonth
@@ -1172,7 +1173,7 @@ private fun GoalsScreen(
                     Text("Daily tracking", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                     OutlinedTextField(
                         value = target,
-                        onValueChange = { target = it.filter(Char::isDigit).take(3) },
+                        onValueChange = { target = it.asciiDigitsOnly(maxLength = 3) },
                         label = { Text("Daily tracking target (cigarettes)") },
                         supportingText = { Text("Personal target, not a safe-use limit.") },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
@@ -1181,7 +1182,7 @@ private fun GoalsScreen(
                     )
                     OutlinedTextField(
                         value = baseline,
-                        onValueChange = { baseline = it.filter(Char::isDigit).take(3) },
+                        onValueChange = { baseline = it.asciiDigitsOnly(maxLength = 3) },
                         label = { Text("Previous daily baseline (cigarettes)") },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         singleLine = true,
@@ -1189,7 +1190,7 @@ private fun GoalsScreen(
                     )
                     OutlinedTextField(
                         value = startingStock,
-                        onValueChange = { startingStock = it.filter(Char::isDigit).take(6) },
+                        onValueChange = { startingStock = it.asciiDigitsOnly(maxLength = 6) },
                         label = { Text("Starting stock on hand (cigarettes)") },
                         supportingText = { Text("Used for your stock estimate.") },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
@@ -1367,7 +1368,12 @@ private fun RecordPurchaseDialog(
                             }
                         }
                         OutlinedTextField(value = amount,
-                            onValueChange = { amount = it.filter { c -> c.isDigit() || c == '.' || c == ',' }.take(18) },
+                            onValueChange = {
+                                amount = it.asciiMoneyInput(
+                                    decimalSeparator = DecimalFormatSymbols.getInstance(Locale.getDefault()).decimalSeparator,
+                                    maxLength = 18,
+                                )
+                            },
                             modifier = Modifier.fillMaxWidth(),
                             placeholder = { Text(if (currency.fractionDigits == 0) "0" else "0.00") },
                             textStyle = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.ExtraBold,
@@ -1806,6 +1812,25 @@ fun PurchaseRow(purchase: Purchase, onDelete: () -> Unit) {
             Icon(Icons.Outlined.Delete, contentDescription = "Delete purchase",
                 tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(18.dp))
         }
+    }
+}
+
+private fun String.asciiDigitsOnly(maxLength: Int): String = buildString {
+    for (character in this@asciiDigitsOnly) {
+        val digit = Character.digit(character, 10)
+        if (digit >= 0) append(('0'.code + digit).toChar())
+        if (length >= maxLength) break
+    }
+}
+
+private fun String.asciiMoneyInput(decimalSeparator: Char, maxLength: Int): String = buildString {
+    for (character in this@asciiMoneyInput) {
+        val digit = Character.digit(character, 10)
+        when {
+            digit >= 0 -> append(('0'.code + digit).toChar())
+            character == decimalSeparator || character == '.' || character == ',' -> append(character)
+        }
+        if (length >= maxLength) break
     }
 }
 
