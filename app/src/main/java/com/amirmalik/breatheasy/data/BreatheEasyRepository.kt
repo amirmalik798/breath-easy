@@ -1,6 +1,7 @@
 package com.amirmalik.breatheasy.data
 
 import android.content.Context
+import com.amirmalik.breatheasy.domain.BusinessRules
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -13,13 +14,19 @@ class BreatheEasyRepository(context: Context) {
     }
 
     suspend fun savePreferences(preferences: AppPreferences) = withContext(Dispatchers.IO) {
+        BusinessRules.validatePreferences(preferences)
         database.savePreferences(preferences)
     }
 
     suspend fun recordPurchase(purchase: Purchase) = withContext(Dispatchers.IO) {
-        require(purchase.quantity in 1..10_000) { "Quantity must be between 1 and 10,000" }
-        require(purchase.amountMinor > 0) { "Purchase amount must be greater than zero" }
-        database.insertPurchase(purchase)
+        BusinessRules.validatePurchase(purchase)
+        database.insertPurchase(
+            purchase.copy(
+                brand = purchase.brand.trim().take(BusinessRules.MAX_BRAND_LENGTH),
+                location = purchase.location.trim().take(BusinessRules.MAX_LOCATION_LENGTH),
+                note = purchase.note.trim().take(BusinessRules.MAX_NOTE_LENGTH),
+            ),
+        )
     }
 
     suspend fun deletePurchase(id: String) = withContext(Dispatchers.IO) {
@@ -28,13 +35,15 @@ class BreatheEasyRepository(context: Context) {
     }
 
     suspend fun logSmoke(event: SmokeEvent) = withContext(Dispatchers.IO) {
-        require(event.quantity in 1..100) { "Smoke quantity must be between 1 and 100" }
-        database.insertSmokeEvent(event)
+        val normalized = event.copy(note = event.note.trim().take(BusinessRules.MAX_NOTE_LENGTH))
+        BusinessRules.validateSmokeEvent(normalized)
+        database.insertSmokeEvent(normalized)
     }
 
     suspend fun logCraving(event: CravingEvent) = withContext(Dispatchers.IO) {
-        require(event.intensity in 1..5) { "Craving intensity must be between 1 and 5" }
-        database.insertCravingEvent(event)
+        val normalized = event.copy(note = event.note.trim().take(BusinessRules.MAX_NOTE_LENGTH))
+        BusinessRules.validateCravingEvent(normalized)
+        database.insertCravingEvent(normalized)
     }
 
     fun close() = database.close()
