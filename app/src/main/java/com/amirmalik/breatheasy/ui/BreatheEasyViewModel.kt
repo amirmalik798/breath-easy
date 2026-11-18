@@ -7,6 +7,7 @@ import com.amirmalik.breatheasy.data.AppPreferences
 import com.amirmalik.breatheasy.data.AppSnapshot
 import com.amirmalik.breatheasy.data.BreatheEasyRepository
 import com.amirmalik.breatheasy.data.CravingEvent
+import com.amirmalik.breatheasy.data.CravingOutcome
 import com.amirmalik.breatheasy.data.Purchase
 import com.amirmalik.breatheasy.data.SmokeEvent
 import kotlinx.coroutines.CancellationException
@@ -14,11 +15,16 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import java.time.LocalDate
 import java.time.ZoneId
 
 class BreatheEasyViewModel(application: Application) : AndroidViewModel(application) {
     private val repository = BreatheEasyRepository(application)
+    // Serialize reads and writes so overlapping user actions cannot publish stale
+    // snapshots or race the transient busy/error UI state.
+    private val operationMutex = Mutex()
 
     private val _snapshot = MutableStateFlow(AppSnapshot())
     val snapshot: StateFlow<AppSnapshot> = _snapshot.asStateFlow()
@@ -33,14 +39,16 @@ class BreatheEasyViewModel(application: Application) : AndroidViewModel(applicat
 
     fun refresh() {
         viewModelScope.launch {
-            _busy.value = true
-            try {
-                _snapshot.value = repository.loadSnapshot()
-            } catch (error: Exception) {
-                if (error is CancellationException) throw error
-                _message.value = "Your local records could not be loaded. Please reopen the app."
-            } finally {
-                _busy.value = false
+            operationMutex.withLock {
+                _busy.value = true
+                try {
+                    _snapshot.value = repository.loadSnapshot()
+                } catch (error: Exception) {
+                    if (error is CancellationException) throw error
+                    _message.value = "Your local records could not be loaded. Please reopen the app."
+                } finally {
+                    _busy.value = false
+                }
             }
         }
     }
@@ -76,24 +84,26 @@ class BreatheEasyViewModel(application: Application) : AndroidViewModel(applicat
         }
 
     fun logCraving(event: CravingEvent) = perform(
-        if (event.outcome.name == "RESISTED") "Craving recorded as resisted" else "Craving and cigarette recorded",
+        if (event.outcome == CravingOutcome.RESISTED) "Craving recorded as resisted" else "Craving and cigarette recorded",
     ) { repository.logCraving(event.copy(note = event.note.trim().take(500))) }
 
     fun clearMessage() { _message.value = null }
 
     private fun perform(successMessage: String, operation: suspend () -> Unit) {
         viewModelScope.launch {
-            _busy.value = true
-            try {
-                operation()
-                _snapshot.value = repository.loadSnapshot()
-                _message.value = successMessage
-            } catch (error: Exception) {
-                if (error is CancellationException) throw error
-                _message.value = error.message?.takeIf { it.length <= 140 }
-                    ?: "That action could not be saved. Please try again."
-            } finally {
-                _busy.value = false
+            operationMutex.withLock {
+                _busy.value = true
+                try {
+                    operation()
+                    _snapshot.value = repository.loadSnapshot()
+                    _message.value = successMessage
+                } catch (error: Exception) {
+                    if (error is CancellationException) throw error
+                    _message.value = error.message?.takeIf { it.length <= 140 }
+                        ?: "That action could not be saved. Please try again."
+                } finally {
+                    _busy.value = false
+                }
             }
         }
     }
