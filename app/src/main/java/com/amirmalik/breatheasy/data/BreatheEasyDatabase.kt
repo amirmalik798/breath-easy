@@ -143,7 +143,6 @@ internal class BreatheEasyDatabase(context: Context) :
         val db = writableDatabase
         db.beginTransaction()
         try {
-            putSetting(db, "display_currency", preferences.displayCurrency.isoCode)
             putSetting(db, "daily_target", preferences.dailyTarget.toString())
             putSetting(db, "baseline_per_day", preferences.baselinePerDay.toString())
             putSetting(db, "starting_stock_cigarettes", preferences.startingStockCigarettes.toString())
