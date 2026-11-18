@@ -331,111 +331,6 @@ private fun TodayScreen(
         }
         item {
             Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(24.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-            ) {
-                Column(
-                    Modifier.fillMaxWidth().padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(11.dp),
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    ) {
-                        Box(
-                            Modifier.size(42.dp)
-                                .clip(RoundedCornerShape(13.dp))
-                                .background(MaterialTheme.colorScheme.primaryContainer),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Icon(
-                                Icons.Outlined.ReceiptLong,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                            )
-                        }
-                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                            Text("Monthly PDF report", fontWeight = FontWeight.Bold)
-                            Text(
-                                "Choose a period ending this month",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                    }
-                    SpendingReportPeriod.entries.chunked(2).forEach { periodRow ->
-                        Row(
-                            Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        ) {
-                            periodRow.forEach { period ->
-                                FilterChip(
-                                    selected = reportPeriod == period,
-                                    onClick = {
-                                        reportPeriod = period
-                                        pdfExportMessage = null
-                                    },
-                                    modifier = Modifier.weight(1f),
-                                    label = {
-                                        Text(
-                                            when (period) {
-                                                SpendingReportPeriod.CURRENT_MONTH -> "Current month"
-                                                else -> period.label + " months"
-                                            },
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis,
-                                        )
-                                    },
-                                )
-                            }
-                        }
-                    }
-                    Button(
-                        onClick = {
-                            val today = LocalDate.now()
-                            createPdfLauncher.launch(
-                                "BreatheEasy-Spending-${reportPeriod.fileLabel}-$today.pdf",
-                            )
-                        },
-                        enabled = !isExportingPdf,
-                        modifier = Modifier.fillMaxWidth().height(50.dp),
-                        shape = RoundedCornerShape(15.dp),
-                    ) {
-                        if (isExportingPdf) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(18.dp),
-                                color = MaterialTheme.colorScheme.onPrimary,
-                                strokeWidth = 2.dp,
-                            )
-                        } else {
-                            Icon(Icons.Outlined.ReceiptLong, contentDescription = null, modifier = Modifier.size(18.dp))
-                        }
-                        Spacer(Modifier.width(8.dp))
-                        Text(if (isExportingPdf) "Creating PDF…" else "Generate PDF summary")
-                    }
-                    Text(
-                        "Every month starts on a new page. Busy months continue on additional pages.",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    pdfExportMessage?.let { messageText ->
-                        Text(
-                            messageText,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = if (messageText.startsWith("Your PDF")) {
-                                MaterialTheme.colorScheme.primary
-                            } else {
-                                MaterialTheme.colorScheme.error
-                            },
-                        )
-                    }
-                }
-            }
-        }
-        item {
-            Card(
                 shape = RoundedCornerShape(28.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
                 elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
@@ -716,6 +611,111 @@ private fun SpendingScreen(
                     Icon(Icons.Outlined.Add, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(5.dp))
                     Text("Add")
+                }
+            }
+        }
+        item {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(24.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+            ) {
+                Column(
+                    Modifier.fillMaxWidth().padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(11.dp),
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        Box(
+                            Modifier.size(42.dp)
+                                .clip(RoundedCornerShape(13.dp))
+                                .background(MaterialTheme.colorScheme.primaryContainer),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Icon(
+                                Icons.Outlined.ReceiptLong,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                            )
+                        }
+                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            Text("Monthly PDF report", fontWeight = FontWeight.Bold)
+                            Text(
+                                "Choose a period ending this month",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                    SpendingReportPeriod.entries.chunked(2).forEach { periodRow ->
+                        Row(
+                            Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            periodRow.forEach { period ->
+                                FilterChip(
+                                    selected = reportPeriod == period,
+                                    onClick = {
+                                        reportPeriod = period
+                                        pdfExportMessage = null
+                                    },
+                                    modifier = Modifier.weight(1f),
+                                    label = {
+                                        Text(
+                                            when (period) {
+                                                SpendingReportPeriod.CURRENT_MONTH -> "Current month"
+                                                else -> period.label + " months"
+                                            },
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis,
+                                        )
+                                    },
+                                )
+                            }
+                        }
+                    }
+                    Button(
+                        onClick = {
+                            val today = LocalDate.now()
+                            createPdfLauncher.launch(
+                                "BreatheEasy-Spending-${reportPeriod.fileLabel}-$today.pdf",
+                            )
+                        },
+                        enabled = !isExportingPdf,
+                        modifier = Modifier.fillMaxWidth().height(50.dp),
+                        shape = RoundedCornerShape(15.dp),
+                    ) {
+                        if (isExportingPdf) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(18.dp),
+                                color = MaterialTheme.colorScheme.onPrimary,
+                                strokeWidth = 2.dp,
+                            )
+                        } else {
+                            Icon(Icons.Outlined.ReceiptLong, contentDescription = null, modifier = Modifier.size(18.dp))
+                        }
+                        Spacer(Modifier.width(8.dp))
+                        Text(if (isExportingPdf) "Creating PDF…" else "Generate PDF summary")
+                    }
+                    Text(
+                        "Every month starts on a new page. Busy months continue on additional pages.",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    pdfExportMessage?.let { messageText ->
+                        Text(
+                            messageText,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = if (messageText.startsWith("Your PDF")) {
+                                MaterialTheme.colorScheme.primary
+                            } else {
+                                MaterialTheme.colorScheme.error
+                            },
+                        )
+                    }
                 }
             }
         }
