@@ -242,6 +242,7 @@ internal class BreatheEasyDatabase(context: Context) :
 
             StockPolicy.requireAvailable(
                 remainingCigarettes = readTrackedStock(db),
+                requestedCigarettes = event.quantity,
                 allowNegativeStock = allowNegativeStock,
             )
             val values = ContentValues().apply {
@@ -301,6 +302,7 @@ internal class BreatheEasyDatabase(context: Context) :
                 if (inserted != -1L) {
                     StockPolicy.requireAvailable(
                         remainingCigarettes = readTrackedStock(db),
+                        requestedCigarettes = 1,
                         allowNegativeStock = allowNegativeStock,
                     )
                 }
