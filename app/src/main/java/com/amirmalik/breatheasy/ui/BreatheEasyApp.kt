@@ -697,6 +697,7 @@ private fun SpendingScreen(
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         OutlinedButton(
                             onClick = { monthOffset = (monthOffset + 1).coerceAtMost(60) },
+                            enabled = monthOffset < 60,
                             modifier = Modifier.weight(1f),
                             contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 8.dp, vertical = 8.dp),
                             colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.onPrimaryContainer),
@@ -749,7 +750,7 @@ private fun SpendingScreen(
                                 .fillMaxWidth()
                                 .clickable {
                                     monthOffset = java.time.temporal.ChronoUnit.MONTHS
-                                        .between(point.month, YearMonth.now()).toInt().coerceAtLeast(0)
+                                        .between(point.month, YearMonth.now()).toInt().coerceIn(0, 60)
                                 }
                                 .padding(horizontal = 18.dp, vertical = 13.dp),
                             verticalAlignment = Alignment.CenterVertically,
