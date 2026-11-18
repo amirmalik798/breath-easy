@@ -1459,7 +1459,6 @@ private fun RecordPurchaseScreen(
     onDismiss: () -> Unit,
     onSave: (Purchase) -> Unit,
     snackbarHostState: SnackbarHostState,
-    snackbarHostState: SnackbarHostState,
 ) {
     var type by rememberSaveable { mutableStateOf(PurchaseType.PACK) }
     var quantity by rememberSaveable { mutableStateOf("1") }
