@@ -14,6 +14,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -65,7 +66,15 @@ fun MonthlySpendingChart(
                 val x = left + slot * index + (slot - barWidth) / 2f
                 val y = bottom - height
                 drawRoundRect(
-                    color = primary.copy(alpha = if (index == values.lastIndex) 1f else 0.48f),
+                    brush = Brush.verticalGradient(
+                        colors = if (index == values.lastIndex) {
+                            listOf(primary, primary.copy(alpha = 0.58f))
+                        } else {
+                            listOf(primary.copy(alpha = 0.76f), primary.copy(alpha = 0.28f))
+                        },
+                        startY = y,
+                        endY = bottom,
+                    ),
                     topLeft = Offset(x, y),
                     size = Size(barWidth, height.coerceAtLeast(3.dp.toPx())),
                     cornerRadius = androidx.compose.ui.geometry.CornerRadius(7.dp.toPx()),
@@ -150,10 +159,25 @@ fun MonthlyConsumptionChart(
                 val y = bottom - chartHeight * (value / maxValue).coerceIn(0f, 1f)
                 if (index == 0) path.moveTo(x, y) else path.lineTo(x, y)
             }
-            drawPath(path, primary, style = Stroke(width = 2.5.dp.toPx(), cap = StrokeCap.Round))
+            val area = Path().apply {
+                addPath(path)
+                lineTo(left + slot * (values.lastIndex) + slot / 2f, bottom)
+                lineTo(left + slot / 2f, bottom)
+                close()
+            }
+            drawPath(
+                area,
+                Brush.verticalGradient(
+                    colors = listOf(primary.copy(alpha = 0.30f), primary.copy(alpha = 0.015f)),
+                    startY = top,
+                    endY = bottom,
+                ),
+            )
+            drawPath(path, primary, style = Stroke(width = 3.dp.toPx(), cap = StrokeCap.Round))
             values.forEachIndexed { index, value ->
                 val x = left + slot * index + slot / 2f
                 val y = bottom - chartHeight * (value / maxValue).coerceIn(0f, 1f)
+                drawCircle(primary.copy(alpha = 0.18f), radius = 7.dp.toPx(), center = Offset(x, y))
                 drawCircle(primary, radius = 4.dp.toPx(), center = Offset(x, y))
                 drawCircle(surface, radius = 1.8.dp.toPx(), center = Offset(x, y))
             }
