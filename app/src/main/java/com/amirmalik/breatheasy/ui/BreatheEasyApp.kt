@@ -389,7 +389,9 @@ private fun TodayScreen(
                 MetricCard(
                     modifier = Modifier.weight(1f),
                     eyebrow = "Purchases logged",
-                    value = snapshot.purchasesFor(month).size.toString(),
+                    value = snapshot.purchasesFor(month)
+                        .count { it.currency.isoCode == prefs.displayCurrency.isoCode }
+                        .toString(),
                     caption = "this month",
                     icon = Icons.Outlined.Waves,
                 )
