@@ -192,9 +192,9 @@ internal class BreatheEasyDatabase(context: Context) :
                 put("occurred_at_ms", event.occurredAtMillis)
                 put("outcome", event.outcome.name)
                 put("trigger_code", event.trigger.name)
-                put("intensity", event.intensity.coerceIn(1, 5))
+                put("intensity", event.intensity)
                 put("note", event.note)
-                put("breathing_seconds", event.breathingSeconds.coerceAtLeast(0))
+                put("breathing_seconds", event.breathingSeconds)
             }
             db.insertOrThrow("craving_events", null, values)
             if (event.outcome == CravingOutcome.SMOKED) {
