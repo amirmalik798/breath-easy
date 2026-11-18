@@ -72,7 +72,7 @@ class BreatheEasyViewModel(application: Application) : AndroidViewModel(applicat
     }
 
     fun logSmoke(trigger: com.amirmalik.breatheasy.data.CravingTrigger, note: String = "") =
-        perform("Cigarette logged. No judgement — just useful data.") {
+        perform(successMessage = null) {
             repository.logSmoke(SmokeEvent(trigger = trigger, note = note))
         }
 
@@ -82,7 +82,7 @@ class BreatheEasyViewModel(application: Application) : AndroidViewModel(applicat
 
     fun clearMessage() { _message.value = null }
 
-    private fun perform(successMessage: String, operation: suspend () -> Unit) {
+    private fun perform(successMessage: String?, operation: suspend () -> Unit) {
         viewModelScope.launch {
             operationMutex.withLock {
                 _busy.value = true
@@ -107,7 +107,9 @@ class BreatheEasyViewModel(application: Application) : AndroidViewModel(applicat
                         if (error is CancellationException) throw error
                         _snapshot.value = _snapshot.value.copy(isLoading = false)
                         _loadError.value = true
-                        _message.value = "$successMessage. Saved, but the latest data could not be reloaded."
+                        _message.value = successMessage?.let {
+                            "$it. Saved, but the latest data could not be reloaded."
+                        } ?: "Saved, but the latest data could not be reloaded."
                     }
                 } finally {
                     _busy.value = false
