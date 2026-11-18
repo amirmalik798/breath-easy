@@ -7,6 +7,7 @@ class AppSnapshotTest {
     @Test
     fun dailyConsumptionUsesLongArithmeticForLongHistories() {
         val snapshot = AppSnapshot(
+            preferences = AppPreferences(displayCurrency = CurrencyCode.fromCode("USD")),
             smokeEvents = listOf(
                 SmokeEvent(smokedAtMillis = 100L, quantity = Int.MAX_VALUE),
                 SmokeEvent(smokedAtMillis = 200L, quantity = Int.MAX_VALUE),
@@ -20,6 +21,7 @@ class AppSnapshotTest {
     @Test
     fun dailyConsumptionUsesAnExclusiveEndBoundary() {
         val snapshot = AppSnapshot(
+            preferences = AppPreferences(displayCurrency = CurrencyCode.fromCode("USD")),
             smokeEvents = listOf(
                 SmokeEvent(smokedAtMillis = 99L, quantity = 4),
                 SmokeEvent(smokedAtMillis = 100L, quantity = 1),
