@@ -13,8 +13,22 @@ class MoneyTest {
     }
 
     @Test fun rwfDoesNotAcceptFractionalUnits() {
-        assertEquals(25_000L, Money.parseToMinor("25,000", CurrencyCode.RWF))
+        assertEquals(25_000L, Money.parseToMinor("25000", CurrencyCode.RWF))
         assertNull(Money.parseToMinor("25.50", CurrencyCode.RWF))
+    }
+
+    @Test fun parsesTheDeviceLocaleDecimalSeparatorWithoutGuessingGrouping() {
+        val originalLocale = java.util.Locale.getDefault()
+        try {
+            java.util.Locale.setDefault(java.util.Locale.US)
+            assertNull(Money.parseToMinor("1,000.00", CurrencyCode.USD))
+            assertEquals(100_000L, Money.parseToMinor("1000.00", CurrencyCode.USD))
+            java.util.Locale.setDefault(java.util.Locale.GERMANY)
+            assertEquals(1_250L, Money.parseToMinor("12,50", CurrencyCode.USD))
+            assertNull(Money.parseToMinor("1.000,00", CurrencyCode.USD))
+        } finally {
+            java.util.Locale.setDefault(originalLocale)
+        }
     }
 
     @Test fun rejectsZeroNegativeAndMalformedAmounts() {
