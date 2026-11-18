@@ -674,7 +674,7 @@ private fun TodayScreen(
                             )
                         } else {
                             Text(
-                                "$trackedStock cigarettes · $trackedStock / 20 packs + ${trackedStock % 20} loose",
+                                "$trackedStock cigarettes · ${trackedStock / 20} packs + ${trackedStock % 20} loose",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
