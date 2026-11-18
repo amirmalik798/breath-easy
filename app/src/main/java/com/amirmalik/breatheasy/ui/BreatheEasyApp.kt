@@ -630,6 +630,70 @@ private fun SpendingScreen(snapshot: AppSnapshot, onDeletePurchase: (Purchase) -
             }
         }
         item {
+            SectionHeader("Monthly spending history", "Exact totals for every month · tap to inspect")
+            Card(
+                shape = RoundedCornerShape(24.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+            ) {
+                Column {
+                    summary.monthlyPoints.asReversed().forEachIndexed { index, point ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    monthOffset = java.time.temporal.ChronoUnit.MONTHS
+                                        .between(point.month, YearMonth.now()).toInt().coerceAtLeast(0)
+                                }
+                                .padding(horizontal = 18.dp, vertical = 13.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        ) {
+                            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                                Text(
+                                    "${point.month.month.getDisplayName(TextStyle.FULL, Locale.getDefault())} ${point.month.year}",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.SemiBold,
+                                )
+                                if (point.nativeSubtotals.isNotEmpty()) {
+                                    Text(
+                                        point.nativeSubtotals.toList().sortedBy { it.first.isoCode }
+                                            .joinToString(" · ") { (code, amount) -> Money.format(amount, code) },
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                } else {
+                                    Text("No purchases recorded", style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                                if (point.unconvertedPurchaseCount > 0) {
+                                    Text(
+                                        "${point.unconvertedPurchaseCount} purchase(s) need an exchange rate",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.tertiary,
+                                    )
+                                }
+                            }
+                            Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                Text(
+                                    Money.format(point.convertedMinor, reportCurrency),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary,
+                                )
+                                Text("${point.convertedPurchaseCount} included",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                        }
+                        if (index < summary.monthlyPoints.lastIndex) {
+                            Divider(color = MaterialTheme.colorScheme.outlineVariant)
+                        }
+                    }
+                }
+            }
+        }
+        item {
             SectionHeader("Monthly totals by currency", "Original amounts are never overwritten")
             val selectedPurchases = snapshot.purchases.filter { purchase ->
                 YearMonth.from(Instant.ofEpochMilli(purchase.purchasedAtMillis).atZone(ZoneId.systemDefault())) == selectedMonth
