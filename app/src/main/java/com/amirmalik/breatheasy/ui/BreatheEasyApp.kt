@@ -163,7 +163,8 @@ fun BreatheEasyApp(viewModel: BreatheEasyViewModel) {
     var selectedTab by rememberSaveable { mutableStateOf(MainTab.TODAY) }
     var showPurchaseDialog by rememberSaveable { mutableStateOf(false) }
     var showCravingDialog by rememberSaveable { mutableStateOf(false) }
-    var purchaseToDelete by remember { mutableStateOf<Purchase?>(null) }
+    var purchaseToDelete by rememberSaveable { mutableStateOf<Purchase?>(null) }
+    var pendingDeleteId by rememberSaveable { mutableStateOf<String?>(null) }
     var pendingDeleteId by rememberSaveable { mutableStateOf<String?>(null) }
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -177,6 +178,11 @@ fun BreatheEasyApp(viewModel: BreatheEasyViewModel) {
             if (pendingDeleteId != null) {
                 // Do not dismiss the confirmation until the repository returns the
                 // operation result. A failed delete must remain visible to the user.
+                pendingDeleteId = null
+                purchaseToDelete = null
+            }
+            if (pendingDeleteId != null) {
+                // The ViewModel message is emitted after the delete succeeds or fails.
                 pendingDeleteId = null
                 purchaseToDelete = null
             }
