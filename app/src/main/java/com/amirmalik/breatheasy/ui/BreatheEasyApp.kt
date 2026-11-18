@@ -93,6 +93,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -251,6 +252,7 @@ fun BreatheEasyApp(viewModel: BreatheEasyViewModel) {
                 when (tab) {
                     MainTab.TODAY -> TodayScreen(
                         snapshot = snapshot,
+                        busy = busy,
                         onLogSmoke = { trigger, note -> viewModel.logSmoke(trigger, note) },
                         onOpenCravings = { selectedTab = MainTab.CRAVINGS },
                         onRecordPurchase = { showPurchaseDialog = true },
@@ -336,12 +338,18 @@ fun BreatheEasyApp(viewModel: BreatheEasyViewModel) {
 @Composable
 private fun TodayScreen(
     snapshot: AppSnapshot,
+    busy: Boolean,
     onLogSmoke: (CravingTrigger, String) -> Unit,
     onOpenCravings: () -> Unit,
     onRecordPurchase: () -> Unit,
     onDeletePurchase: (Purchase) -> Unit,
 ) {
     val prefs = snapshot.preferences
+    var smokePending by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(busy) {
+        if (!busy) smokePending = false
+    }
+    val loggingSmoke = busy || smokePending
     val todayZone = ZoneId.systemDefault()
     val todayDate = LocalDate.now(todayZone)
     val todayRange = remember(todayDate, todayZone) {
@@ -459,10 +467,25 @@ private fun TodayScreen(
                 }
                 Divider(color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.16f))
                 Row(Modifier.fillMaxWidth().padding(14.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Button(onClick = { onLogSmoke(CravingTrigger.OTHER, "") }, modifier = Modifier.weight(1f)) {
-                        Icon(Icons.Outlined.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Button(
+                        onClick = {
+                            smokePending = true
+                            onLogSmoke(CravingTrigger.OTHER, "")
+                        },
+                        enabled = !loggingSmoke,
+                        modifier = Modifier.weight(1f),
+                    ) {
+                        if (loggingSmoke) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(18.dp),
+                                color = MaterialTheme.colorScheme.onPrimary,
+                                strokeWidth = 2.dp,
+                            )
+                        } else {
+                            Icon(Icons.Outlined.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                        }
                         Spacer(Modifier.width(6.dp))
-                        Text("Log cigarette")
+                        Text(if (loggingSmoke) "Logging…" else "Log cigarette")
                     }
                     FilledTonalButton(onClick = onOpenCravings, modifier = Modifier.weight(1f)) {
                         Icon(Icons.Outlined.Spa, contentDescription = null, modifier = Modifier.size(18.dp))
@@ -605,10 +628,12 @@ private fun SpendingScreen(
     val exportScope = rememberCoroutineScope()
     var reportPeriod by rememberSaveable { mutableStateOf(SpendingReportPeriod.CURRENT_MONTH) }
     var isExportingPdf by rememberSaveable { mutableStateOf(false) }
+    var isPickingPdfDestination by rememberSaveable { mutableStateOf(false) }
     var pdfExportMessage by rememberSaveable { mutableStateOf<String?>(null) }
     val createPdfLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("application/pdf"),
     ) { destination ->
+        isPickingPdfDestination = false
         if (destination != null) {
             isExportingPdf = true
             pdfExportMessage = null
@@ -908,16 +933,25 @@ private fun SpendingScreen(
                         }
                     }
                     Button(onClick = {
+                        isPickingPdfDestination = true
                         createPdfLauncher.launch(
                             "BreatheEasy-Spending-${reportPeriod.fileLabel}-${selectedMonth}.pdf",
                         )
-                    }, enabled = !isExportingPdf, modifier = Modifier.fillMaxWidth().height(54.dp),
+                    }, enabled = !isExportingPdf && !isPickingPdfDestination,
+                        modifier = Modifier.fillMaxWidth().height(54.dp),
                         shape = RoundedCornerShape(17.dp)) {
                         if (isExportingPdf) CircularProgressIndicator(Modifier.size(18.dp),
                             color = MaterialTheme.colorScheme.onPrimary, strokeWidth = 2.dp)
                         else Icon(Icons.Outlined.ReceiptLong, contentDescription = null, modifier = Modifier.size(19.dp))
                         Spacer(Modifier.width(9.dp))
-                        Text(if (isExportingPdf) "Creating PDF…" else "Create PDF", fontWeight = FontWeight.Bold)
+                        Text(
+                            when {
+                                isExportingPdf -> "Creating PDF…"
+                                isPickingPdfDestination -> "Choose a location…"
+                                else -> "Create PDF"
+                            },
+                            fontWeight = FontWeight.Bold,
+                        )
                     }
                     pdfExportMessage?.let { messageText ->
                         Text(messageText, style = MaterialTheme.typography.bodySmall,
@@ -942,6 +976,9 @@ private fun CravingsScreen(
             delay(1_000)
             seconds++
         }
+    }
+    DisposableEffect(Unit) {
+        onDispose { running = false }
     }
     val phases = listOf("Breathe in", "Hold", "Breathe out", "Rest")
     val phase = phases[(seconds / 4) % phases.size]
