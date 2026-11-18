@@ -55,7 +55,7 @@ object SpendingPdfExporter {
 
     private val ink = Color.rgb(33, 27, 24)
     private val panel = Color.rgb(23, 22, 27)
-        private val highlight = Color.rgb(255, 224, 204)
+    private val highlight = Color.rgb(255, 224, 204)
     private val pageColor = Color.rgb(246, 242, 239)
     private val paper = Color.rgb(255, 252, 250)
     private val muted = Color.rgb(109, 98, 91)
