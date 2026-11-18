@@ -49,7 +49,13 @@ object AnalyticsCalculator {
             pointForMonth(purchases, month, reportCurrency, zoneId)
         }
         val selected = points.last()
-        val previous = if (points.size > 1) points[points.lastIndex - 1].convertedMinor else null
+        val previousPoint = points.getOrNull(points.lastIndex - 1)
+        // Comparisons are meaningful only when both months are complete in the
+        // selected reporting currency. Never compare partial totals as if they
+        // were complete spending figures.
+        val previous = previousPoint
+            ?.takeIf { it.unconvertedPurchaseCount == 0 && selected.unconvertedPurchaseCount == 0 }
+            ?.convertedMinor
         return SpendingSummary(
             selectedMonth = selectedMonth,
             reportCurrency = reportCurrency,
@@ -93,7 +99,7 @@ object AnalyticsCalculator {
         val native = linkedMapOf<CurrencyCode, Long>()
 
         monthPurchases.forEach { purchase ->
-            native[purchase.currency] = (native[purchase.currency] ?: 0L) + purchase.amountMinor
+            native[purchase.currency] = Math.addExact(native[purchase.currency] ?: 0L, purchase.amountMinor)
             val converted = Money.convertMinor(
                 amountMinor = purchase.amountMinor,
                 from = purchase.currency,
