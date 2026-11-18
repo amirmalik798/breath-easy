@@ -99,4 +99,33 @@ class AnalyticsCalculatorTest {
         assertEquals(1_000L, report.previousMonthTotalMinor)
         assertEquals(-250L, report.changeFromPreviousMinor)
     }
+    @Test
+    fun monthlyGroupingUsesTheExplicitReportingTimeZoneAtMonthBoundaries() {
+        val purchases = listOf(
+            Purchase(
+                purchasedAtMillis = Instant.parse("2026-11-01T00:30:00Z").toEpochMilli(),
+                type = PurchaseType.PACK, quantity = 1, amountMinor = 900,
+                currency = CurrencyCode.fromCode("USD"),
+            ),
+            Purchase(
+                purchasedAtMillis = Instant.parse("2026-11-01T07:30:00Z").toEpochMilli(),
+                type = PurchaseType.PACK, quantity = 1, amountMinor = 1_200,
+                currency = CurrencyCode.fromCode("USD"),
+            ),
+        )
+
+        val report = AnalyticsCalculator.spending(
+            purchases,
+            YearMonth.of(2026, 11),
+            CurrencyCode.fromCode("USD"),
+            monthCount = 2,
+            zoneId = java.time.ZoneId.of("America/Los_Angeles"),
+        )
+
+        assertEquals(900L, report.monthlyPoints.first().totalMinor)
+        assertEquals(1, report.monthlyPoints.first().purchaseCount)
+        assertEquals(1_200L, report.totalMinor)
+        assertEquals(1, report.purchaseCount)
+    }
+
 }
