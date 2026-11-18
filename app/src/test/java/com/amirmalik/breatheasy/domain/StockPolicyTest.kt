@@ -41,6 +41,41 @@ class StockPolicyTest {
     }
 
     @Test
+    fun confirmedSmokingAtZeroStockRecordsZeroStockDebit() {
+        assertEquals(
+            0,
+            StockPolicy.stockDebit(
+                remainingCigarettes = 0L,
+                requestedCigarettes = 1,
+                confirmUnstockedSmoking = true,
+            ),
+        )
+    }
+
+    @Test
+    fun confirmedMultiCigaretteEntryDebitsOnlyWhatIsAvailable() {
+        assertEquals(
+            2,
+            StockPolicy.stockDebit(
+                remainingCigarettes = 2L,
+                requestedCigarettes = 5,
+                confirmUnstockedSmoking = true,
+            ),
+        )
+    }
+
+    @Test
+    fun fullyCoveredEntryDebitsItsFullQuantity() {
+        assertEquals(
+            2,
+            StockPolicy.stockDebit(
+                remainingCigarettes = 8L,
+                requestedCigarettes = 2,
+            ),
+        )
+    }
+
+    @Test
     fun rejectsInvalidRequestedQuantityAndNegativeInventory() {
         assertThrows(IllegalArgumentException::class.java) {
             StockPolicy.requireAvailable(remainingCigarettes = 5L, requestedCigarettes = 0)

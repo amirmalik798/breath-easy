@@ -438,16 +438,11 @@ internal class BreatheEasyDatabase(context: Context) :
         db: SQLiteDatabase,
         requestedCigarettes: Int,
         confirmUnstockedSmoking: Boolean,
-    ): Int {
-        val available = readTrackedStock(db).coerceAtLeast(0L)
-        StockPolicy.requireAvailable(
-            remainingCigarettes = available,
-            requestedCigarettes = requestedCigarettes,
-            confirmUnstockedSmoking = confirmUnstockedSmoking,
-        )
-        // Actual smoking is recorded in full; inventory is debited only for what exists.
-        return minOf(available, requestedCigarettes.toLong()).toInt()
-    }
+    ): Int = StockPolicy.stockDebit(
+        remainingCigarettes = readTrackedStock(db).coerceAtLeast(0L),
+        requestedCigarettes = requestedCigarettes,
+        confirmUnstockedSmoking = confirmUnstockedSmoking,
+    )
 
     /**
      * This is called inside the write transaction so checking availability and

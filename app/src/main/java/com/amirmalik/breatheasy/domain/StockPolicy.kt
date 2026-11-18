@@ -12,7 +12,7 @@ class TrackedStockUnavailableException(
     },
 )
 
-/** Requires confirmation when actual smoking exceeds available tracked stock. */
+/** Enforces explicit confirmation and calculates the exact inventory debit. */
 object StockPolicy {
     fun requireAvailable(
         remainingCigarettes: Long,
@@ -24,5 +24,22 @@ object StockPolicy {
         if (remainingCigarettes < requestedCigarettes.toLong() && !confirmUnstockedSmoking) {
             throw TrackedStockUnavailableException(remainingCigarettes, requestedCigarettes)
         }
+    }
+
+    /**
+     * Returns how many cigarettes are actually debited from tracked inventory.
+     * The caller records the full actual smoking quantity separately.
+     */
+    fun stockDebit(
+        remainingCigarettes: Long,
+        requestedCigarettes: Int,
+        confirmUnstockedSmoking: Boolean = false,
+    ): Int {
+        requireAvailable(
+            remainingCigarettes = remainingCigarettes,
+            requestedCigarettes = requestedCigarettes,
+            confirmUnstockedSmoking = confirmUnstockedSmoking,
+        )
+        return minOf(remainingCigarettes, requestedCigarettes.toLong()).toInt()
     }
 }

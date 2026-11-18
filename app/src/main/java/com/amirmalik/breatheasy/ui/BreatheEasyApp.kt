@@ -2358,31 +2358,99 @@ private fun StockConfirmationDialog(
     onConfirm: () -> Unit,
     enabled: Boolean,
 ) {
-    val displayedStock = remainingCigarettes.coerceAtLeast(0L)
+    // This dialog is only opened for depleted stock. Clamp defensively so its
+    // message can never expose a negative inventory value.
+    val stockCount = remainingCigarettes.coerceAtLeast(0L)
 
     AlertDialog(
         onDismissRequest = onDismiss,
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(28.dp),
+        containerColor = MaterialTheme.colorScheme.surface,
+        iconContentColor = MaterialTheme.colorScheme.primary,
+        titleContentColor = MaterialTheme.colorScheme.onSurface,
+        textContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+        tonalElevation = 8.dp,
         icon = {
-            Icon(
-                Icons.Outlined.Info,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.tertiary,
+            Box(
+                modifier = Modifier.size(46.dp)
+                    .clip(RoundedCornerShape(15.dp))
+                    .background(MaterialTheme.colorScheme.primaryContainer),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    Icons.Outlined.Info,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                    modifier = Modifier.size(24.dp),
+                )
+            }
+        },
+        title = {
+            Text(
+                "Stock is empty",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
             )
         },
-        title = { Text("No tracked cigarettes left") },
         text = {
-            Text(
-                "Your tracked stock is $displayedStock. If you actually smoked a cigarette, you can still record it. It will count in your smoking totals, but stock will stay at 0. No purchase or spending entry will be created.",
-            )
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Surface(
+                    shape = RoundedCornerShape(14.dp),
+                    color = MaterialTheme.colorScheme.primaryContainer,
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 11.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                    ) {
+                        Text(
+                            "Tracked cigarettes",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer,
+                        )
+                        Text(
+                            "$stockCount",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer,
+                        )
+                    }
+                }
+                Text(
+                    "Are you sure you smoked a cigarette?",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                Text(
+                    "If you confirm, it will be added to your smoking totals only. Stock will stay at 0, and no purchase or spending will be recorded.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         },
         confirmButton = {
-            Button(onClick = onConfirm, enabled = enabled) {
-                Text("I smoked — log it")
+            Button(
+                onClick = onConfirm,
+                enabled = enabled,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary,
+                ),
+            ) {
+                Text("Yes, I smoked")
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss, enabled = enabled) {
-                Text("Cancel")
+            TextButton(
+                onClick = onDismiss,
+                enabled = enabled,
+                colors = ButtonDefaults.textButtonColors(
+                    contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                ),
+            ) {
+                Text("No, cancel")
             }
         },
     )
