@@ -5,6 +5,7 @@ import android.icu.util.ULocale
 import android.telephony.TelephonyManager
 import java.time.Instant
 import java.time.YearMonth
+import java.time.ZoneId
 import java.util.Currency
 import java.util.Locale
 import java.util.UUID
@@ -159,12 +160,18 @@ data class AppSnapshot(
     val cravingEvents: List<CravingEvent> = emptyList(),
     val isLoading: Boolean = true,
 ) {
-    fun cigarettesFor(dayStartMillis: Long, dayEndMillis: Long): Int = smokeEvents
-        .asSequence()
-        .filter { it.smokedAtMillis in dayStartMillis until dayEndMillis }
-        .sumOf { it.quantity }
+    /** Uses Long totals so long histories cannot wrap into negative daily consumption. */
+    fun cigarettesFor(dayStartMillis: Long, dayEndExclusiveMillis: Long): Long {
+        require(dayEndExclusiveMillis >= dayStartMillis) { "Day range end cannot precede its start." }
+        return smokeEvents.asSequence()
+            .filter { it.smokedAtMillis >= dayStartMillis && it.smokedAtMillis < dayEndExclusiveMillis }
+            .fold(0L) { total, event -> Math.addExact(total, event.quantity.toLong()) }
+    }
 
-    fun purchasesFor(month: YearMonth): List<Purchase> = purchases.filter {
-        YearMonth.from(Instant.ofEpochMilli(it.purchasedAtMillis).atZone(java.time.ZoneId.systemDefault())) == month
+    fun purchasesFor(
+        month: YearMonth,
+        zoneId: ZoneId = ZoneId.systemDefault(),
+    ): List<Purchase> = purchases.filter {
+        YearMonth.from(Instant.ofEpochMilli(it.purchasedAtMillis).atZone(zoneId)) == month
     }
 }
