@@ -1000,14 +1000,22 @@ private fun GoalsScreen(
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         item {
+            Card(shape = RoundedCornerShape(24.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)) {
+                Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text("Preferred currency", style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onPrimaryContainer)
+                    Text("Choose how combined spending charts are displayed. Each purchase keeps its original currency.",
+                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.82f))
+                    CurrencyPicker(selected = currency, onSelect = { currency = it })
+                }
+            }
+        }
+        item {
             Card(shape = RoundedCornerShape(24.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                 border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
                 Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text("Preferred currency", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                    Text("This currency is used for converted monthly charts. Every purchase still keeps its original currency.",
-                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    CurrencyPicker(selected = currency, onSelect = { currency = it })
-                    Divider(color = MaterialTheme.colorScheme.outlineVariant)
                     Text("Personal tracking goals", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                     OutlinedTextField(
                         value = target,
