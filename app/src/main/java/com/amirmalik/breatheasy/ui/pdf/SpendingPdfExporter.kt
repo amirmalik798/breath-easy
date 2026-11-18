@@ -76,7 +76,8 @@ object SpendingPdfExporter {
         val monthPages = buildMonthPages(purchases, currency, period, currentMonth, zoneId)
         // Own the PDF document before opening the destination. Both resources are
         // closed even when the provider rejects the URI or writing fails midway.
-        PdfDocument().use { document ->
+        val document = PdfDocument()
+        try {
             val output = context.contentResolver.openOutputStream(destination, "w")
                 ?: throw IOException("The selected location could not be opened for writing.")
             output.use { stream ->
@@ -101,6 +102,8 @@ object SpendingPdfExporter {
                 document.writeTo(stream)
                 stream.flush()
             }
+        } finally {
+            document.close()
         }
     }
 
