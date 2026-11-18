@@ -203,7 +203,7 @@ internal class BreatheEasyDatabase(context: Context) :
                 cursor.getString(4) == purchase.currency.isoCode &&
                 cursor.getString(5) == purchase.brand &&
                 cursor.getString(6) == purchase.location &&
-                cursor.getInt(7) == if (purchase.planned) 1 else 0 &&
+                cursor.getInt(7) == (if (purchase.planned) 1 else 0) &&
                 cursor.getString(8) == purchase.note
         }
         check(samePurchase) {
