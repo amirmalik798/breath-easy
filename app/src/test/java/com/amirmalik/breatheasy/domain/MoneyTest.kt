@@ -7,6 +7,19 @@ import org.junit.Assert.assertNull
 import org.junit.Test
 
 class MoneyTest {
+    @Test fun formatsAmountsWithoutRepeatingTheCurrencyCodeByDefault() {
+        val originalLocale = java.util.Locale.getDefault()
+        try {
+            java.util.Locale.setDefault(java.util.Locale.US)
+            assertEquals("$ 2.50", Money.format(250L, CurrencyCode.USD))
+            assertEquals("Rs 250.00", Money.format(25_000L, CurrencyCode.PKR))
+            assertEquals("FRw 200", Money.format(200L, CurrencyCode.RWF))
+            assertEquals("FRw 200 RWF", Money.format(200L, CurrencyCode.RWF, includeCode = true))
+        } finally {
+            java.util.Locale.setDefault(originalLocale)
+        }
+    }
+
     @Test fun parsesUsdAndPkrIntoExactMinorUnits() {
         assertEquals(1_405L, Money.parseToMinor("14.05", CurrencyCode.USD))
         assertEquals(28_075L, Money.parseToMinor("280.75", CurrencyCode.PKR))
