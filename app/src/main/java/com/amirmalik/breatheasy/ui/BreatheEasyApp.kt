@@ -149,6 +149,7 @@ fun BreatheEasyApp(viewModel: BreatheEasyViewModel) {
     val snapshot by viewModel.snapshot.collectAsState()
     val busy by viewModel.busy.collectAsState()
     val message by viewModel.message.collectAsState()
+    val loadError by viewModel.loadError.collectAsState()
     var selectedTab by rememberSaveable { mutableStateOf(MainTab.TODAY) }
     var showPurchaseDialog by rememberSaveable { mutableStateOf(false) }
     var showCravingDialog by rememberSaveable { mutableStateOf(false) }
@@ -257,6 +258,28 @@ fun BreatheEasyApp(viewModel: BreatheEasyViewModel) {
         }
     }
 
+    if (loadError) {
+        AlertDialog(
+            onDismissRequest = {},
+            title = { Text("Can't load your records") },
+            text = {
+                Text("Your saved data has not been changed. Check your device storage and try loading it again.")
+            },
+            confirmButton = {
+                Button(onClick = viewModel::refresh, enabled = !busy) {
+                    if (busy) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(18.dp),
+                            strokeWidth = 2.dp,
+                        )
+                    } else {
+                        Text("Retry")
+                    }
+                }
+            },
+        )
+    }
+
     if (showPurchaseDialog) {
         RecordPurchaseDialog(
             preferences = snapshot.preferences,
@@ -312,7 +335,7 @@ private fun TodayScreen(
     val resisted = snapshot.cravingEvents.count {
         it.outcome == CravingOutcome.RESISTED && it.occurredAtMillis in todayRange
     }
-    val month = YearMonth.now()
+    val month = YearMonth.from(todayDate)
     val spend = remember(snapshot.purchases, prefs.displayCurrency, month) {
         AnalyticsCalculator.spending(snapshot.purchases, month, prefs.displayCurrency, 6)
     }
