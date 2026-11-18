@@ -1,79 +1,102 @@
 package com.amirmalik.breatheasy.domain
 
 import com.amirmalik.breatheasy.data.CurrencyCode
-import com.amirmalik.breatheasy.data.FxSnapshot
 import com.amirmalik.breatheasy.data.Purchase
 import com.amirmalik.breatheasy.data.PurchaseType
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNull
 import org.junit.Test
 import java.time.Instant
 import java.time.YearMonth
-import java.time.ZoneId
+import java.time.ZoneOffset
 
 class AnalyticsCalculatorTest {
-    private val utc = ZoneId.of("UTC")
+    private val utc = ZoneOffset.UTC
 
-    @Test fun monthlyReportUsesPurchaseDateAndKeepsNativeSubtotals() {
-        val month = YearMonth.of(2026, 11)
+    @Test
+    fun monthlyReportUsesPurchaseDateAndOnlyTheSelectedCurrency() {
         val purchases = listOf(
-            Purchase(purchasedAtMillis = Instant.parse("2026-11-02T12:00:00Z").toEpochMilli(),
-                type = PurchaseType.PACK, quantity = 1, amountMinor = 1_400, currency = CurrencyCode.USD),
-            Purchase(purchasedAtMillis = Instant.parse("2026-11-18T12:00:00Z").toEpochMilli(),
-                type = PurchaseType.SINGLE, quantity = 2, amountMinor = 500, currency = CurrencyCode.PKR),
-            Purchase(purchasedAtMillis = Instant.parse("2026-10-31T23:59:00Z").toEpochMilli(),
-                type = PurchaseType.PACK, quantity = 1, amountMinor = 900, currency = CurrencyCode.USD),
+            Purchase(
+                purchasedAtMillis = Instant.parse("2026-11-03T10:00:00Z").toEpochMilli(),
+                type = PurchaseType.PACK, quantity = 1, amountMinor = 1_400,
+                currency = CurrencyCode.fromCode("USD"),
+            ),
+            Purchase(
+                purchasedAtMillis = Instant.parse("2026-11-05T10:00:00Z").toEpochMilli(),
+                type = PurchaseType.SINGLE, quantity = 2, amountMinor = 500,
+                currency = CurrencyCode.fromCode("PKR"),
+            ),
+            Purchase(
+                purchasedAtMillis = Instant.parse("2026-10-31T23:30:00Z").toEpochMilli(),
+                type = PurchaseType.PACK, quantity = 1, amountMinor = 900,
+                currency = CurrencyCode.fromCode("USD"),
+            ),
+            Purchase(
+                purchasedAtMillis = Instant.parse("2026-11-07T10:00:00Z").toEpochMilli(),
+                type = PurchaseType.PACK, quantity = 1, amountMinor = 700,
+                currency = CurrencyCode.fromCode("USD"),
+            ),
         )
 
-        val report = AnalyticsCalculator.spending(purchases, month, CurrencyCode.USD, 2, utc)
-        assertEquals(1_400L, report.convertedTotalMinor)
-        assertEquals(1, report.unconvertedPurchaseCount)
-        assertEquals(500L, report.nativeSubtotals[CurrencyCode.PKR])
-        assertEquals(900L, report.monthlyPoints.first().convertedMinor)
-    }
-
-    @Test fun crossCurrencyConversionUsesTheExchangeRateStoredWithPurchase() {
-        val purchase = Purchase(
-            purchasedAtMillis = Instant.parse("2026-11-10T10:00:00Z").toEpochMilli(),
-            type = PurchaseType.PACK, quantity = 1, amountMinor = 28_000,
-            currency = CurrencyCode.PKR,
-            fxSnapshot = FxSnapshot(pkrPerUsd = "280", rwfPerUsd = "1450"),
+        val report = AnalyticsCalculator.spending(
+            purchases, YearMonth.of(2026, 11), CurrencyCode.fromCode("USD"), 2, utc,
         )
-        val report = AnalyticsCalculator.spending(listOf(purchase), YearMonth.of(2026, 11), CurrencyCode.USD, 1, utc)
-        assertEquals(100L, report.convertedTotalMinor)
-        assertEquals(0, report.unconvertedPurchaseCount)
+
+        assertEquals(2, report.purchaseCount)
+        assertEquals(2_100L, report.totalMinor)
+        assertEquals(900L, report.monthlyPoints.first().totalMinor)
+        assertEquals(1, report.monthlyPoints.first().purchaseCount)
+        assertEquals(2_100L, report.monthlyPoints.last().totalMinor)
     }
 
-    @Test fun monthOverMonthComparisonIsHiddenWhenEitherMonthHasUnconvertedPurchases() {
+    @Test
+    fun purchasesInOtherCurrenciesNeverEnterSelectedCurrencyTotals() {
+        val purchases = listOf(
+            Purchase(
+                purchasedAtMillis = Instant.parse("2026-11-03T10:00:00Z").toEpochMilli(),
+                type = PurchaseType.PACK, quantity = 1, amountMinor = 1_400,
+                currency = CurrencyCode.fromCode("USD"),
+            ),
+            Purchase(
+                purchasedAtMillis = Instant.parse("2026-11-04T10:00:00Z").toEpochMilli(),
+                type = PurchaseType.PACK, quantity = 2, amountMinor = 500_000,
+                currency = CurrencyCode.fromCode("JPY"),
+            ),
+        )
+
+        val report = AnalyticsCalculator.spending(
+            purchases, YearMonth.of(2026, 11), CurrencyCode.fromCode("USD"), 1, utc,
+        )
+
+        assertEquals(1, report.purchaseCount)
+        assertEquals(1_400L, report.totalMinor)
+        assertEquals(1_400L, report.monthlyPoints.single().totalMinor)
+    }
+
+    @Test
+    fun previousMonthComparisonUsesOnlyMatchingCurrencyPurchases() {
         val purchases = listOf(
             Purchase(
                 purchasedAtMillis = Instant.parse("2026-10-10T10:00:00Z").toEpochMilli(),
-                type = PurchaseType.PACK, quantity = 1, amountMinor = 28_000,
-                currency = CurrencyCode.PKR, fxSnapshot = FxSnapshot(null, null),
+                type = PurchaseType.PACK, quantity = 1, amountMinor = 1_000,
+                currency = CurrencyCode.fromCode("USD"),
+            ),
+            Purchase(
+                purchasedAtMillis = Instant.parse("2026-10-11T10:00:00Z").toEpochMilli(),
+                type = PurchaseType.PACK, quantity = 1, amountMinor = 5_000,
+                currency = CurrencyCode.fromCode("PKR"),
             ),
             Purchase(
                 purchasedAtMillis = Instant.parse("2026-11-10T10:00:00Z").toEpochMilli(),
-                type = PurchaseType.PACK, quantity = 1, amountMinor = 1_400,
-                currency = CurrencyCode.USD,
+                type = PurchaseType.PACK, quantity = 1, amountMinor = 750,
+                currency = CurrencyCode.fromCode("USD"),
             ),
         )
-        val report = AnalyticsCalculator.spending(
-            purchases, YearMonth.of(2026, 11), CurrencyCode.USD, 2, utc,
-        )
-        assertEquals(1_400L, report.convertedTotalMinor)
-        assertNull(report.previousMonthTotalMinor)
-    }
 
-    @Test fun missingRateIsReportedInsteadOfCountedAsZero() {
-        val purchase = Purchase(
-            purchasedAtMillis = Instant.parse("2026-11-10T10:00:00Z").toEpochMilli(),
-            type = PurchaseType.PACK, quantity = 1, amountMinor = 28_000,
-            currency = CurrencyCode.PKR,
-            fxSnapshot = FxSnapshot(null, null),
+        val report = AnalyticsCalculator.spending(
+            purchases, YearMonth.of(2026, 11), CurrencyCode.fromCode("USD"), 2, utc,
         )
-        val report = AnalyticsCalculator.spending(listOf(purchase), YearMonth.of(2026, 11), CurrencyCode.USD, 1, utc)
-        assertEquals(0L, report.convertedTotalMinor)
-        assertEquals(1, report.unconvertedPurchaseCount)
-        assertNull(report.previousMonthTotalMinor)
+
+        assertEquals(1_000L, report.previousMonthTotalMinor)
+        assertEquals(-250L, report.changeFromPreviousMinor)
     }
 }
