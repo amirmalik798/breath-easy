@@ -1297,16 +1297,13 @@ private fun RecordPurchaseDialog(
                                 }
                             },
                         )
-                        Row(
-                            Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                        ) {
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                             Text(
-                                "Paid in",
-                                style = MaterialTheme.typography.labelLarge,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer,
-                                fontWeight = FontWeight.SemiBold,
+                                "CURRENCY",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.78f),
+                                fontWeight = FontWeight.Bold,
+                                letterSpacing = 0.6.sp,
                             )
                             CurrencyPicker(
                                 selected = currency,
@@ -1351,7 +1348,7 @@ private fun RecordPurchaseDialog(
                                 quantity,
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
-                                modifier = Modifier.width(28.dp),
+                                modifier = Modifier.width(44.dp),
                                 maxLines = 1,
                             )
                             IconButton(
