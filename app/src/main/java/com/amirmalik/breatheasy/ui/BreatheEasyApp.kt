@@ -164,7 +164,10 @@ fun BreatheEasyApp(viewModel: BreatheEasyViewModel) {
             )
         },
         bottomBar = {
-            NavigationBar(containerColor = MaterialTheme.colorScheme.surface, tonalElevation = 8.dp) {
+            NavigationBar(
+                containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.98f),
+                tonalElevation = 2.dp,
+            ) {
                 MainTab.entries.forEach { tab ->
                     val icon = when (tab) {
                         MainTab.TODAY -> Icons.Outlined.Home
@@ -184,7 +187,19 @@ fun BreatheEasyApp(viewModel: BreatheEasyViewModel) {
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { scaffoldPadding ->
-        Box(Modifier.fillMaxSize().padding(scaffoldPadding)) {
+        Box(
+            Modifier.fillMaxSize()
+                .background(
+                    Brush.verticalGradient(
+                        listOf(
+                            MaterialTheme.colorScheme.background,
+                            MaterialTheme.colorScheme.background,
+                            MaterialTheme.colorScheme.surface.copy(alpha = 0.72f),
+                        ),
+                    ),
+                )
+                .padding(scaffoldPadding),
+        ) {
             AnimatedContent(
                 targetState = selectedTab,
                 transitionSpec = { fadeIn() togetherWith fadeOut() },
@@ -544,32 +559,38 @@ private fun SpendingScreen(snapshot: AppSnapshot, onDeletePurchase: (Purchase) -
         }
         item {
             Card(
-                shape = RoundedCornerShape(26.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                shape = RoundedCornerShape(28.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
             ) {
-                Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f)) {
                             Text("${selectedMonth.month.getDisplayName(TextStyle.FULL, Locale.getDefault())} ${selectedMonth.year}",
-                                style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                            Text("Recorded purchases · ${reportCurrency.isoCode}",
+                                style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer)
+                            Text("Actual purchase spending · ${reportCurrency.isoCode}",
                                 style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.78f))
                         }
                         Text(
                             if (summary.convertedPurchaseCount == 0 && summary.unconvertedPurchaseCount > 0) "Rate needed"
                             else Money.format(summary.convertedTotalMinor, reportCurrency),
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary)
+                            color = MaterialTheme.colorScheme.onPrimaryContainer)
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedButton(onClick = { monthOffset = (monthOffset + 1).coerceAtMost(60) }) {
+                        OutlinedButton(
+                            onClick = { monthOffset = (monthOffset + 1).coerceAtMost(60) },
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.onPrimaryContainer),
+                        ) {
                             Text("Previous month")
                         }
                         OutlinedButton(onClick = { monthOffset = (monthOffset - 1).coerceAtLeast(0) },
-                            enabled = monthOffset > 0) {
+                            enabled = monthOffset > 0,
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.onPrimaryContainer),
+                        ) {
                             Text("Next month")
                         }
                     }
@@ -580,7 +601,7 @@ private fun SpendingScreen(snapshot: AppSnapshot, onDeletePurchase: (Purchase) -
                             else -> "${Money.format(change, reportCurrency)} more than last month"
                         }
                         Text(direction, style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            color = MaterialTheme.colorScheme.onPrimaryContainer)
                     }
                     Divider(color = MaterialTheme.colorScheme.outlineVariant)
                     MonthlySpendingChart(summary.monthlyPoints, reportCurrency)
@@ -673,7 +694,7 @@ private fun SpendingScreen(snapshot: AppSnapshot, onDeletePurchase: (Purchase) -
                                     fontWeight = FontWeight.Bold,
                                     color = MaterialTheme.colorScheme.primary,
                                 )
-                                Text("${point.convertedPurchaseCount} included",
+                                Text("${point.convertedPurchaseCount} purchases included",
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
@@ -1303,7 +1324,7 @@ private fun PurchaseRow(purchase: Purchase, onDelete: () -> Unit) {
                 color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
         }
         Column(horizontalAlignment = Alignment.End) {
-            Text("${purchase.currency.isoCode} · ${Money.format(purchase.amountMinor, purchase.currency)}",
+            Text(Money.format(purchase.amountMinor, purchase.currency, includeCode = true),
                 fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary,
                 style = MaterialTheme.typography.bodyMedium, maxLines = 1)
             Text(if (purchase.planned) "Planned" else "Impulse", style = MaterialTheme.typography.labelSmall,
