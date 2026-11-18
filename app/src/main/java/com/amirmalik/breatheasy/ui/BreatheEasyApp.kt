@@ -51,6 +51,8 @@ import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Remove
 import androidx.compose.material.icons.outlined.ReceiptLong
 import androidx.compose.material.icons.outlined.CalendarToday
+import androidx.compose.material.icons.outlined.ExpandLess
+import androidx.compose.material.icons.outlined.ExpandMore
 import androidx.compose.material.icons.outlined.Flag
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Info
@@ -164,8 +166,13 @@ fun BreatheEasyApp(viewModel: BreatheEasyViewModel) {
     val scope = rememberCoroutineScope()
 
     LaunchedEffect(message) {
-        message?.let {
-            snackbarHostState.showSnackbar(it)
+        message?.let { resultMessage ->
+            when {
+                resultMessage.startsWith("Purchase added to your ledger") -> showPurchaseDialog = false
+                resultMessage.startsWith("Craving recorded as resisted") ||
+                    resultMessage.startsWith("Craving and cigarette recorded") -> showCravingDialog = false
+            }
+            snackbarHostState.showSnackbar(resultMessage)
             viewModel.clearMessage()
         }
     }
@@ -296,20 +303,16 @@ fun BreatheEasyApp(viewModel: BreatheEasyViewModel) {
     if (showPurchaseDialog) {
         RecordPurchaseDialog(
             preferences = snapshot.preferences,
+            busy = busy,
             onDismiss = { showPurchaseDialog = false },
-            onSave = { purchase ->
-                viewModel.recordPurchase(purchase)
-                showPurchaseDialog = false
-            },
+            onSave = viewModel::recordPurchase,
         )
     }
     if (showCravingDialog) {
         RecordCravingDialog(
+            busy = busy,
             onDismiss = { showCravingDialog = false },
-            onSave = { event ->
-                viewModel.logCraving(event)
-                showCravingDialog = false
-            },
+            onSave = viewModel::logCraving,
         )
     }
     purchaseToDelete?.let { purchase ->
@@ -439,6 +442,13 @@ private fun TodayScreen(
                                 Text("$smokedToday of ${prefs.dailyTarget} cigarettes",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.82f))
+                                if (prefs.baselinePerDay > 0) {
+                                    Text(
+                                        "Previous baseline · ${prefs.baselinePerDay}/day",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.72f),
+                                    )
+                                }
                                 Text(targetProgress.statusLabel,
                                     color = MaterialTheme.colorScheme.onPrimaryContainer,
                                     style = MaterialTheme.typography.labelLarge,
@@ -580,9 +590,6 @@ private fun TodayScreen(
                     }
                 }
             }
-        }
-        item {
-
         }
     }
 }
@@ -1227,6 +1234,7 @@ private fun GoalsScreen(
 @Composable
 private fun RecordPurchaseDialog(
     preferences: AppPreferences,
+    busy: Boolean,
     onDismiss: () -> Unit,
     onSave: (Purchase) -> Unit,
 ) {
@@ -1453,6 +1461,11 @@ private fun RecordPurchaseDialog(
                             if (showDetails) "Hide details" else "Add details",
                             fontWeight = FontWeight.SemiBold,
                         )
+                        Icon(
+                            if (showDetails) Icons.Outlined.ExpandLess else Icons.Outlined.ExpandMore,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp),
+                        )
                     }
                     AnimatedVisibility(visible = showDetails, enter = expandVertically() + fadeIn(),
                         exit = shrinkVertically() + fadeOut()) {
@@ -1529,24 +1542,39 @@ private fun RecordPurchaseDialog(
                             ),
                         )
                     },
-                    enabled = canSave,
+                    enabled = canSave && !busy,
                     modifier = Modifier.fillMaxWidth().height(58.dp),
                     shape = RoundedCornerShape(19.dp),
                 ) {
-                    Row(
-                        Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                    ) {
-                        Text("Save purchase", modifier = Modifier.weight(1f), fontWeight = FontWeight.ExtraBold)
-                        Text(
-                            amountMinor?.let { Money.format(it, currency, includeCode = true) }.orEmpty(),
-                            modifier = Modifier.weight(1f),
-                            textAlign = androidx.compose.ui.text.style.TextAlign.End,
-                            fontWeight = FontWeight.Bold,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
+                    if (busy) {
+                        Row(
+                            horizontalArrangement = Arrangement.Center,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(18.dp),
+                                color = MaterialTheme.colorScheme.onPrimary,
+                                strokeWidth = 2.dp,
+                            )
+                            Spacer(Modifier.width(10.dp))
+                            Text("Saving purchase…", fontWeight = FontWeight.Bold)
+                        }
+                    } else {
+                        Row(
+                            Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                        ) {
+                            Text("Save purchase", modifier = Modifier.weight(1f), fontWeight = FontWeight.ExtraBold)
+                            Text(
+                                amountMinor?.let { Money.format(it, currency, includeCode = true) }.orEmpty(),
+                                modifier = Modifier.weight(1f),
+                                textAlign = androidx.compose.ui.text.style.TextAlign.End,
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
                     }
                 }
             }
@@ -1601,6 +1629,7 @@ private fun RecordPurchaseDialog(
 
 @Composable
 private fun RecordCravingDialog(
+    busy: Boolean,
     onDismiss: () -> Unit,
     onSave: (CravingEvent) -> Unit,
 ) {
@@ -1609,7 +1638,7 @@ private fun RecordCravingDialog(
     var intensity by remember { mutableIntStateOf(3) }
     var note by remember { mutableStateOf("") }
     AlertDialog(
-        onDismissRequest = onDismiss,
+        onDismissRequest = { if (!busy) onDismiss() },
         title = { Text("Record a craving", fontWeight = FontWeight.Bold) },
         text = {
             Column(Modifier.fillMaxWidth().heightIn(max = 540.dp).verticalScroll(rememberScrollState()),
@@ -1656,11 +1685,28 @@ private fun RecordCravingDialog(
             }
         },
         confirmButton = {
-            Button(onClick = {
-                onSave(CravingEvent(outcome = outcome, trigger = trigger, intensity = intensity, note = note))
-            }) { Text("Save moment") }
+            Button(
+                onClick = {
+                    onSave(CravingEvent(outcome = outcome, trigger = trigger, intensity = intensity, note = note))
+                },
+                enabled = !busy,
+            ) {
+                if (busy) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(18.dp),
+                        color = MaterialTheme.colorScheme.onPrimary,
+                        strokeWidth = 2.dp,
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text("Saving…")
+                } else {
+                    Text("Save moment")
+                }
+            }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        dismissButton = {
+            TextButton(onClick = onDismiss, enabled = !busy) { Text("Cancel") }
+        },
     )
 }
 
@@ -1743,7 +1789,7 @@ fun PurchaseRow(purchase: Purchase, onDelete: () -> Unit) {
             Text(if (purchase.planned) "Planned" else "Impulse", style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
-        IconButton(onClick = onDelete, modifier = Modifier.size(34.dp)) {
+        IconButton(onClick = onDelete) {
             Icon(Icons.Outlined.Delete, contentDescription = "Delete purchase",
                 tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(18.dp))
         }
