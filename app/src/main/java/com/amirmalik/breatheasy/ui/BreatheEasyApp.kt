@@ -163,7 +163,8 @@ fun BreatheEasyApp(viewModel: BreatheEasyViewModel) {
     var selectedTab by rememberSaveable { mutableStateOf(MainTab.TODAY) }
     var showPurchaseDialog by rememberSaveable { mutableStateOf(false) }
     var showCravingDialog by rememberSaveable { mutableStateOf(false) }
-    var purchaseToDelete by rememberSaveable { mutableStateOf<Purchase?>(null) }
+    var purchaseToDeleteId by rememberSaveable { mutableStateOf<String?>(null) }
+    val purchaseToDelete = snapshot.purchases.firstOrNull { it.id == purchaseToDeleteId }
     var pendingDeleteId by rememberSaveable { mutableStateOf<String?>(null) }
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -178,7 +179,7 @@ fun BreatheEasyApp(viewModel: BreatheEasyViewModel) {
                 // Do not dismiss the confirmation until the repository returns the
                 // operation result. A failed delete must remain visible to the user.
                 pendingDeleteId = null
-                purchaseToDelete = null
+                purchaseToDeleteId = null
             }
             snackbarHostState.showSnackbar(resultMessage)
             viewModel.clearMessage()
@@ -263,12 +264,12 @@ fun BreatheEasyApp(viewModel: BreatheEasyViewModel) {
                         onLogSmoke = { trigger, note -> viewModel.logSmoke(trigger, note) },
                         onOpenCravings = { selectedTab = MainTab.CRAVINGS },
                         onRecordPurchase = { showPurchaseDialog = true },
-                        onDeletePurchase = { purchaseToDelete = it },
+                        onDeletePurchase = { purchaseToDeleteId = it.id },
                     )
                     MainTab.SPENDING -> SpendingScreen(
                         snapshot = snapshot,
                         onRecordPurchase = { showPurchaseDialog = true },
-                        onDeletePurchase = { purchaseToDelete = it },
+                        onDeletePurchase = { purchaseToDeleteId = it.id },
                     )
                     MainTab.CRAVINGS -> CravingsScreen(
                         snapshot = snapshot,
@@ -326,7 +327,7 @@ fun BreatheEasyApp(viewModel: BreatheEasyViewModel) {
     }
     purchaseToDelete?.let { purchase ->
         AlertDialog(
-            onDismissRequest = { if (pendingDeleteId == null) purchaseToDelete = null },
+            onDismissRequest = { if (pendingDeleteId == null) purchaseToDeleteId = null },
             title = { Text("Delete this purchase?") },
             text = { Text("${purchase.brand.ifBlank { purchase.type.label }} · ${Money.format(purchase.amountMinor, purchase.currency)} will be removed from the ledger and monthly totals. Cigarette stock will be recalculated.") },
             confirmButton = {
@@ -347,7 +348,7 @@ fun BreatheEasyApp(viewModel: BreatheEasyViewModel) {
             },
             dismissButton = {
                 TextButton(
-                    onClick = { purchaseToDelete = null },
+                    onClick = { purchaseToDeleteId = null },
                     enabled = pendingDeleteId == null && !busy,
                 ) { Text("Cancel") }
             },
