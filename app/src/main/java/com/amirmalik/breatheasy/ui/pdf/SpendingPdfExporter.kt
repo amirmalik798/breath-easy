@@ -70,7 +70,7 @@ object SpendingPdfExporter {
         val purchases: List<Purchase>,
     ) {
         val totalMinor: Long
-            get() = sumAmounts(purchases)
+            get() = SpendingPdfExporter.sumAmounts(purchases)
     }
 
     private data class MonthPage(
@@ -110,6 +110,7 @@ object SpendingPdfExporter {
                         period = period,
                         generatedAtMillis = generatedAtMillis,
                         zoneId = zoneId,
+                        totalPages = totalPages,
                     )
                 } finally {
                     document.finishPage(overviewPage)
@@ -184,6 +185,7 @@ object SpendingPdfExporter {
         period: SpendingReportPeriod,
         generatedAtMillis: Long,
         zoneId: ZoneId,
+        totalPages: Int,
     ) {
         canvas.drawColor(pageColor)
         val allPurchases = reports.flatMap { it.purchases }
@@ -209,12 +211,14 @@ object SpendingPdfExporter {
             "AVERAGE PER MONTH", averagePerMonth, currency.isoCode,
         )
 
+        val trendLastRowBottom = 335f + 27f + reports.lastIndex * 22.5f + 8f
+        val categoryTop = (trendLastRowBottom + 43f).coerceIn(438f, 646f)
         drawMonthlyTrend(canvas, reports, currency, top = 335f)
-        drawPeriodCategoryBreakdown(canvas, allPurchases, currency, top = 646f)
+        drawPeriodCategoryBreakdown(canvas, allPurchases, currency, top = categoryTop)
         drawFooter(
             canvas = canvas,
             pageNumber = 1,
-            totalPages = 1 + buildMonthPages(reports).size,
+            totalPages = totalPages,
             generatedAtMillis = generatedAtMillis,
             currency = currency,
             zoneId = zoneId,
@@ -239,7 +243,11 @@ object SpendingPdfExporter {
             52f, 118f, 8f, Color.rgb(203, 218, 207), bold = true)
         drawText(canvas, dateRange, 52f, 145f, 11f, paper, bold = true)
         canvas.drawLine(52f, 160f, 543f, 160f, strokePaint(Color.argb(54, 220, 239, 225), 1f))
-        drawText(canvas, "Currency scope: ${currency.isoCode} only", 52f, 179f, 8f, Color.rgb(203, 218, 207))
+        drawFittedText(
+            canvas,
+            "Includes ${currency.isoCode} purchases only · Other currencies are excluded (not converted)",
+            52f, 179f, 490f, textPaint(7f, Color.rgb(203, 218, 207)),
+        )
     }
 
     private fun drawMetricCard(
@@ -491,6 +499,10 @@ object SpendingPdfExporter {
                 if (purchase.location.isNotBlank()) {
                     append("  ·  ")
                     append(purchase.location)
+                }
+                if (purchase.note.isNotBlank()) {
+                    append("  ·  ")
+                    append(purchase.note)
                 }
             }
             drawFittedText(canvas, secondary, 123f, rowTop + 27f, 270f, textPaint(7f, muted))
