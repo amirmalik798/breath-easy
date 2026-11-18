@@ -57,16 +57,12 @@ class BreatheEasyViewModel(application: Application) : AndroidViewModel(applicat
         require(preferences.dailyTarget in 1..200) { "Daily target must be between 1 and 200." }
         require(preferences.baselinePerDay in 0..200) { "Baseline must be between 0 and 200." }
         require(preferences.startingStockCigarettes in 0..100_000) { "Starting stock must be between 0 and 100,000." }
-        validateFxRate(preferences.pkrPerUsd, "PKR")
-        validateFxRate(preferences.rwfPerUsd, "RWF")
         repository.savePreferences(preferences)
     }
 
     fun recordPurchase(purchase: Purchase) = perform("Purchase added to your ledger") {
-        val current = _snapshot.value.preferences
         repository.recordPurchase(
             purchase.copy(
-                fxSnapshot = current.fxSnapshot(),
                 brand = purchase.brand.trim().take(60),
                 location = purchase.location.trim().take(80),
                 note = purchase.note.trim().take(500),
@@ -106,14 +102,6 @@ class BreatheEasyViewModel(application: Application) : AndroidViewModel(applicat
                 }
             }
         }
-    }
-
-    private fun validateFxRate(raw: String, currency: String) {
-        if (raw.isBlank()) return
-        val rate = raw.toBigDecimalOrNull()
-        require(rate != null && rate.signum() > 0) { "Enter a valid positive $currency-per-USD rate." }
-        require(rate.scale() <= 6) { "$currency-per-USD rate can have at most 6 decimal places." }
-        require(rate.precision() <= 18) { "$currency-per-USD rate is too large." }
     }
 
     companion object {
