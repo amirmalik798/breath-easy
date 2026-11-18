@@ -979,18 +979,18 @@ private fun CravingsScreen(
     var seconds by rememberSaveable { mutableIntStateOf(0) }
     var lastTickElapsedMillis by rememberSaveable { mutableLongStateOf(0L) }
 
-    // Use monotonic elapsed time instead of counting coroutine wake-ups. This avoids
-    // timer drift when the device is busy, and keeps the breathing session paused
-    // while the user is on another tab.
+    // Derive elapsed time from Android's monotonic clock, not coroutine wake-up
+    // counts. This avoids drift if the UI thread or device is briefly busy.
     LaunchedEffect(running) {
         if (running) {
-            while (running) {
+            while (true) {
                 delay(250)
                 val now = android.os.SystemClock.elapsedRealtime()
                 val elapsed = (now - lastTickElapsedMillis).coerceAtLeast(0L)
                 if (elapsed >= 1_000L) {
                     val wholeSeconds = (elapsed / 1_000L).toInt()
-                    seconds = (seconds + wholeSeconds).coerceAtMost(Int.MAX_VALUE)
+                    seconds = (seconds.toLong() + wholeSeconds)
+                        .coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
                     lastTickElapsedMillis += wholeSeconds * 1_000L
                 }
             }
@@ -1093,8 +1093,11 @@ private fun CravingsScreen(
                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         Button(onClick = {
                             if (running) {
+                                val now = android.os.SystemClock.elapsedRealtime()
+                                val elapsed = (now - lastTickElapsedMillis).coerceAtLeast(0L)
+                                seconds = (seconds.toLong() + elapsed / 1_000L)
+                                    .coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
                                 running = false
-                                lastTickElapsedMillis = 0L
                             } else {
                                 lastTickElapsedMillis = android.os.SystemClock.elapsedRealtime()
                                 running = true
