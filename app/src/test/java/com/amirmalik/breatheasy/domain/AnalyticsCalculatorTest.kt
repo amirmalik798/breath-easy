@@ -1,5 +1,6 @@
 package com.amirmalik.breatheasy.domain
 
+import com.amirmalik.breatheasy.data.SmokeEvent
 import com.amirmalik.breatheasy.data.CurrencyCode
 import com.amirmalik.breatheasy.data.Purchase
 import com.amirmalik.breatheasy.data.PurchaseType
