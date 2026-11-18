@@ -11,7 +11,9 @@ import android.database.sqlite.SQLiteOpenHelper
  * no binary floating-point values are used for money.
  */
 internal class BreatheEasyDatabase(context: Context) :
-    SQLiteOpenHelper(context, DATABASE_NAME, null, DATABASE_VERSION) {
+    SQLiteOpenHelper(context.applicationContext, DATABASE_NAME, null, DATABASE_VERSION) {
+
+    private val appContext = context.applicationContext
 
     init {
         setWriteAheadLoggingEnabled(true)
@@ -30,13 +32,11 @@ internal class BreatheEasyDatabase(context: Context) :
                 product_type TEXT NOT NULL,
                 quantity INTEGER NOT NULL CHECK(quantity > 0),
                 amount_minor INTEGER NOT NULL CHECK(amount_minor > 0),
-                currency_code TEXT NOT NULL CHECK(currency_code IN ('USD','PKR','RWF')),
+                currency_code TEXT NOT NULL CHECK(length(currency_code) = 3),
                 brand TEXT NOT NULL DEFAULT '',
                 location TEXT NOT NULL DEFAULT '',
                 planned INTEGER NOT NULL DEFAULT 1 CHECK(planned IN (0,1)),
                 note TEXT NOT NULL DEFAULT '',
-                fx_pkr_per_usd TEXT,
-                fx_rwf_per_usd TEXT,
                 created_at_ms INTEGER NOT NULL
             )""".trimIndent(),
         )
@@ -73,18 +73,59 @@ internal class BreatheEasyDatabase(context: Context) :
                 setting_value TEXT NOT NULL
             )""".trimIndent(),
         )
-        insertDefaultSetting(db, "display_currency", CurrencyCode.RWF.isoCode)
+        insertDefaultSetting(db, "display_currency", CurrencyCode.detect(appContext).isoCode)
         insertDefaultSetting(db, "daily_target", "4")
         insertDefaultSetting(db, "baseline_per_day", "15")
         insertDefaultSetting(db, "starting_stock_cigarettes", "0")
-        insertDefaultSetting(db, "pkr_per_usd", "")
-        insertDefaultSetting(db, "rwf_per_usd", "")
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
-        // There are no released older schemas yet. Keep this explicit so a future release
-        // must add a reviewed, non-destructive migration before increasing DATABASE_VERSION.
+        if (oldVersion < 2 && newVersion >= 2) {
+            migrateV1ToV2(db)
+            return
+        }
         throw IllegalStateException("No database migration path from $oldVersion to $newVersion")
+    }
+
+    /**
+     * Expand the purchase currency constraint to all ISO-4217 currencies and retire
+     * the old, hard-coded exchange-rate columns. Existing purchase rows and their
+     * original amounts/currency codes are copied without conversion.
+     */
+    private fun migrateV1ToV2(db: SQLiteDatabase) {
+        db.execSQL(
+            """CREATE TABLE purchases_v2 (
+                id TEXT PRIMARY KEY NOT NULL,
+                purchased_at_ms INTEGER NOT NULL,
+                product_type TEXT NOT NULL,
+                quantity INTEGER NOT NULL CHECK(quantity > 0),
+                amount_minor INTEGER NOT NULL CHECK(amount_minor > 0),
+                currency_code TEXT NOT NULL CHECK(length(currency_code) = 3),
+                brand TEXT NOT NULL DEFAULT '',
+                location TEXT NOT NULL DEFAULT '',
+                planned INTEGER NOT NULL DEFAULT 1 CHECK(planned IN (0,1)),
+                note TEXT NOT NULL DEFAULT '',
+                created_at_ms INTEGER NOT NULL
+            )""".trimIndent(),
+        )
+        db.execSQL(
+            """INSERT INTO purchases_v2 (
+                id, purchased_at_ms, product_type, quantity, amount_minor, currency_code,
+                brand, location, planned, note, created_at_ms
+            )
+            SELECT id, purchased_at_ms, product_type, quantity, amount_minor, currency_code,
+                brand, location, planned, note, created_at_ms
+            FROM purchases""".trimIndent(),
+        )
+        db.execSQL("DROP TABLE purchases")
+        db.execSQL("ALTER TABLE purchases_v2 RENAME TO purchases")
+        db.execSQL("CREATE INDEX index_purchases_date ON purchases(purchased_at_ms DESC)")
+        db.execSQL("CREATE INDEX index_purchases_currency_date ON purchases(currency_code, purchased_at_ms DESC)")
+        db.execSQL("DELETE FROM app_settings WHERE setting_key IN ('pkr_per_usd', 'rwf_per_usd')")
+        db.execSQL(
+            "INSERT OR IGNORE INTO app_settings(setting_key, setting_value) VALUES('display_currency', ?)",
+            arrayOf(CurrencyCode.detect(appContext).isoCode),
+        )
     }
 
     fun readSnapshot(): AppSnapshot {
@@ -106,8 +147,6 @@ internal class BreatheEasyDatabase(context: Context) :
             putSetting(db, "daily_target", preferences.dailyTarget.toString())
             putSetting(db, "baseline_per_day", preferences.baselinePerDay.toString())
             putSetting(db, "starting_stock_cigarettes", preferences.startingStockCigarettes.toString())
-            putSetting(db, "pkr_per_usd", preferences.pkrPerUsd.trim())
-            putSetting(db, "rwf_per_usd", preferences.rwfPerUsd.trim())
             db.setTransactionSuccessful()
         } finally {
             db.endTransaction()
@@ -126,8 +165,6 @@ internal class BreatheEasyDatabase(context: Context) :
             put("location", purchase.location)
             put("planned", if (purchase.planned) 1 else 0)
             put("note", purchase.note)
-            putNullable("fx_pkr_per_usd", purchase.fxSnapshot.pkrPerUsd)
-            putNullable("fx_rwf_per_usd", purchase.fxSnapshot.rwfPerUsd)
             put("created_at_ms", System.currentTimeMillis())
         }
         writableDatabase.insertOrThrow("purchases", null, values)
@@ -187,14 +224,12 @@ internal class BreatheEasyDatabase(context: Context) :
             dailyTarget = values["daily_target"]?.toIntOrNull()?.coerceIn(1, 200) ?: 4,
             baselinePerDay = values["baseline_per_day"]?.toIntOrNull()?.coerceIn(0, 200) ?: 15,
             startingStockCigarettes = values["starting_stock_cigarettes"]?.toIntOrNull()?.coerceIn(0, 100_000) ?: 0,
-            pkrPerUsd = values["pkr_per_usd"].orEmpty(),
-            rwfPerUsd = values["rwf_per_usd"].orEmpty(),
         )
     }
 
     private fun readPurchases(db: SQLiteDatabase): List<Purchase> = db.rawQuery(
         """SELECT id, purchased_at_ms, product_type, quantity, amount_minor, currency_code,
-            brand, location, planned, note, fx_pkr_per_usd, fx_rwf_per_usd
+            brand, location, planned, note
             FROM purchases ORDER BY purchased_at_ms DESC""".trimIndent(),
         null,
     ).use { cursor ->
@@ -212,7 +247,6 @@ internal class BreatheEasyDatabase(context: Context) :
                         location = cursor.getString(7),
                         planned = cursor.getInt(8) == 1,
                         note = cursor.getString(9),
-                        fxSnapshot = FxSnapshot(cursor.nullableString(10), cursor.nullableString(11)),
                     ),
                 )
             }
@@ -276,17 +310,11 @@ internal class BreatheEasyDatabase(context: Context) :
         putSetting(db, key, value)
     }
 
-    private fun ContentValues.putNullable(key: String, value: String?) {
-        if (value == null) putNull(key) else put(key, value)
-    }
-
-    private fun Cursor.nullableString(index: Int): String? = if (isNull(index)) null else getString(index)
-
     private inline fun <reified T : Enum<T>> enumValueOrDefault(value: String, fallback: T): T =
         enumValues<T>().firstOrNull { it.name == value } ?: fallback
 
     companion object {
         private const val DATABASE_NAME = "breathe_easy.db"
-        private const val DATABASE_VERSION = 1
+        private const val DATABASE_VERSION = 2
     }
 }
