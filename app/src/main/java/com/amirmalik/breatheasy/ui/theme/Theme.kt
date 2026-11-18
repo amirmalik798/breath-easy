@@ -11,9 +11,6 @@ import androidx.compose.ui.graphics.Color
 // an aqua secondary accent, and a warm citrus highlight for meaningful emphasis.
 private val Evergreen = Color(0xFF174B3B)
 private val EvergreenDeep = Color(0xFF0D3027)
-private val Mint = Color(0xFF2E8B68)
-private val Aqua = Color(0xFF287F7A)
-private val Citrus = Color(0xFF9A7A20)
 private val Canvas = Color(0xFFF3F8F3)
 private val Card = Color(0xFFFFFFFF)
 private val Ink = Color(0xFF14231D)
@@ -45,26 +42,26 @@ private val LightScheme = lightColorScheme(
 )
 
 private val DarkScheme = darkColorScheme(
-    primary = Color(0xFF9DE7C1),
+    primary = Color(0xFFA7F3C8),
     onPrimary = Color(0xFF073A2A),
-    primaryContainer = Color(0xFF236247),
+    primaryContainer = Color(0xFF245F46),
     onPrimaryContainer = Color(0xFFD1F8E1),
-    secondary = Color(0xFF83D9CD),
+    secondary = Color(0xFF78E6D6),
     onSecondary = Color(0xFF073B37),
     secondaryContainer = Color(0xFF20544E),
     onSecondaryContainer = Color(0xFFCAFAF1),
-    tertiary = Color(0xFFE3D17A),
+    tertiary = Color(0xFFFFD166),
     onTertiary = Color(0xFF403500),
     tertiaryContainer = Color(0xFF5C4C16),
     onTertiaryContainer = Color(0xFFFFF1B8),
-    background = Color(0xFF0B1512),
+    background = Color(0xFF08140F),
     onBackground = Color(0xFFE6F2EA),
-    surface = Color(0xFF14231D),
+    surface = Color(0xFF15271F),
     onSurface = Color(0xFFE6F2EA),
-    surfaceVariant = Color(0xFF20352B),
+    surfaceVariant = Color(0xFF243D31),
     onSurfaceVariant = Color(0xFFB7CFC0),
-    outline = Color(0xFF789889),
-    outlineVariant = Color(0xFF304A3C),
+    outline = Color(0xFF719A83),
+    outlineVariant = Color(0xFF3B5948),
     error = Color(0xFFFFB4AB),
 )
 
