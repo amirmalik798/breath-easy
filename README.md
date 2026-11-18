@@ -8,9 +8,9 @@ BreatheEasy is an offline-first native Android companion for mindful smoking red
 - Daily cigarette logging, craving outcome/trigger/intensity journaling, and a paced-breathing session.
 - Purchase ledger for packs, loose cigarettes, cartons, and rolling tobacco with quantity, amount, purchase date, currency, brand, location, notes, and planned/impulse classification.
 - Monthly cash-spend reporting based on the purchase date, with month selection, a 12-month spending chart, and a separate monthly cigarette-consumption trend.
-- PKR, RWF, and USD as first-class currencies. Original transaction currencies are always retained; RWF uses whole currency units, while PKR and USD support two decimal places.
-- Optional user-entered USD reference rates for PKR and RWF. Each transaction keeps the rates that were in effect when it was recorded; changing settings does not rewrite historical calculations.
-- Clear disclosure when conversion rates are missing. The report still shows totals in each original currency and does not invent a rate or silently treat an unconverted purchase as zero.
+- Automatic first-run currency selection using the mobile network country when available, with device-region fallback. Currency precision, symbols, and names are sourced from the platform ISO-4217 currency database.
+- The detected currency is stored once for the installation and remains fixed while travelling. Spending totals and charts include only transactions recorded in that currency; older transactions keep their original currency and amount.
+- No exchange-rate entry or cross-currency conversion is used, so values in different currencies are never added together.
 - Stock reconciliation using opening stock + recorded pack/carton/single purchases - cigarettes logged as smoked. Rolling tobacco is not assigned an invented cigarette yield.
 - Local SQLite persistence, write-ahead logging, indexed dates, and a transaction that keeps a smoked craving and its smoking event in sync.
 
@@ -18,7 +18,7 @@ BreatheEasy is an offline-first native Android companion for mindful smoking red
 
 The amount entered for a purchase is the total amount paid for that transaction. The monthly cash-spend report groups it by purchase date; the consumption graph groups smoking events by the time they were logged. These are intentionally separate measures.
 
-Choose a preferred reporting currency in **Goals & settings**. To combine different transaction currencies in one chart, enter how many PKR and RWF equal one USD. Rates are entered and controlled by the user. The rate snapshot is stored with each purchase, ensuring that later rate edits do not rewrite past reports. The original purchase currency and amount remain available in every month breakdown.
+BreatheEasy selects a currency automatically on first launch using the currently registered mobile network country when available, then the device's configured region as a fallback. No location permission or network exchange-rate lookup is required. The choice is stored once for the installation and is not changed when the user travels. Spending graphs, monthly totals, and purchase-count spending statistics include only records in that selected currency. Older purchases in other currencies remain visible in the ledger with their original amounts; they are not converted or included in selected-currency totals.
 
 ## Build
 
@@ -37,4 +37,4 @@ Records are stored in the app-private SQLite database on the device. This initia
 
 ## Validation status
 
-The pure Kotlin money, currency conversion, monthly analytics, and inventory logic was compiled and exercised with local smoke checks. Full Android unit tests and APK assembly must be confirmed by Android Studio or the GitHub Actions workflow; they have not been claimed as passing in this environment.
+Money formatting and parsing use each selected currency's ISO minor-unit precision. Monthly spending analytics filter by the single installation currency and never combine unlike currencies.
