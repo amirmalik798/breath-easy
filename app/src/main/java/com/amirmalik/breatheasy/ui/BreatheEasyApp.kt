@@ -1790,10 +1790,10 @@ private fun RecordCravingDialog(
     onDismiss: () -> Unit,
     onSave: (CravingEvent) -> Unit,
 ) {
-    var outcome by remember { mutableStateOf(CravingOutcome.RESISTED) }
-    var trigger by remember { mutableStateOf(CravingTrigger.STRESS) }
-    var intensity by remember { mutableIntStateOf(3) }
-    var note by remember { mutableStateOf("") }
+    var outcome by rememberSaveable { mutableStateOf(CravingOutcome.RESISTED) }
+    var trigger by rememberSaveable { mutableStateOf(CravingTrigger.STRESS) }
+    var intensity by rememberSaveable { mutableIntStateOf(3) }
+    var note by rememberSaveable { mutableStateOf("") }
     var submitPending by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(busy) {
         if (!busy) submitPending = false
