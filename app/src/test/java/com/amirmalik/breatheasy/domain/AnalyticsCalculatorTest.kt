@@ -44,6 +44,26 @@ class AnalyticsCalculatorTest {
         assertEquals(0, report.unconvertedPurchaseCount)
     }
 
+    @Test fun monthOverMonthComparisonIsHiddenWhenEitherMonthHasUnconvertedPurchases() {
+        val purchases = listOf(
+            Purchase(
+                purchasedAtMillis = Instant.parse("2026-10-10T10:00:00Z").toEpochMilli(),
+                type = PurchaseType.PACK, quantity = 1, amountMinor = 28_000,
+                currency = CurrencyCode.PKR, fxSnapshot = FxSnapshot(null, null),
+            ),
+            Purchase(
+                purchasedAtMillis = Instant.parse("2026-11-10T10:00:00Z").toEpochMilli(),
+                type = PurchaseType.PACK, quantity = 1, amountMinor = 1_400,
+                currency = CurrencyCode.USD,
+            ),
+        )
+        val report = AnalyticsCalculator.spending(
+            purchases, YearMonth.of(2026, 11), CurrencyCode.USD, 2, utc,
+        )
+        assertEquals(1_400L, report.convertedTotalMinor)
+        assertNull(report.previousMonthTotalMinor)
+    }
+
     @Test fun missingRateIsReportedInsteadOfCountedAsZero() {
         val purchase = Purchase(
             purchasedAtMillis = Instant.parse("2026-11-10T10:00:00Z").toEpochMilli(),
