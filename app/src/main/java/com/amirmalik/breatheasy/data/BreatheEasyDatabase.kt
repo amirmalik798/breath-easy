@@ -128,15 +128,28 @@ internal class BreatheEasyDatabase(context: Context) :
         )
     }
 
+    /**
+     * Read every collection and its preferences from one SQLite snapshot. Without
+     * a transaction, a concurrent insert between SELECTs could make the UI combine
+     * records from different points in time. This is a non-exclusive transaction so
+     * WAL readers can continue while the consistent snapshot is assembled.
+     */
     fun readSnapshot(): AppSnapshot {
         val db = readableDatabase
-        return AppSnapshot(
-            preferences = readPreferences(db),
-            purchases = readPurchases(db),
-            smokeEvents = readSmokeEvents(db),
-            cravingEvents = readCravingEvents(db),
-            isLoading = false,
-        )
+        db.beginTransactionNonExclusive()
+        try {
+            val snapshot = AppSnapshot(
+                preferences = readPreferences(db),
+                purchases = readPurchases(db),
+                smokeEvents = readSmokeEvents(db),
+                cravingEvents = readCravingEvents(db),
+                isLoading = false,
+            )
+            db.setTransactionSuccessful()
+            return snapshot
+        } finally {
+            db.endTransaction()
+        }
     }
 
     fun savePreferences(preferences: AppPreferences) {
