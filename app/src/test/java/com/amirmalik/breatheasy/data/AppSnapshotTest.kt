@@ -7,6 +7,7 @@ class AppSnapshotTest {
     @Test
     fun smokingTotalsIncludeCigarettesRecordedWithoutTrackedStock() {
         val snapshot = AppSnapshot(
+            preferences = AppPreferences(displayCurrency = CurrencyCode.fromCode("USD")),
             smokeEvents = listOf(
                 SmokeEvent(quantity = 1, stockQuantity = 0),
                 SmokeEvent(quantity = 2, stockQuantity = 1),
