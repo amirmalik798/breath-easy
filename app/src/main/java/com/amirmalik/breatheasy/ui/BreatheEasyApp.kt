@@ -161,6 +161,7 @@ import java.util.Locale
 import java.util.UUID
 
 private val ScreenHorizontalPadding = 20.dp
+private val BreathingPhases = listOf("Breathe in", "Hold", "Breathe out", "Rest")
 
 private enum class MainTab(val label: String) {
     TODAY("Today"), SPENDING("Spending"), CRAVINGS("Cravings"), GOALS("Goals"),
@@ -621,79 +622,67 @@ private fun TodayScreen(
             }
         }
         item {
+            val stockIsEmpty = trackedStock == 0L
             Card(
                 shape = RoundedCornerShape(22.dp),
                 colors = CardDefaults.cardColors(
-                    containerColor = if (trackedStock < 0L) {
-                        MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.42f)
+                    containerColor = if (stockIsEmpty) {
+                        MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.24f)
                     } else {
                         MaterialTheme.colorScheme.surface
                     },
                 ),
                 border = BorderStroke(
                     1.dp,
-                    if (trackedStock < 0L) MaterialTheme.colorScheme.tertiary.copy(alpha = 0.55f)
+                    if (stockIsEmpty) MaterialTheme.colorScheme.tertiary.copy(alpha = 0.45f)
                     else MaterialTheme.colorScheme.outlineVariant,
                 ),
             ) {
                 Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                    val stockContentColor = if (trackedStock < 0L) {
+                    val stockContentColor = if (stockIsEmpty) {
                         MaterialTheme.colorScheme.onTertiaryContainer
                     } else {
                         MaterialTheme.colorScheme.onSurface
                     }
-                    Box(Modifier.size(42.dp).clip(RoundedCornerShape(14.dp))
-                        .background(
-                            if (trackedStock < 0L) MaterialTheme.colorScheme.tertiary.copy(alpha = 0.14f)
-                            else MaterialTheme.colorScheme.secondaryContainer,
-                        ), contentAlignment = Alignment.Center) {
+                    Box(
+                        Modifier.size(42.dp).clip(RoundedCornerShape(14.dp))
+                            .background(
+                                if (stockIsEmpty) MaterialTheme.colorScheme.tertiary.copy(alpha = 0.13f)
+                                else MaterialTheme.colorScheme.secondaryContainer,
+                            ),
+                        contentAlignment = Alignment.Center,
+                    ) {
                         Icon(
-                            if (trackedStock < 0L) Icons.Outlined.Info else Icons.Outlined.Waves,
+                            if (stockIsEmpty) Icons.Outlined.Info else Icons.Outlined.Waves,
                             contentDescription = null,
-                            tint = if (trackedStock < 0L) MaterialTheme.colorScheme.tertiary
+                            tint = if (stockIsEmpty) MaterialTheme.colorScheme.tertiary
                                 else MaterialTheme.colorScheme.onSecondaryContainer,
                         )
                     }
                     Spacer(Modifier.width(12.dp))
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                         Text(
-                            when {
-                                trackedStock < 0L -> "Stock needs reconciliation"
-                                trackedStock == 0L -> "No cigarettes tracked in stock"
-                                else -> "Estimated stock"
-                            },
+                            if (stockIsEmpty) "No cigarettes tracked in stock" else "Estimated stock",
                             fontWeight = FontWeight.SemiBold,
                             color = stockContentColor,
                         )
-                        when {
-                            trackedStock > 0L -> Text(
-                                "${trackedStock} cigarettes · ${trackedStock / 20} packs + ${trackedStock % 20} loose",
+                        if (stockIsEmpty) {
+                            Text(
+                                "Your tracked cigarette stock is 0. Logging a cigarette will ask you to confirm.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = stockContentColor.copy(alpha = 0.88f),
+                            )
+                        } else {
+                            Text(
+                                "$trackedStock cigarettes · $trackedStock / 20 packs + ${trackedStock % 20} loose",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
-                            trackedStock == 0L -> Text(
-                                "Your tracked cigarette stock is empty.",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                            else -> {
-                                Text(
-                                    "Your log is ${-trackedStock} cigarettes ahead of tracked stock.",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = stockContentColor,
-                                )
-                                Text(
-                                    "Record missing purchases or update starting stock to reconcile the estimate.",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = stockContentColor.copy(alpha = 0.88f),
-                                )
-                            }
                         }
                         Text(
                             "Estimate assumes 20 cigarettes per pack and 200 per carton; rolling tobacco is excluded.",
                             style = MaterialTheme.typography.labelSmall,
-                            color = if (trackedStock < 0L) stockContentColor.copy(alpha = 0.82f)
+                            color = if (stockIsEmpty) stockContentColor.copy(alpha = 0.78f)
                                 else MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
@@ -802,7 +791,8 @@ private fun SpendingScreen(
     var reportPeriod by rememberSaveable { mutableStateOf(SpendingReportPeriod.CURRENT_MONTH) }
     // This work is in-memory and cannot survive process recreation.
     var isExportingPdf by remember { mutableStateOf(false) }
-    var isPickingPdfDestination by rememberSaveable { mutableStateOf(false) }
+    // A system-picker launch is transient and must not survive process recreation.
+    var isPickingPdfDestination by remember { mutableStateOf(false) }
     var pdfExportMessage by rememberSaveable { mutableStateOf<String?>(null) }
     var monthOffset by rememberSaveable { mutableIntStateOf(0) }
     val currentMonth = YearMonth.now(ZoneId.systemDefault())
@@ -865,6 +855,24 @@ private fun SpendingScreen(
     }
     val previous = summary.previousMonthTotalMinor
     val change = summary.changeFromPreviousMinor
+    val monthPurchases = remember(snapshot.purchases, selectedMonth) {
+        snapshot.purchases.filter { purchase ->
+            YearMonth.from(Instant.ofEpochMilli(purchase.purchasedAtMillis).atZone(ZoneId.systemDefault())) == selectedMonth
+        }
+    }
+    val selectedPurchases = remember(monthPurchases, prefs.displayCurrency) {
+        monthPurchases.filter { it.currency.isoCode == prefs.displayCurrency.isoCode }
+    }
+    val hasOtherCurrencyPurchases = remember(monthPurchases, prefs.displayCurrency) {
+        monthPurchases.any { it.currency.isoCode != prefs.displayCurrency.isoCode }
+    }
+    val breakdown = remember(selectedPurchases) {
+        selectedPurchases.groupBy { it.type }.mapValues { (_, rows) ->
+            rows.fold(0L) { total, purchase -> Math.addExact(total, purchase.amountMinor) }
+        }
+    }
+    val maxBreakdown = breakdown.values.maxOrNull()?.coerceAtLeast(1L) ?: 1L
+    val ledgerPurchases = monthPurchases
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -1025,17 +1033,6 @@ private fun SpendingScreen(
         }
         item {
             SectionHeader("Spending breakdown")
-            val monthPurchases = snapshot.purchases.filter { purchase ->
-                YearMonth.from(Instant.ofEpochMilli(purchase.purchasedAtMillis).atZone(ZoneId.systemDefault())) == selectedMonth
-            }
-            val selectedPurchases = monthPurchases.filter {
-                it.currency.isoCode == prefs.displayCurrency.isoCode
-            }
-            val hasOtherCurrencyPurchases = monthPurchases.any {
-                it.currency.isoCode != prefs.displayCurrency.isoCode
-            }
-            val breakdown = selectedPurchases.groupBy { it.type }.mapValues { (_, rows) -> rows.sumOf { it.amountMinor } }
-            val maxBreakdown = breakdown.values.maxOrNull()?.coerceAtLeast(1L) ?: 1L
             Card(
                 shape = RoundedCornerShape(24.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -1091,9 +1088,6 @@ private fun SpendingScreen(
         }
         item {
             SectionHeader("Purchase ledger")
-            val ledgerPurchases = snapshot.purchases.filter { purchase ->
-                YearMonth.from(Instant.ofEpochMilli(purchase.purchasedAtMillis).atZone(ZoneId.systemDefault())) == selectedMonth
-            }
             Card(
                 shape = RoundedCornerShape(24.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -1234,7 +1228,17 @@ private fun CravingsScreen(
             lastTickElapsedMillis = 0L
         }
     }
-    val phases = listOf("Breathe in", "Hold", "Breathe out", "Rest")
+    val phases = BreathingPhases
+
+    // Trigger counts depend only on saved craving history, not on the 1-second timer.
+    val triggerCounts = remember(snapshot.cravingEvents) {
+        snapshot.cravingEvents.groupingBy { it.trigger }.eachCount()
+            .entries.sortedByDescending { it.value }.take(4)
+    }
+    val cravingDateFormatter = remember {
+        DateTimeFormatter.ofPattern("d MMM yyyy", Locale.getDefault())
+            .withZone(ZoneId.systemDefault())
+    }
     val phase = phases[(seconds / 4) % phases.size]
     val phaseSeconds = 4 - (seconds % 4)
     val breathingScale by animateFloatAsState(
@@ -1380,8 +1384,6 @@ private fun CravingsScreen(
             }
         }
         item {
-            val triggerCounts = snapshot.cravingEvents.groupingBy { it.trigger }.eachCount()
-                .entries.sortedByDescending { it.value }.take(4)
             Card(
                 shape = RoundedCornerShape(22.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -1445,8 +1447,7 @@ private fun CravingsScreen(
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 style = MaterialTheme.typography.labelSmall)
                         }
-                        Text(DateTimeFormatter.ofPattern("d MMM", Locale.getDefault()).withZone(ZoneId.systemDefault())
-                            .format(Instant.ofEpochMilli(event.occurredAtMillis)),
+                        Text(cravingDateFormatter.format(Instant.ofEpochMilli(event.occurredAtMillis)),
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
@@ -1546,13 +1547,13 @@ private fun GoalsScreen(
                     OutlinedTextField(
                         value = startingStock,
                         onValueChange = { startingStock = it.asciiDigitsOnly(maxLength = 6) },
-                        label = { Text("Starting stock on hand (cigarettes)") },
+                        label = { Text("Opening stock (before first purchase)") },
                         isError = startingStock.toIntOrNull() !in 0..100_000,
                         supportingText = {
                             when {
                                 startingStock.isBlank() -> Text("Required · enter 0–100,000.")
                                 startingStock.toIntOrNull() !in 0..100_000 -> Text("Enter a value from 0 to 100,000.")
-                                else -> Text("Used for your stock estimate.")
+                                else -> Text("Opening balance for your stock estimate. Changing it adjusts the total tracked stock.")
                             }
                         },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
