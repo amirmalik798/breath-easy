@@ -15,6 +15,7 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -112,6 +113,8 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
@@ -121,6 +124,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import com.amirmalik.breatheasy.R
 import com.amirmalik.breatheasy.data.AppPreferences
 import com.amirmalik.breatheasy.data.AppSnapshot
 import com.amirmalik.breatheasy.data.CravingEvent
@@ -153,6 +157,8 @@ import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
 import java.util.Locale
+
+private val ScreenHorizontalPadding = 20.dp
 
 private enum class MainTab(val label: String) {
     TODAY("Today"), SPENDING("Spending"), CRAVINGS("Cravings"), GOALS("Goals"),
@@ -212,9 +218,39 @@ fun BreatheEasyApp(viewModel: BreatheEasyViewModel) {
         topBar = {
             TopAppBar(
                 title = {
-                    Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
-                        Text("BreatheEasy", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.ExtraBold,
-                            letterSpacing = (-0.6).sp, color = MaterialTheme.colorScheme.primary)
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        Box(
+                            Modifier.size(42.dp)
+                                .clip(RoundedCornerShape(14.dp))
+                                .background(MaterialTheme.colorScheme.primaryContainer),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Image(
+                                painter = painterResource(R.drawable.breathe_easy_mark),
+                                contentDescription = stringResource(R.string.app_name),
+                                modifier = Modifier.size(36.dp),
+                            )
+                        }
+                        Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
+                            Text(
+                                stringResource(R.string.app_name),
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.ExtraBold,
+                                letterSpacing = (-0.6).sp,
+                                color = MaterialTheme.colorScheme.primary,
+                                maxLines = 1,
+                            )
+                            Text(
+                                stringResource(R.string.developer_credit),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
                     }
                 },
                 actions = {
@@ -405,7 +441,7 @@ private fun TodayScreen(
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = androidx.compose.foundation.layout.PaddingValues(
-            start = 18.dp, end = 18.dp, top = 16.dp, bottom = 28.dp,
+            start = ScreenHorizontalPadding, end = ScreenHorizontalPadding, top = 16.dp, bottom = 28.dp,
         ),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
@@ -735,7 +771,12 @@ private fun SpendingScreen(
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = androidx.compose.foundation.layout.PaddingValues(18.dp, 16.dp, 18.dp, 28.dp),
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(
+            start = ScreenHorizontalPadding,
+            top = 16.dp,
+            end = ScreenHorizontalPadding,
+            bottom = 28.dp,
+        ),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         item {
@@ -1016,7 +1057,7 @@ private fun SpendingScreen(
                     Button(onClick = {
                         isPickingPdfDestination = true
                         createPdfLauncher.launch(
-                            "BreatheEasy-Spending-${reportPeriod.fileLabel}-${selectedMonth}.pdf",
+                            "Breathe-Easy-Spending-${reportPeriod.fileLabel}-${selectedMonth}.pdf",
                         )
                     }, enabled = !isExportingPdf && !isPickingPdfDestination,
                         modifier = Modifier.fillMaxWidth().height(54.dp),
@@ -1113,7 +1154,12 @@ private fun CravingsScreen(
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = androidx.compose.foundation.layout.PaddingValues(18.dp, 16.dp, 18.dp, 28.dp),
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(
+            start = ScreenHorizontalPadding,
+            top = 16.dp,
+            end = ScreenHorizontalPadding,
+            bottom = 28.dp,
+        ),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         item {
@@ -1336,7 +1382,12 @@ private fun GoalsScreen(
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = androidx.compose.foundation.layout.PaddingValues(18.dp, 16.dp, 18.dp, 28.dp),
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(
+            start = ScreenHorizontalPadding,
+            top = 16.dp,
+            end = ScreenHorizontalPadding,
+            bottom = 28.dp,
+        ),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         item {
@@ -2079,7 +2130,12 @@ private fun String.asciiMoneyInput(decimalSeparator: Char, maxLength: Int): Stri
 
 @Composable
 private fun SectionHeader(title: String) {
-    Text(title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+    Text(
+        title,
+        modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+        style = MaterialTheme.typography.titleLarge,
+        fontWeight = FontWeight.Bold,
+    )
 }
 
 @Composable
