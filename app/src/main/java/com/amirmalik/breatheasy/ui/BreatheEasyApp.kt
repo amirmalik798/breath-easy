@@ -11,6 +11,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
@@ -44,6 +45,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Air
 import androidx.compose.material.icons.outlined.BarChart
 import androidx.compose.material.icons.outlined.CheckCircle
@@ -77,8 +79,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.OutlinedTextField
@@ -166,7 +166,7 @@ fun BreatheEasyApp(viewModel: BreatheEasyViewModel) {
     val message by viewModel.message.collectAsState()
     val loadError by viewModel.loadError.collectAsState()
     var selectedTab by rememberSaveable { mutableStateOf(MainTab.TODAY) }
-    var showPurchaseDialog by rememberSaveable { mutableStateOf(false) }
+    var showPurchaseScreen by rememberSaveable { mutableStateOf(false) }
     var showCravingDialog by rememberSaveable { mutableStateOf(false) }
     var purchaseToDeleteId by rememberSaveable { mutableStateOf<String?>(null) }
     val purchaseToDelete = snapshot.purchases.firstOrNull { it.id == purchaseToDeleteId }
@@ -176,7 +176,7 @@ fun BreatheEasyApp(viewModel: BreatheEasyViewModel) {
     LaunchedEffect(message) {
         message?.let { resultMessage ->
             when {
-                resultMessage.startsWith("Purchase added to your ledger") -> showPurchaseDialog = false
+                resultMessage.startsWith("Purchase added to your ledger") -> showPurchaseScreen = false
                 resultMessage.startsWith("Craving recorded as resisted") ||
                     resultMessage.startsWith("Craving and cigarette recorded") -> showCravingDialog = false
             }
@@ -197,6 +197,15 @@ fun BreatheEasyApp(viewModel: BreatheEasyViewModel) {
         }
     }
 
+    if (showPurchaseScreen) {
+        RecordPurchaseScreen(
+            preferences = snapshot.preferences,
+            busy = busy,
+            snackbarHostState = snackbarHostState,
+            onDismiss = { showPurchaseScreen = false },
+            onSave = viewModel::recordPurchase,
+        )
+    } else {
     Scaffold(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         containerColor = MaterialTheme.colorScheme.background,
@@ -274,12 +283,12 @@ fun BreatheEasyApp(viewModel: BreatheEasyViewModel) {
                         busy = busy,
                         onLogSmoke = { trigger, note -> viewModel.logSmoke(trigger, note) },
                         onOpenCravings = { selectedTab = MainTab.CRAVINGS },
-                        onRecordPurchase = { showPurchaseDialog = true },
+                        onRecordPurchase = { showPurchaseScreen = true },
                         onDeletePurchase = { purchaseToDeleteId = it.id },
                     )
                     MainTab.SPENDING -> SpendingScreen(
                         snapshot = snapshot,
-                        onRecordPurchase = { showPurchaseDialog = true },
+                        onRecordPurchase = { showPurchaseScreen = true },
                         onDeletePurchase = { purchaseToDeleteId = it.id },
                     )
                     MainTab.CRAVINGS -> CravingsScreen(
@@ -297,6 +306,8 @@ fun BreatheEasyApp(viewModel: BreatheEasyViewModel) {
                 CircularProgressIndicator(Modifier.align(Alignment.Center))
             }
         }
+    }
+
     }
 
     if (loadError) {
@@ -321,14 +332,6 @@ fun BreatheEasyApp(viewModel: BreatheEasyViewModel) {
         )
     }
 
-    if (showPurchaseDialog) {
-        RecordPurchaseDialog(
-            preferences = snapshot.preferences,
-            busy = busy,
-            onDismiss = { showPurchaseDialog = false },
-            onSave = viewModel::recordPurchase,
-        )
-    }
     if (showCravingDialog) {
         RecordCravingDialog(
             busy = busy,
@@ -1450,11 +1453,13 @@ private fun GoalsScreen(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun RecordPurchaseDialog(
+private fun RecordPurchaseScreen(
     preferences: AppPreferences,
     busy: Boolean,
     onDismiss: () -> Unit,
     onSave: (Purchase) -> Unit,
+    snackbarHostState: SnackbarHostState,
+    snackbarHostState: SnackbarHostState,
 ) {
     var type by rememberSaveable { mutableStateOf(PurchaseType.PACK) }
     var quantity by rememberSaveable { mutableStateOf("1") }
@@ -1491,62 +1496,133 @@ private fun RecordPurchaseDialog(
         .withZone(ZoneId.systemDefault())
         .format(Instant.ofEpochMilli(purchasedAtMillis))
 
-    val latestSaving = rememberUpdatedState(saving)
-    val sheetState = rememberModalBottomSheetState(
-        skipPartiallyExpanded = true,
-        confirmValueChange = { targetValue ->
-            targetValue != androidx.compose.material3.SheetValue.Hidden || !latestSaving.value
-        },
-    )
 
-    ModalBottomSheet(
-        onDismissRequest = { if (!saving) onDismiss() },
-        sheetState = sheetState,
-        containerColor = MaterialTheme.colorScheme.surfaceVariant,
-        tonalElevation = 8.dp,
-    ) {
-        Column(
-            Modifier.fillMaxSize(),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
-        ) {
-            // Keep the title visible while the form below scrolls on compact screens.
-            Row(
-                Modifier.fillMaxWidth().padding(horizontal = 20.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
+    BackHandler(enabled = true) {
+        if (!saving) onDismiss()
+    }
+
+    Scaffold(
+        modifier = Modifier.fillMaxSize(),
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
+        containerColor = MaterialTheme.colorScheme.background,
+        topBar = {
+            TopAppBar(
+                navigationIcon = {
+                    IconButton(onClick = onDismiss, enabled = !saving) {
+                        Icon(Icons.Outlined.ArrowBack, contentDescription = "Back")
+                    }
+                },
+                title = {
+                    Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
+                        Text(
+                            "Add purchase",
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.ExtraBold,
+                            letterSpacing = (-0.4).sp,
+                        )
+                        Text(
+                            "Record a transaction in your ledger",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background,
+                    titleContentColor = MaterialTheme.colorScheme.onBackground,
+                ),
+            )
+        },
+        bottomBar = {
+            Surface(
+                color = MaterialTheme.colorScheme.surface,
+                tonalElevation = 4.dp,
             ) {
-                Box(
-                    Modifier.size(56.dp)
-                        .clip(RoundedCornerShape(18.dp))
-                        .background(MaterialTheme.colorScheme.primaryContainer),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(
-                        Icons.Outlined.ReceiptLong,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                        modifier = Modifier.size(29.dp),
-                    )
-                }
                 Column(
-                    Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(3.dp),
+                    Modifier.fillMaxWidth()
+                        .navigationBarsPadding()
+                        .imePadding()
+                        .padding(horizontal = 20.dp, vertical = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(7.dp),
                 ) {
-                    Text(
-                        "Add purchase",
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.ExtraBold,
-                        letterSpacing = (-0.4).sp,
-                    )
+                    Button(
+                        onClick = {
+                            submitPending = true
+                            onSave(
+                                Purchase(
+                                    purchasedAtMillis = purchasedAtMillis,
+                                    type = type,
+                                    quantity = quantityValue ?: 1,
+                                    amountMinor = amountMinor ?: 0L,
+                                    currency = currency,
+                                    brand = brand,
+                                    location = location,
+                                    planned = planned,
+                                    note = note,
+                                ),
+                            )
+                        },
+                        enabled = canSave && !saving,
+                        modifier = Modifier.fillMaxWidth().height(58.dp),
+                        shape = RoundedCornerShape(19.dp),
+                    ) {
+                        if (saving) {
+                            Row(
+                                horizontalArrangement = Arrangement.Center,
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(18.dp),
+                                    color = MaterialTheme.colorScheme.onPrimary,
+                                    strokeWidth = 2.dp,
+                                )
+                                Spacer(Modifier.width(10.dp))
+                                Text("Saving purchase…", fontWeight = FontWeight.Bold)
+                            }
+                        } else {
+                            Row(
+                                Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                            ) {
+                                Text("Save purchase", modifier = Modifier.weight(1f), fontWeight = FontWeight.ExtraBold)
+                                Text(
+                                    amountMinor?.let { Money.format(it, currency, includeCode = true) }.orEmpty(),
+                                    modifier = Modifier.weight(1f),
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.End,
+                                    fontWeight = FontWeight.Bold,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                            }
+                        }
+                    }
                 }
             }
+        },
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+    ) { contentPadding ->
+        Column(
+            Modifier.fillMaxSize()
+                .padding(contentPadding)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 20.dp)
+                .padding(top = 18.dp, bottom = 28.dp),
+            verticalArrangement = Arrangement.spacedBy(18.dp),
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                Text(
+                    "Purchase details",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.ExtraBold,
+                )
+                Text(
+                    "Enter the total amount paid for this transaction, then choose what and how much you bought.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
 
-            Column(
-                Modifier.weight(1f).fillMaxWidth()
-                    .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 20.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp),
-            ) {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text("WHAT DID YOU BUY?", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurfaceVariant, letterSpacing = 0.8.sp)
@@ -1759,65 +1835,7 @@ private fun RecordPurchaseDialog(
                         color = MaterialTheme.colorScheme.error,
                     )
                 }
-            }
 
-            Column(
-                Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 4.dp),
-                verticalArrangement = Arrangement.spacedBy(7.dp),
-            ) {
-                Button(
-                    onClick = {
-                        submitPending = true
-                        onSave(
-                            Purchase(
-                                purchasedAtMillis = purchasedAtMillis,
-                                type = type,
-                                quantity = quantityValue ?: 1,
-                                amountMinor = amountMinor ?: 0L,
-                                currency = currency,
-                                brand = brand,
-                                location = location,
-                                planned = planned,
-                                note = note,
-                            ),
-                        )
-                    },
-                    enabled = canSave && !saving,
-                    modifier = Modifier.fillMaxWidth().height(58.dp),
-                    shape = RoundedCornerShape(19.dp),
-                ) {
-                    if (saving) {
-                        Row(
-                            horizontalArrangement = Arrangement.Center,
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(18.dp),
-                                color = MaterialTheme.colorScheme.onPrimary,
-                                strokeWidth = 2.dp,
-                            )
-                            Spacer(Modifier.width(10.dp))
-                            Text("Saving purchase…", fontWeight = FontWeight.Bold)
-                        }
-                    } else {
-                        Row(
-                            Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                        ) {
-                            Text("Save purchase", modifier = Modifier.weight(1f), fontWeight = FontWeight.ExtraBold)
-                            Text(
-                                amountMinor?.let { Money.format(it, currency, includeCode = true) }.orEmpty(),
-                                modifier = Modifier.weight(1f),
-                                textAlign = androidx.compose.ui.text.style.TextAlign.End,
-                                fontWeight = FontWeight.Bold,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                            )
-                        }
-                    }
-                }
-            }
         }
     }
 
@@ -1866,7 +1884,6 @@ private fun RecordPurchaseDialog(
         }
     }
 }
-
 @Composable
 private fun RecordCravingDialog(
     busy: Boolean,
