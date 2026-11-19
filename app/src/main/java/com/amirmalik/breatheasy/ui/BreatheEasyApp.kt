@@ -2391,9 +2391,10 @@ private fun RecordPurchaseScreen(
             .atStartOfDay(ZoneOffset.UTC)
             .toInstant()
             .toEpochMilli()
-        val datePickerState = rememberDatePickerState(
-            initialSelectedDateMillis = initialPurchaseDateUtc,
-            selectableDates = object : SelectableDates {
+        val datePickerState = key(localDay.zone, today) {
+            rememberDatePickerState(
+                initialSelectedDateMillis = initialPurchaseDateUtc,
+                selectableDates = object : SelectableDates {
                 override fun isSelectableDate(utcTimeMillis: Long): Boolean {
                     val chosenDate = Instant.ofEpochMilli(utcTimeMillis)
                         .atZone(ZoneOffset.UTC)
@@ -2401,9 +2402,10 @@ private fun RecordPurchaseScreen(
                     return !chosenDate.isAfter(today)
                 }
 
-                override fun isSelectableYear(year: Int): Boolean = year <= today.year
-            },
-        )
+                    override fun isSelectableYear(year: Int): Boolean = year <= today.year
+                },
+            )
+        }
         DatePickerDialog(
             onDismissRequest = { showDatePicker = false },
             confirmButton = {
