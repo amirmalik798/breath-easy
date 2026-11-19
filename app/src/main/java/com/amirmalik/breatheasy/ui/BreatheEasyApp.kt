@@ -127,7 +127,6 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -364,7 +363,7 @@ fun BreatheEasyApp(viewModel: BreatheEasyViewModel) {
                             contentAlignment = Alignment.Center,
                         ) {
                             Image(
-                                painter = painterResource(R.drawable.breathe_easy_mark),
+                                painter = painterResource(R.drawable.breathe_easy_mark_vector),
                                 contentDescription = stringResource(R.string.app_name),
                                 modifier = Modifier.size(36.dp),
                             )
