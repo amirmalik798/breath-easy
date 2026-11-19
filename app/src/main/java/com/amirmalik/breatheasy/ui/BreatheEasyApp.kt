@@ -281,6 +281,7 @@ fun BreatheEasyApp(viewModel: BreatheEasyViewModel) {
         RecordPurchaseScreen(
             preferences = snapshot.preferences,
             busy = operationsBlocked,
+            savedPurchaseIds = snapshot.purchases.mapTo(mutableSetOf()) { it.id },
             snackbarHostState = snackbarHostState,
             onDismiss = { showPurchaseScreen = false },
             onSave = viewModel::recordPurchase,
@@ -466,6 +467,7 @@ fun BreatheEasyApp(viewModel: BreatheEasyViewModel) {
         RecordCravingDialog(
             busy = operationsBlocked,
             trackedStock = trackedStock,
+            savedCravingIds = snapshot.cravingEvents.mapTo(mutableSetOf()) { it.id },
             onDismiss = { showCravingDialog = false },
             onSave = viewModel::logCraving,
         )
@@ -917,7 +919,7 @@ private fun SmokingHistoryScreen(
             else -> DateTimeFormatter.ofPattern("EEEE, d MMMM yyyy", Locale.getDefault()).format(selectedDate)
         }
     }
-    val timeFormatter = remember {
+    val timeFormatter = remember(zone) {
         DateTimeFormatter.ofPattern("h:mm a", Locale.getDefault()).withZone(zone)
     }
     // Recreate the picker state whenever the displayed date changes. Otherwise,
@@ -2012,6 +2014,7 @@ private fun GoalsScreen(
 private fun RecordPurchaseScreen(
     preferences: AppPreferences,
     busy: Boolean,
+    savedPurchaseIds: Set<String>,
     onDismiss: () -> Unit,
     onSave: (Purchase) -> Unit,
     snackbarHostState: SnackbarHostState,
@@ -2020,6 +2023,7 @@ private fun RecordPurchaseScreen(
     var quantity by rememberSaveable { mutableStateOf("1") }
     var amount by rememberSaveable { mutableStateOf("") }
     var purchaseDraftId by rememberSaveable { mutableStateOf(UUID.randomUUID().toString()) }
+    var purchaseDraftPrepared by rememberSaveable { mutableStateOf(false) }
     val currency = preferences.displayCurrency
     val localDay = rememberLocalDayContext()
     var brand by rememberSaveable { mutableStateOf("") }
@@ -2046,6 +2050,24 @@ private fun RecordPurchaseScreen(
         if (!busy) submitPending = false
     }
     val saving = busy || submitPending
+
+    fun prepareNewPurchaseDraftForEdit() {
+        // Keep the same ID for an exact retry. Once a failed attempt is edited,
+        // the changed payload must receive a new ID or SQLite correctly rejects it
+        // as a conflicting reuse of an idempotency key.
+        if (purchaseDraftPrepared && !saving) {
+            purchaseDraftId = UUID.randomUUID().toString()
+            purchaseDraftPrepared = false
+        }
+    }
+
+    LaunchedEffect(purchaseDraftId, savedPurchaseIds, busy) {
+        if (!busy && purchaseDraftId in savedPurchaseIds) {
+            // The process may have been recreated after the insert committed but
+            // before the success result reached the UI.
+            onDismiss()
+        }
+    }
 
     val amountMinor = Money.parseToMinor(amount, currency)
     val quantityValue = quantity.toIntOrNull()
@@ -2111,6 +2133,7 @@ private fun RecordPurchaseScreen(
                 ) {
                     Button(
                         onClick = {
+                            purchaseDraftPrepared = true
                             submitPending = true
                             onSave(
                                 Purchase(
@@ -2200,7 +2223,10 @@ private fun RecordPurchaseScreen(
                                         selected = selected,
                                         enabled = !saving,
                                         role = Role.RadioButton,
-                                        onClick = { type = option },
+                                        onClick = {
+                                            prepareNewPurchaseDraftForEdit()
+                                            type = option
+                                        },
                                     )
                                     .animateContentSize(),
                                     shape = RoundedCornerShape(17.dp),
@@ -2242,6 +2268,7 @@ private fun RecordPurchaseScreen(
                             value = amount,
                             enabled = !saving,
                             onValueChange = {
+                                prepareNewPurchaseDraftForEdit()
                                 amount = it.asciiMoneyInput(
                                     decimalSeparator = DecimalFormatSymbols.getInstance(Locale.getDefault()).decimalSeparator,
                                     maxLength = 18,
@@ -2300,6 +2327,7 @@ private fun RecordPurchaseScreen(
                         ) {
                             IconButton(
                                 onClick = {
+                                    prepareNewPurchaseDraftForEdit()
                                     val current = quantity.toIntOrNull() ?: 1
                                     quantity = (current - 1).coerceAtLeast(1).toString()
                                 },
@@ -2316,6 +2344,7 @@ private fun RecordPurchaseScreen(
                             )
                             IconButton(
                                 onClick = {
+                                    prepareNewPurchaseDraftForEdit()
                                     val current = quantity.toIntOrNull() ?: 1
                                     quantity = (current + 1).coerceAtMost(10_000).toString()
                                 },
@@ -2380,7 +2409,10 @@ private fun RecordPurchaseScreen(
                         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         OutlinedTextField(
                             value = brand,
-                            onValueChange = { brand = it.take(60) },
+                            onValueChange = {
+                                prepareNewPurchaseDraftForEdit()
+                                brand = it.take(60)
+                            },
                             label = { Text("Brand or product") },
                             enabled = !saving,
                             singleLine = true,
@@ -2388,7 +2420,10 @@ private fun RecordPurchaseScreen(
                         )
                         OutlinedTextField(
                             value = location,
-                            onValueChange = { location = it.take(80) },
+                            onValueChange = {
+                                prepareNewPurchaseDraftForEdit()
+                                location = it.take(80)
+                            },
                             label = { Text("Shop or location") },
                             placeholder = { Text("Optional") },
                             enabled = !saving,
@@ -2404,19 +2439,28 @@ private fun RecordPurchaseScreen(
                             FilterChip(
                                 selected = planned,
                                 enabled = !saving,
-                                onClick = { planned = true },
+                                onClick = {
+                                    prepareNewPurchaseDraftForEdit()
+                                    planned = true
+                                },
                                 label = { Text("Planned") },
                             )
                             FilterChip(
                                 selected = !planned,
                                 enabled = !saving,
-                                onClick = { planned = false },
+                                onClick = {
+                                    prepareNewPurchaseDraftForEdit()
+                                    planned = false
+                                },
                                 label = { Text("Impulse") },
                             )
                         }
                         OutlinedTextField(
                             value = note,
-                            onValueChange = { note = it.take(500) },
+                            onValueChange = {
+                                prepareNewPurchaseDraftForEdit()
+                                note = it.take(500)
+                            },
                             label = { Text("Note (optional)") },
                             enabled = !saving,
                             modifier = Modifier.fillMaxWidth(),
@@ -2468,6 +2512,7 @@ private fun RecordPurchaseScreen(
                         val selectedDate = Instant.ofEpochMilli(utcMillis)
                             .atZone(ZoneId.of("UTC"))
                             .toLocalDate()
+                        prepareNewPurchaseDraftForEdit()
                         purchasedAtMillis = selectedDate.atTime(12, 0)
                             .atZone(localDay.zone)
                             .toInstant()
@@ -2489,6 +2534,7 @@ private fun RecordPurchaseScreen(
 private fun RecordCravingDialog(
     busy: Boolean,
     trackedStock: Long,
+    savedCravingIds: Set<String>,
     onDismiss: () -> Unit,
     onSave: (CravingEvent, Boolean) -> Unit,
 ) {
@@ -2505,6 +2551,21 @@ private fun RecordCravingDialog(
         if (!busy) submitPending = false
     }
     val saving = busy || submitPending
+
+    fun prepareNewCravingDraftForEdit() {
+        // Preserve the ID for an exact retry, but never reuse it for edited details.
+        if (cravingDraftPrepared && !saving) {
+            cravingDraftId = UUID.randomUUID().toString()
+            cravingOccurredAtMillis = 0L
+            cravingDraftPrepared = false
+        }
+    }
+
+    LaunchedEffect(cravingDraftId, savedCravingIds, busy) {
+        if (!busy && cravingDraftId in savedCravingIds) {
+            onDismiss()
+        }
+    }
 
     fun submitCraving(confirmUnstockedSmoking: Boolean) {
         if (!cravingDraftPrepared) {
@@ -2538,11 +2599,17 @@ private fun RecordCravingDialog(
                     FilterChip(
                         selected = outcome == CravingOutcome.RESISTED,
                         enabled = !saving,
-                        onClick = { outcome = CravingOutcome.RESISTED }, label = { Text("I resisted") })
+                        onClick = {
+                            prepareNewCravingDraftForEdit()
+                            outcome = CravingOutcome.RESISTED
+                        }, label = { Text("I resisted") })
                     FilterChip(
                         selected = outcome == CravingOutcome.SMOKED,
                         enabled = !saving,
-                        onClick = { outcome = CravingOutcome.SMOKED }, label = { Text("I smoked") })
+                        onClick = {
+                            prepareNewCravingDraftForEdit()
+                            outcome = CravingOutcome.SMOKED
+                        }, label = { Text("I smoked") })
                 }
                 Text("What triggered it?", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
                 FlowRow(
@@ -2554,7 +2621,10 @@ private fun RecordCravingDialog(
                         FilterChip(
                             selected = trigger == item,
                             enabled = !saving,
-                            onClick = { trigger = item },
+                            onClick = {
+                                prepareNewCravingDraftForEdit()
+                                trigger = item
+                            },
                             label = { Text(item.label, maxLines = 1, overflow = TextOverflow.Ellipsis) },
                         )
                     }
@@ -2566,7 +2636,10 @@ private fun RecordCravingDialog(
                         FilterChip(
                             selected = intensity == value,
                             enabled = !saving,
-                            onClick = { intensity = value },
+                            onClick = {
+                                prepareNewCravingDraftForEdit()
+                                intensity = value
+                            },
                             modifier = Modifier.weight(1f),
                             label = { Text(value.toString()) },
                         )
@@ -2574,7 +2647,10 @@ private fun RecordCravingDialog(
                 }
                 OutlinedTextField(
                     value = note,
-                    onValueChange = { note = it.take(500) },
+                    onValueChange = {
+                        prepareNewCravingDraftForEdit()
+                        note = it.take(500)
+                    },
                     enabled = !saving,
                     label = { Text("What was happening? (optional)") },
                     modifier = Modifier.fillMaxWidth(),
