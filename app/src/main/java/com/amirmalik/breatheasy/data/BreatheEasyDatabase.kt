@@ -505,7 +505,7 @@ internal class BreatheEasyDatabase(context: Context) :
     private fun readPurchases(db: SQLiteDatabase): List<Purchase> = db.rawQuery(
         """SELECT id, purchased_at_ms, product_type, quantity, amount_minor, currency_code,
             brand, location, planned, note
-            FROM purchases ORDER BY purchased_at_ms DESC""".trimIndent(),
+            FROM purchases ORDER BY purchased_at_ms DESC, created_at_ms DESC, id DESC""".trimIndent(),
         null,
     ).use { cursor ->
         buildList {
@@ -531,7 +531,7 @@ internal class BreatheEasyDatabase(context: Context) :
     }
 
     private fun readSmokeEvents(db: SQLiteDatabase): List<SmokeEvent> = db.rawQuery(
-        "SELECT id, smoked_at_ms, quantity, stock_quantity, trigger_code, note FROM smoke_events ORDER BY smoked_at_ms DESC",
+        "SELECT id, smoked_at_ms, quantity, stock_quantity, trigger_code, note FROM smoke_events ORDER BY smoked_at_ms DESC, id DESC",
         null,
     ).use { cursor ->
         buildList {
@@ -552,7 +552,7 @@ internal class BreatheEasyDatabase(context: Context) :
 
     private fun readCravingEvents(db: SQLiteDatabase): List<CravingEvent> = db.rawQuery(
         """SELECT id, occurred_at_ms, outcome, trigger_code, intensity, note, breathing_seconds
-            FROM craving_events ORDER BY occurred_at_ms DESC""".trimIndent(),
+            FROM craving_events ORDER BY occurred_at_ms DESC, id DESC""".trimIndent(),
         null,
     ).use { cursor ->
         buildList {
