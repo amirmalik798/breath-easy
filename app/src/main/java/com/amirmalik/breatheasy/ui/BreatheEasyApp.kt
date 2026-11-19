@@ -564,13 +564,12 @@ private fun TodayScreen(
                                 Text("Personal goal · ${prefs.dailyTarget} cigarettes per day",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.82f))
-                                if (prefs.baselinePerDay > 0) {
-                                    Text(
-                                        "Previous baseline · ${prefs.baselinePerDay}/day",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.72f),
-                                    )
-                                }
+                                Text(
+                                    if (prefs.baselinePerDay > 0) "Previous baseline · ${prefs.baselinePerDay}/day"
+                                    else "No baseline set",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.72f),
+                                )
                                 DailyTargetStatus(progress = targetProgress)
                             }
                         }
@@ -689,7 +688,12 @@ private fun TodayScreen(
                             )
                         } else {
                             Text(
-                                "$trackedStock cigarettes · ${trackedStock / 20} packs + ${trackedStock % 20} loose",
+                                run {
+                                    val fullPacks = trackedStock / 20
+                                    val looseCigarettes = trackedStock % 20
+                                    "$trackedStock cigarettes · $fullPacks ${if (fullPacks == 1L) "pack" else "packs"} + " +
+                                        "$looseCigarettes ${if (looseCigarettes == 1L) "loose cigarette" else "loose cigarettes"}"
+                                },
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
