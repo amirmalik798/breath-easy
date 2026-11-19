@@ -2244,8 +2244,11 @@ private fun RecordPurchaseScreen(
         )
     }
     var hasCustomPurchaseDate by rememberSaveable { mutableStateOf(false) }
-    LaunchedEffect(localDay.date, localDay.zone) {
-        if (!hasCustomPurchaseDate) {
+    LaunchedEffect(localDay.date, localDay.zone, hasCustomPurchaseDate, purchaseDraftPrepared) {
+        // Once a draft is submitted its ID and timestamp are an idempotency pair.
+        // Do not move the timestamp at midnight while a failed/ambiguous save may
+        // still need to be retried with exactly the same payload.
+        if (shouldRefreshDefaultPurchaseDate(hasCustomPurchaseDate, purchaseDraftPrepared)) {
             purchasedAtMillis = localDay.date.atTime(12, 0)
                 .atZone(localDay.zone).toInstant().toEpochMilli()
         }
