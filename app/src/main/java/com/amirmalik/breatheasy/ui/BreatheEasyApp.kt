@@ -473,28 +473,6 @@ fun BreatheEasyApp(viewModel: BreatheEasyViewModel) {
 
     }
 
-    if (loadError) {
-        AlertDialog(
-            onDismissRequest = {},
-            title = { Text("Can't load your records") },
-            text = {
-                Text("Your saved data has not been changed. Check your device storage and try loading it again.")
-            },
-            confirmButton = {
-                Button(onClick = viewModel::refresh, enabled = !busy) {
-                    if (busy) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(18.dp),
-                            strokeWidth = 2.dp,
-                        )
-                    } else {
-                        Text("Retry")
-                    }
-                }
-            },
-        )
-    }
-
     if (showCravingDialog) {
         RecordCravingDialog(
             busy = operationsBlocked,
@@ -540,6 +518,30 @@ fun BreatheEasyApp(viewModel: BreatheEasyViewModel) {
         )
     }
 }
+
+    // Keep the blocking recovery prompt above any transient form or confirmation
+    // dialog, including a craving form whose write succeeded before reload failed.
+    if (loadError) {
+        AlertDialog(
+            onDismissRequest = {},
+            title = { Text("Can't load your records") },
+            text = {
+                Text("Your saved data has not been changed. Check your device storage and try loading it again.")
+            },
+            confirmButton = {
+                Button(onClick = viewModel::refresh, enabled = !busy) {
+                    if (busy) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(18.dp),
+                            strokeWidth = 2.dp,
+                        )
+                    } else {
+                        Text("Retry")
+                    }
+                }
+            },
+        )
+    }
 
 @Composable
 private fun TodayScreen(
