@@ -169,6 +169,5 @@ class BreatheEasyViewModel(application: Application) : AndroidViewModel(applicat
         CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
             operationMutex.withLock { runCatching { repository.close() } }
         }
-        super.onCleared()
     }
 }
