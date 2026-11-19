@@ -16,13 +16,16 @@ internal fun resolvePurchaseDeleteCompletion(
     currentRevision: Long,
     isBusy: Boolean,
     purchaseStillExists: Boolean,
+    snapshotLoadFailed: Boolean,
 ): PurchaseDeleteResolution {
     if (pendingPurchaseId == null || isBusy || currentRevision == submittedRevision) {
         return PurchaseDeleteResolution(operationFinished = false, closeConfirmation = false)
     }
 
+    // A successful delete can be followed by a failed snapshot read. Close the
+    // delete dialog so it cannot cover the blocking reload-error dialog.
     return PurchaseDeleteResolution(
         operationFinished = true,
-        closeConfirmation = !purchaseStillExists,
+        closeConfirmation = !purchaseStillExists || snapshotLoadFailed,
     )
 }
