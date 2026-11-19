@@ -4,6 +4,7 @@ import com.amirmalik.breatheasy.domain.SafeArithmetic
 import android.content.BroadcastReceiver
 import android.content.Intent
 import android.content.IntentFilter
+import android.util.Log
 import androidx.core.content.ContextCompat
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
@@ -210,13 +211,30 @@ private fun rememberLocalDayContext(): LocalDayContext {
             addAction(Intent.ACTION_DATE_CHANGED)
             addAction(Intent.ACTION_TIMEZONE_CHANGED)
         }
-        ContextCompat.registerReceiver(
-            appContext,
-            receiver,
-            filter,
-            ContextCompat.RECEIVER_NOT_EXPORTED,
-        )
-        onDispose { appContext.unregisterReceiver(receiver) }
+        // System time broadcasts are a convenience, not a prerequisite for the
+        // app to run. Some OEM/OS builds can reject dynamic registration; do not
+        // let that optional integration crash the first screen during composition.
+        val receiverRegistered = try {
+            ContextCompat.registerReceiver(
+                appContext,
+                receiver,
+                filter,
+                ContextCompat.RECEIVER_NOT_EXPORTED,
+            )
+            true
+        } catch (error: RuntimeException) {
+            Log.w("BreatheEasy", "Time-change receiver registration unavailable; lifecycle refresh remains active.", error)
+            false
+        }
+        onDispose {
+            if (receiverRegistered) {
+                try {
+                    appContext.unregisterReceiver(receiver)
+                } catch (error: IllegalArgumentException) {
+                    Log.w("BreatheEasy", "Time-change receiver was already unregistered.", error)
+                }
+            }
+        }
     }
 
     DisposableEffect(lifecycleOwner) {

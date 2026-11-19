@@ -66,6 +66,17 @@ jobs:
       - name: Assemble debug APK
         run: gradle :app:assembleDebug
 
+      - name: Launch app on Android 17 emulator
+        uses: ReactiveCircus/android-emulator-runner@v2
+        with:
+          api-level: 37
+          target: google_apis
+          arch: x86_64
+          profile: pixel_7
+          channel: canary
+          emulator-boot-timeout: 900
+          script: gradle :app:connectedDebugAndroidTest
+
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:
