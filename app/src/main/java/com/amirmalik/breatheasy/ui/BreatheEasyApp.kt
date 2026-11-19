@@ -101,6 +101,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -832,16 +833,20 @@ private fun SmokingHistoryScreen(
     val timeFormatter = remember {
         DateTimeFormatter.ofPattern("h:mm a", Locale.getDefault()).withZone(zone)
     }
-    val datePickerState = rememberDatePickerState(
-        initialSelectedDateMillis = selectedDate.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli(),
-        selectableDates = object : SelectableDates {
-            override fun isSelectableDate(utcTimeMillis: Long): Boolean {
-                val date = Instant.ofEpochMilli(utcTimeMillis).atZone(ZoneOffset.UTC).toLocalDate()
-                return !date.isAfter(today)
-            }
-            override fun isSelectableYear(year: Int): Boolean = year <= today.year
-        },
-    )
+    // Recreate the picker state whenever the displayed date changes. Otherwise,
+    // arrow navigation updates the screen but the calendar can reopen on an old date.
+    val datePickerState = key(selectedDate) {
+        rememberDatePickerState(
+            initialSelectedDateMillis = selectedDate.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli(),
+            selectableDates = object : SelectableDates {
+                override fun isSelectableDate(utcTimeMillis: Long): Boolean {
+                    val date = Instant.ofEpochMilli(utcTimeMillis).atZone(ZoneOffset.UTC).toLocalDate()
+                    return !date.isAfter(today)
+                }
+                override fun isSelectableYear(year: Int): Boolean = year <= today.year
+            },
+        )
+    }
 
     BackHandler(onBack = onBack)
     Scaffold(
