@@ -305,6 +305,7 @@ fun BreatheEasyApp(viewModel: BreatheEasyViewModel) {
             events = snapshot.smokeEvents,
             busy = operationsBlocked,
             operationRevision = operationRevision,
+            snackbarHostState = snackbarHostState,
             onDelete = viewModel::deleteSmokeEvent,
             onBack = { showSmokingHistory = false },
         )
@@ -935,6 +936,7 @@ private fun SmokingHistoryScreen(
     events: List<SmokeEvent>,
     busy: Boolean,
     operationRevision: Long,
+    snackbarHostState: SnackbarHostState,
     onDelete: (String) -> Unit,
     onBack: () -> Unit,
 ) {
@@ -1024,6 +1026,7 @@ private fun SmokingHistoryScreen(
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
             )
         },
+        snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { padding ->
         LazyColumn(
             modifier = Modifier.fillMaxSize().padding(padding),
