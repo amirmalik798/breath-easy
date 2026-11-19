@@ -119,7 +119,7 @@ class BreatheEasyViewModel(application: Application) : AndroidViewModel(applicat
                     // The write is already committed at this point. A later read failure
                     // must not be reported as a failed write, or users may retry and
                     // create duplicate purchases or activity records.
-                    successMessage?.let(::publishMessage)
+                    if (successMessage != null) publishMessage(successMessage)
                     try {
                         _snapshot.value = repository.loadSnapshot()
                         _loadError.value = false
