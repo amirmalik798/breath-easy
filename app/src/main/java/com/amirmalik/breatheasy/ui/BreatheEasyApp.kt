@@ -283,7 +283,7 @@ fun BreatheEasyApp(viewModel: BreatheEasyViewModel) {
         }
     }
 
-    LaunchedEffect(pendingDeleteId, pendingDeleteRevision, busy, operationRevision, snapshot.purchases) {
+    LaunchedEffect(pendingDeleteId, pendingDeleteRevision, busy, operationRevision, snapshot.purchases, loadError) {
         val deletingId = pendingDeleteId
         val resolution = resolvePurchaseDeleteCompletion(
             pendingPurchaseId = deletingId,
@@ -291,6 +291,7 @@ fun BreatheEasyApp(viewModel: BreatheEasyViewModel) {
             currentRevision = operationRevision,
             isBusy = busy,
             purchaseStillExists = deletingId != null && snapshot.purchases.any { it.id == deletingId },
+            snapshotLoadFailed = loadError,
         )
         if (resolution.operationFinished) {
             pendingDeleteId = null
