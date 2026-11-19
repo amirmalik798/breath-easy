@@ -11,9 +11,12 @@ import com.amirmalik.breatheasy.data.CravingOutcome
 import com.amirmalik.breatheasy.data.Purchase
 import com.amirmalik.breatheasy.data.SmokeEvent
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -30,8 +33,11 @@ class BreatheEasyViewModel(application: Application) : AndroidViewModel(applicat
     private val _busy = MutableStateFlow(false)
     val busy: StateFlow<Boolean> = _busy.asStateFlow()
 
-    private val _message = MutableStateFlow<String?>(null)
-    val message: StateFlow<String?> = _message.asStateFlow()
+    // One-shot results should not use StateFlow: rapid identical updates can be
+    // conflated before Compose observes them. A buffered channel preserves each
+    // completion result in order for snackbar and confirmation handling.
+    private val operationMessages = Channel<String>(Channel.BUFFERED)
+    val messages: Flow<String> = operationMessages.receiveAsFlow()
 
     private val _loadError = MutableStateFlow(false)
     val loadError: StateFlow<Boolean> = _loadError.asStateFlow()
@@ -57,7 +63,7 @@ class BreatheEasyViewModel(application: Application) : AndroidViewModel(applicat
                         // the last good snapshot (if any) and expose an explicit retry path.
                         _snapshot.value = _snapshot.value.copy(isLoading = false)
                         _loadError.value = true
-                        _message.value = "Your local records could not be loaded."
+                        publishMessage("Your local records could not be loaded.")
                     }
                 }
             } finally {
@@ -87,7 +93,9 @@ class BreatheEasyViewModel(application: Application) : AndroidViewModel(applicat
         if (event.outcome == CravingOutcome.RESISTED) "Craving recorded as resisted" else "Craving entry saved",
     ) { repository.logCraving(event, confirmUnstockedSmoking) }
 
-    fun clearMessage() { _message.value = null }
+    private fun publishMessage(message: String) {
+        operationMessages.trySend(message)
+    }
 
     private fun perform(successMessage: String?, operation: suspend () -> Unit) {
         viewModelScope.launch {
@@ -98,15 +106,17 @@ class BreatheEasyViewModel(application: Application) : AndroidViewModel(applicat
                         operation()
                     } catch (error: Exception) {
                         if (error is CancellationException) throw error
-                        _message.value = error.message?.takeIf { it.length <= 140 }
-                            ?: "That action could not be saved. Please try again."
+                        publishMessage(
+                            error.message?.takeIf { it.length <= 140 }
+                                ?: "That action could not be saved. Please try again.",
+                        )
                         return@withLock
                     }
 
                     // The write is already committed at this point. A later read failure
                     // must not be reported as a failed write, or users may retry and
                     // create duplicate purchases or activity records.
-                    _message.value = successMessage
+                    successMessage?.let(::publishMessage)
                     try {
                         _snapshot.value = repository.loadSnapshot()
                         _loadError.value = false
@@ -114,9 +124,11 @@ class BreatheEasyViewModel(application: Application) : AndroidViewModel(applicat
                         if (error is CancellationException) throw error
                         _snapshot.value = _snapshot.value.copy(isLoading = false)
                         _loadError.value = true
-                        _message.value = successMessage?.let {
-                            "$it. Saved, but the latest data could not be reloaded."
-                        } ?: "Saved, but the latest data could not be reloaded."
+                        publishMessage(
+                            successMessage?.let {
+                                "$it. Saved, but the latest data could not be reloaded."
+                            } ?: "Saved, but the latest data could not be reloaded.",
+                        )
                     }
                 }
             } finally {
@@ -143,6 +155,7 @@ class BreatheEasyViewModel(application: Application) : AndroidViewModel(applicat
 
     override fun onCleared() {
         repository.close()
+        operationMessages.close()
         super.onCleared()
     }
 }
