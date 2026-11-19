@@ -245,7 +245,6 @@ fun BreatheEasyApp(viewModel: BreatheEasyViewModel) {
     val snapshot by viewModel.snapshot.collectAsState()
     val busy by viewModel.busy.collectAsState()
     val operationsBlocked = busy || snapshot.isLoading
-    val message by viewModel.message.collectAsState()
     val loadError by viewModel.loadError.collectAsState()
     val operationRevision by viewModel.operationRevision.collectAsState()
     var selectedTab by rememberSaveable { mutableStateOf(MainTab.TODAY) }
@@ -274,8 +273,8 @@ fun BreatheEasyApp(viewModel: BreatheEasyViewModel) {
         )
     }
 
-    LaunchedEffect(message) {
-        message?.let { resultMessage ->
+    LaunchedEffect(viewModel) {
+        viewModel.messages.collect { resultMessage ->
             when {
                 resultMessage.startsWith("Purchase added to your ledger") -> showPurchaseScreen = false
                 resultMessage.startsWith("Craving recorded as resisted") ||
@@ -293,11 +292,9 @@ fun BreatheEasyApp(viewModel: BreatheEasyViewModel) {
                     purchaseToDeleteId = null
                 }
             }
-            // Consume the result immediately so identical consecutive messages
-            // cannot collapse into one StateFlow value while a snackbar is visible.
-            // Snackbar display runs independently and is queued by SnackbarHostState.
+            // The channel delivers each result, including identical messages emitted
+            // before a Compose frame is rendered.
             snackbarScope.launch { snackbarHostState.showSnackbar(resultMessage) }
-            viewModel.clearMessage()
         }
     }
 
