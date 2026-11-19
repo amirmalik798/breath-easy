@@ -150,17 +150,28 @@ object SpendingPdfExporter {
         period: SpendingReportPeriod,
         currentMonth: YearMonth,
         zoneId: ZoneId,
-    ): List<MonthReport> =
-        period.monthsEndingAt(currentMonth).map { month ->
-            val matching = purchases.asSequence()
-                .filter { it.currency.isoCode == currency.isoCode }
-                .filter {
-                    YearMonth.from(Instant.ofEpochMilli(it.purchasedAtMillis).atZone(zoneId)) == month
+    ): List<MonthReport> {
+        val months = period.monthsEndingAt(currentMonth)
+        val includedMonths = months.toHashSet()
+        val purchasesByMonth = HashMap<YearMonth, MutableList<Purchase>>()
+
+        // Group the selected-currency rows in one pass. The old per-month filter
+        // repeatedly traversed the entire purchase ledger for every report month.
+        purchases.forEach { purchase ->
+            if (purchase.currency.isoCode == currency.isoCode) {
+                val month = YearMonth.from(Instant.ofEpochMilli(purchase.purchasedAtMillis).atZone(zoneId))
+                if (month in includedMonths) {
+                    purchasesByMonth.getOrPut(month) { mutableListOf() }.add(purchase)
                 }
+            }
+        }
+
+        return months.map { month ->
+            val matching = purchasesByMonth[month].orEmpty()
                 .sortedBy { it.purchasedAtMillis }
-                .toList()
             MonthReport(month, matching)
         }
+    }
 
     private fun buildMonthPages(reports: List<MonthReport>): List<MonthPage> =
         reports.flatMap { report ->
