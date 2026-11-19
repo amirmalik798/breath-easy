@@ -79,6 +79,10 @@ jobs:
           set -euo pipefail
           image_package="system-images;android-37.0;google_apis;x86_64"
           sdkmanager --channel=3 "emulator" "$image_package"
+          # The Android SDK Manager installs the emulator binary in its own
+          # directory; setup-android does not add that directory to PATH.
+          export PATH="$ANDROID_HOME/emulator:$PATH"
+          command -v emulator
           echo "no" | avdmanager create avd --force --name BreatheEasy_API_37 --package "$image_package" --device pixel_7
           emulator -avd BreatheEasy_API_37 -memory 4096 -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim > "$RUNNER_TEMP/breathe-easy-emulator.log" 2>&1 &
           emulator_pid=$!
