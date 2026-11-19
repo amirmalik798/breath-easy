@@ -278,7 +278,10 @@ fun BreatheEasyApp(viewModel: BreatheEasyViewModel) {
             when {
                 resultMessage.startsWith("Purchase added to your ledger") -> showPurchaseScreen = false
                 resultMessage.startsWith("Craving recorded as resisted") ||
-                    resultMessage.startsWith("Craving entry saved") -> showCravingDialog = false
+                    resultMessage.startsWith("Craving entry saved") -> {
+                    showCravingDialog = false
+                    cravingBreathingSeconds = 0
+                }
             }
             val deletingId = pendingDeleteId
             if (deletingId != null) {
@@ -503,7 +506,10 @@ fun BreatheEasyApp(viewModel: BreatheEasyViewModel) {
             trackedStock = trackedStock,
             breathingSeconds = cravingBreathingSeconds,
             savedCravingIds = savedCravingIds,
-            onDismiss = { showCravingDialog = false },
+            onDismiss = {
+                showCravingDialog = false
+                cravingBreathingSeconds = 0
+            },
             onSave = viewModel::logCraving,
         )
     }
@@ -1833,6 +1839,11 @@ private fun CravingsScreen(
                 onClick = {
                     pauseBreathingTimer()
                     onRecordCraving(seconds)
+                    // The captured value now belongs to the pending form. Reset the
+                    // on-screen timer so it cannot be accidentally reused by the next
+                    // craving entry after this form succeeds or is cancelled.
+                    seconds = 0
+                    lastTickElapsedMillis = 0L
                 },
                 modifier = Modifier.fillMaxWidth().height(54.dp),
                 enabled = !busy && !snapshot.isLoading,
