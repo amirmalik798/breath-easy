@@ -72,8 +72,14 @@ data class CurrencyCode(
         }
 
         fun fromLocale(locale: Locale): CurrencyCode {
-            val likelyLocale = ULocale.addLikelySubtags(ULocale.forLocale(locale)).toLocale()
+            // ICU may be unavailable for an unusual locale or in a restricted
+            // runtime. Treat its likely-locale expansion as optional; an unresolved
+            // region must still reach the explicit currency fallback below.
+            val likelyLocale = runCatching {
+                ULocale.addLikelySubtags(ULocale.forLocale(locale)).toLocale()
+            }.getOrNull()
             val currency = sequenceOf(locale, likelyLocale)
+                .filterNotNull()
                 .mapNotNull { candidate -> runCatching { Currency.getInstance(candidate) }.getOrNull() }
                 .firstOrNull { it.defaultFractionDigits >= 0 }
                 // A few valid device regions have no applicable ISO-4217 currency.
