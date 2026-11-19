@@ -229,6 +229,7 @@ fun BreatheEasyApp(viewModel: BreatheEasyViewModel) {
     var purchaseToDeleteId by rememberSaveable { mutableStateOf<String?>(null) }
     val purchaseToDelete = snapshot.purchases.firstOrNull { it.id == purchaseToDeleteId }
     var pendingDeleteId by remember { mutableStateOf<String?>(null) }
+    var pdfWorkflowBusy by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
     val saveableStateHolder = rememberSaveableStateHolder()
     val trackedStock = remember(
@@ -328,13 +329,13 @@ fun BreatheEasyApp(viewModel: BreatheEasyViewModel) {
                 actions = {
                     IconButton(
                         onClick = { showSmokingHistory = true },
-                        enabled = !busy && !snapshot.isLoading,
+                        enabled = !operationsBlocked && !pdfWorkflowBusy,
                     ) {
                         Icon(Icons.Outlined.History, contentDescription = "Smoking history")
                     }
                     IconButton(
                         onClick = { selectedTab = MainTab.GOALS },
-                        enabled = !busy && !snapshot.isLoading,
+                        enabled = !operationsBlocked && !pdfWorkflowBusy,
                     ) {
                         Icon(Icons.Outlined.Settings, contentDescription = "Settings")
                     }
@@ -360,6 +361,7 @@ fun BreatheEasyApp(viewModel: BreatheEasyViewModel) {
                     NavigationBarItem(
                         selected = selectedTab == tab,
                         onClick = { selectedTab = tab },
+                        enabled = !pdfWorkflowBusy,
                         icon = { Icon(icon, contentDescription = tab.label) },
                         label = { Text(tab.label, fontWeight = if (selectedTab == tab) FontWeight.Bold else FontWeight.Medium) },
                         alwaysShowLabel = true,
@@ -408,8 +410,9 @@ fun BreatheEasyApp(viewModel: BreatheEasyViewModel) {
                     MainTab.SPENDING -> SpendingScreen(
                         snapshot = snapshot,
                         busy = operationsBlocked,
-                        onRecordPurchase = { if (!busy) showPurchaseScreen = true },
+                        onRecordPurchase = { if (!operationsBlocked && !pdfWorkflowBusy) showPurchaseScreen = true },
                         onDeletePurchase = { purchaseToDeleteId = it.id },
+                        onPdfWorkflowBusyChanged = { pdfWorkflowBusy = it },
                     )
                     MainTab.CRAVINGS -> CravingsScreen(
                         snapshot = snapshot,
@@ -1135,6 +1138,7 @@ private fun SpendingScreen(
     busy: Boolean,
     onRecordPurchase: () -> Unit,
     onDeletePurchase: (Purchase) -> Unit,
+    onPdfWorkflowBusyChanged: (Boolean) -> Unit,
 ) {
     val prefs = snapshot.preferences
     val context = LocalContext.current
