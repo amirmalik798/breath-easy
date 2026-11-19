@@ -124,6 +124,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -169,7 +170,6 @@ import java.time.ZoneId
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
-import java.util.Locale
 import java.util.UUID
 
 private val ScreenHorizontalPadding = 20.dp
@@ -196,6 +196,7 @@ private fun currentLocalDayContext(): LocalDayContext {
 @Composable
 private fun rememberLocalDayContext(): LocalDayContext {
     val lifecycleOwner = LocalLifecycleOwner.current
+    val locale = LocalConfiguration.current.locales[0]
     val appContext = LocalContext.current.applicationContext
     var context by remember { mutableStateOf(currentLocalDayContext()) }
 
@@ -583,6 +584,7 @@ private fun TodayScreen(
     onDeletePurchase: (Purchase) -> Unit,
 ) {
     val prefs = snapshot.preferences
+    val locale = LocalConfiguration.current.locales[0]
     var smokePending by rememberSaveable { mutableStateOf(false) }
     var smokeDraftId by rememberSaveable { mutableStateOf(UUID.randomUUID().toString()) }
     var smokeDraftAtMillis by rememberSaveable { mutableLongStateOf(0L) }
@@ -646,7 +648,7 @@ private fun TodayScreen(
             zoneId = todayZone,
         )
     }
-    val todayLabel = DateTimeFormatter.ofPattern("EEEE, d MMMM", Locale.getDefault()).format(todayDate)
+    val todayLabel = DateTimeFormatter.ofPattern("EEEE, d MMMM", locale).format(todayDate)
     val recentPurchases = remember(snapshot.purchases) { snapshot.purchases.take(3) }
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -657,7 +659,7 @@ private fun TodayScreen(
     ) {
         item {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(todayLabel.uppercase(Locale.getDefault()), style = MaterialTheme.typography.labelMedium,
+                Text(todayLabel.uppercase(locale), style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.secondary, letterSpacing = 1.1.sp)
                 Text("Your day", style = MaterialTheme.typography.headlineMedium,
                     fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
@@ -986,6 +988,7 @@ private fun SmokingHistoryScreen(
     val localDay = rememberLocalDayContext()
     val zone = localDay.zone
     val today = localDay.date
+    val locale = LocalConfiguration.current.locales[0]
     var selectedDateText by rememberSaveable { mutableStateOf(today.toString()) }
     var followsCurrentDay by rememberSaveable { mutableStateOf(true) }
     var showDatePicker by rememberSaveable { mutableStateOf(false) }
@@ -1017,15 +1020,15 @@ private fun SmokingHistoryScreen(
     val count = remember(dayEvents) {
         dayEvents.fold(0L) { total, event -> SafeArithmetic.add(total, event.quantity.toLong()) }
     }
-    val dateLabel = remember(selectedDate, today) {
+    val dateLabel = remember(selectedDate, today, locale) {
         when (selectedDate) {
             today -> "Today"
             today.minusDays(1) -> "Yesterday"
-            else -> DateTimeFormatter.ofPattern("EEEE, d MMMM yyyy", Locale.getDefault()).format(selectedDate)
+            else -> DateTimeFormatter.ofPattern("EEEE, d MMMM yyyy", locale).format(selectedDate)
         }
     }
-    val timeFormatter = remember(zone) {
-        DateTimeFormatter.ofPattern("h:mm a", Locale.getDefault()).withZone(zone)
+    val timeFormatter = remember(zone, locale) {
+        DateTimeFormatter.ofPattern("h:mm a", locale).withZone(zone)
     }
     // Recreate the picker state whenever the displayed date changes. Otherwise,
     // arrow navigation updates the screen but the calendar can reopen on an old date.
@@ -1077,7 +1080,7 @@ private fun SmokingHistoryScreen(
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
                 ) {
                     Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Text(dateLabel.uppercase(Locale.getDefault()), style = MaterialTheme.typography.labelMedium,
+                        Text(dateLabel.uppercase(locale), style = MaterialTheme.typography.labelMedium,
                             letterSpacing = 1.1.sp, color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.78f))
                         Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             Text(count.toString(), style = MaterialTheme.typography.displaySmall,
@@ -1326,6 +1329,7 @@ private fun SpendingScreen(
     onPdfWorkflowBusyChanged: (Boolean) -> Unit,
 ) {
     val prefs = snapshot.preferences
+    val locale = LocalConfiguration.current.locales[0]
     val context = LocalContext.current
     val exportScope = rememberCoroutineScope()
     var reportPeriod by rememberSaveable { mutableStateOf(SpendingReportPeriod.CURRENT_MONTH) }
@@ -1483,7 +1487,7 @@ private fun SpendingScreen(
                 Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f)) {
-                            Text("${selectedMonth.month.getDisplayName(TextStyle.FULL, Locale.getDefault())} ${selectedMonth.year}",
+                            Text("${selectedMonth.month.getDisplayName(TextStyle.FULL, locale)} ${selectedMonth.year}",
                                 style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onPrimaryContainer)
                             Text("TOTAL SPENT · ${prefs.displayCurrency.isoCode}",
@@ -1575,7 +1579,7 @@ private fun SpendingScreen(
                         ) {
                             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                                 Text(
-                                    "${point.month.month.getDisplayName(TextStyle.FULL, Locale.getDefault())} ${point.month.year}",
+                                    "${point.month.month.getDisplayName(TextStyle.FULL, locale)} ${point.month.year}",
                                     style = MaterialTheme.typography.bodyMedium,
                                     fontWeight = FontWeight.SemiBold,
                                 )
@@ -1838,8 +1842,8 @@ private fun CravingsScreen(
             .entries.sortedByDescending { it.value }.take(4)
     }
     val localDay = rememberLocalDayContext()
-    val cravingDateFormatter = remember(localDay.zone) {
-        DateTimeFormatter.ofPattern("d MMM yyyy", Locale.getDefault())
+    val cravingDateFormatter = remember(localDay.zone, locale) {
+        DateTimeFormatter.ofPattern("d MMM yyyy", locale)
             .withZone(localDay.zone)
     }
     val phase = phases[(seconds / 4) % phases.size]
@@ -2232,6 +2236,7 @@ private fun RecordPurchaseScreen(
     var purchaseDraftId by rememberSaveable { mutableStateOf(UUID.randomUUID().toString()) }
     var purchaseDraftPrepared by rememberSaveable { mutableStateOf(false) }
     val currency = preferences.displayCurrency
+    val locale = LocalConfiguration.current.locales[0]
     val localDay = rememberLocalDayContext()
     var brand by rememberSaveable { mutableStateOf("") }
     var location by rememberSaveable { mutableStateOf("") }
@@ -2288,7 +2293,7 @@ private fun RecordPurchaseScreen(
         PurchaseType.CARTON -> "cartons"
         PurchaseType.ROLLING -> "units"
     }
-    val dateLabel = DateTimeFormatter.ofPattern("EEE, d MMM yyyy", Locale.getDefault())
+    val dateLabel = DateTimeFormatter.ofPattern("EEE, d MMM yyyy", locale)
         .withZone(localDay.zone)
         .format(Instant.ofEpochMilli(purchasedAtMillis))
 
@@ -2480,13 +2485,13 @@ private fun RecordPurchaseScreen(
                             onValueChange = {
                                 prepareNewPurchaseDraftForEdit()
                                 amount = it.asciiMoneyInput(
-                                    decimalSeparator = DecimalFormatSymbols.getInstance(Locale.getDefault()).decimalSeparator,
+                                    decimalSeparator = DecimalFormatSymbols.getInstance(locale).decimalSeparator,
                                     maxLength = 18,
                                 )
                             },
                             modifier = Modifier.fillMaxWidth(),
                             placeholder = {
-                                val separator = DecimalFormatSymbols.getInstance(Locale.getDefault()).decimalSeparator
+                                val separator = DecimalFormatSymbols.getInstance(locale).decimalSeparator
                                 Text(if (currency.fractionDigits == 0) "0" else "0${separator}00")
                             },
                             textStyle = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.ExtraBold,
@@ -2977,6 +2982,7 @@ private fun MetricCard(
 
 @Composable
 fun PurchaseRow(purchase: Purchase, enabled: Boolean = true, onDelete: () -> Unit) {
+    val locale = LocalConfiguration.current.locales[0]
     Row(
         Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 13.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -2995,7 +3001,7 @@ fun PurchaseRow(purchase: Purchase, enabled: Boolean = true, onDelete: () -> Uni
                 overflow = TextOverflow.Ellipsis,
             )
             Text(
-                "${purchase.quantity} × ${purchase.type.label.lowercase()} · ${DateTimeFormatter.ofPattern("d MMM yyyy", Locale.getDefault()).withZone(ZoneId.systemDefault()).format(Instant.ofEpochMilli(purchase.purchasedAtMillis))}",
+                "${purchase.quantity} × ${purchase.type.label.lowercase()} · ${DateTimeFormatter.ofPattern("d MMM yyyy", locale).withZone(ZoneId.systemDefault()).format(Instant.ofEpochMilli(purchase.purchasedAtMillis))}",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
