@@ -196,7 +196,6 @@ private fun currentLocalDayContext(): LocalDayContext {
 @Composable
 private fun rememberLocalDayContext(): LocalDayContext {
     val lifecycleOwner = LocalLifecycleOwner.current
-    val locale = LocalConfiguration.current.locales[0]
     val appContext = LocalContext.current.applicationContext
     var context by remember { mutableStateOf(currentLocalDayContext()) }
 
@@ -1780,6 +1779,7 @@ private fun CravingsScreen(
     busy: Boolean,
     onRecordCraving: (Int) -> Unit,
 ) {
+    val locale = LocalConfiguration.current.locales[0]
     // Persist elapsed session time, but never restore an actively running timer
     // after process/activity recreation. Time away from the screen must not count.
     val runningState = remember { mutableStateOf(false) }
