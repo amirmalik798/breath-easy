@@ -458,12 +458,34 @@ private fun TodayScreen(
     val prefs = snapshot.preferences
     var smokePending by rememberSaveable { mutableStateOf(false) }
     var smokeDraftId by rememberSaveable { mutableStateOf(UUID.randomUUID().toString()) }
-    var smokeDraftAtMillis by rememberSaveable { mutableLongStateOf(System.currentTimeMillis()) }
+    var smokeDraftAtMillis by rememberSaveable { mutableLongStateOf(0L) }
+    var smokeDraftPrepared by rememberSaveable { mutableStateOf(false) }
+
+    fun submitSmoke(confirmUnstockedSmoking: Boolean) {
+        // Capture the actual action time on the first attempt, then reuse the same
+        // ID and timestamp if a failed write or reload needs an idempotent retry.
+        if (!smokeDraftPrepared) {
+            smokeDraftId = UUID.randomUUID().toString()
+            smokeDraftAtMillis = System.currentTimeMillis()
+            smokeDraftPrepared = true
+        }
+        smokePending = true
+        onLogSmoke(
+            SmokeEvent(
+                id = smokeDraftId,
+                smokedAtMillis = smokeDraftAtMillis,
+                trigger = CravingTrigger.OTHER,
+            ),
+            confirmUnstockedSmoking,
+        )
+    }
+
     LaunchedEffect(busy, snapshot.smokeEvents) {
         if (!busy) {
             if (snapshot.smokeEvents.any { it.id == smokeDraftId }) {
                 smokeDraftId = UUID.randomUUID().toString()
-                smokeDraftAtMillis = System.currentTimeMillis()
+                smokeDraftAtMillis = 0L
+                smokeDraftPrepared = false
             }
             smokePending = false
         }
@@ -590,15 +612,7 @@ private fun TodayScreen(
                             if (trackedStock <= 0L) {
                                 showStockConfirmation = true
                             } else {
-                                smokePending = true
-                                onLogSmoke(
-                                    SmokeEvent(
-                                        id = smokeDraftId,
-                                        smokedAtMillis = smokeDraftAtMillis,
-                                        trigger = CravingTrigger.OTHER,
-                                    ),
-                                    false,
-                                )
+                                submitSmoke(confirmUnstockedSmoking = false)
                             }
                         },
                         enabled = !busy && !snapshot.isLoading && !smokePending,
@@ -801,15 +815,7 @@ private fun TodayScreen(
             onDismiss = { showStockConfirmation = false },
             onConfirm = {
                 showStockConfirmation = false
-                smokePending = true
-                onLogSmoke(
-                    SmokeEvent(
-                                        id = smokeDraftId,
-                                        smokedAtMillis = smokeDraftAtMillis,
-                                        trigger = CravingTrigger.OTHER,
-                                    ),
-                    true,
-                )
+                submitSmoke(confirmUnstockedSmoking = true)
             },
             enabled = !busy && !smokePending,
         )
@@ -2369,7 +2375,8 @@ private fun RecordCravingDialog(
     var intensity by rememberSaveable { mutableIntStateOf(3) }
     var note by rememberSaveable { mutableStateOf("") }
     var cravingDraftId by rememberSaveable { mutableStateOf(UUID.randomUUID().toString()) }
-    var cravingOccurredAtMillis by rememberSaveable { mutableLongStateOf(System.currentTimeMillis()) }
+    var cravingOccurredAtMillis by rememberSaveable { mutableLongStateOf(0L) }
+    var cravingDraftPrepared by rememberSaveable { mutableStateOf(false) }
     var submitPending by rememberSaveable { mutableStateOf(false) }
     var showStockConfirmation by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(busy) {
@@ -2378,6 +2385,11 @@ private fun RecordCravingDialog(
     val saving = busy || submitPending
 
     fun submitCraving(confirmUnstockedSmoking: Boolean) {
+        if (!cravingDraftPrepared) {
+            cravingDraftId = UUID.randomUUID().toString()
+            cravingOccurredAtMillis = System.currentTimeMillis()
+            cravingDraftPrepared = true
+        }
         submitPending = true
         showStockConfirmation = false
         onSave(
