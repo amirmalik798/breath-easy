@@ -251,6 +251,7 @@ fun BreatheEasyApp(viewModel: BreatheEasyViewModel) {
     var showPurchaseScreen by rememberSaveable { mutableStateOf(false) }
     var showSmokingHistory by rememberSaveable { mutableStateOf(false) }
     var showCravingDialog by rememberSaveable { mutableStateOf(false) }
+    var cravingBreathingSeconds by rememberSaveable { mutableIntStateOf(0) }
     var purchaseToDeleteId by rememberSaveable { mutableStateOf<String?>(null) }
     val purchaseToDelete = snapshot.purchases.firstOrNull { it.id == purchaseToDeleteId }
     val savedPurchaseIds = remember(snapshot.purchases) { snapshot.purchases.mapTo(mutableSetOf()) { it.id } }
@@ -449,7 +450,12 @@ fun BreatheEasyApp(viewModel: BreatheEasyViewModel) {
                     MainTab.CRAVINGS -> CravingsScreen(
                         snapshot = snapshot,
                         busy = operationsBlocked,
-                        onRecordCraving = { if (!operationsBlocked) showCravingDialog = true },
+                        onRecordCraving = { seconds ->
+                            if (!operationsBlocked) {
+                                cravingBreathingSeconds = seconds
+                                showCravingDialog = true
+                            }
+                        },
                     )
                     MainTab.GOALS -> GoalsScreen(
                         snapshot = snapshot,
@@ -494,6 +500,7 @@ fun BreatheEasyApp(viewModel: BreatheEasyViewModel) {
         RecordCravingDialog(
             busy = operationsBlocked,
             trackedStock = trackedStock,
+            breathingSeconds = cravingBreathingSeconds,
             savedCravingIds = savedCravingIds,
             onDismiss = { showCravingDialog = false },
             onSave = viewModel::logCraving,
@@ -1620,7 +1627,7 @@ private fun SpendingScreen(
 private fun CravingsScreen(
     snapshot: AppSnapshot,
     busy: Boolean,
-    onRecordCraving: () -> Unit,
+    onRecordCraving: (Int) -> Unit,
 ) {
     // Persist elapsed session time, but never restore an actively running timer
     // after process/activity recreation. Time away from the screen must not count.
@@ -1821,7 +1828,10 @@ private fun CravingsScreen(
         }
         item {
             Button(
-                onClick = onRecordCraving,
+                onClick = {
+                    pauseBreathingTimer()
+                    onRecordCraving(seconds)
+                },
                 modifier = Modifier.fillMaxWidth().height(54.dp),
                 enabled = !busy && !snapshot.isLoading,
                 shape = RoundedCornerShape(18.dp),
@@ -1894,6 +1904,13 @@ private fun CravingsScreen(
                             Text("${event.trigger.label} · intensity ${event.intensity}/5",
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 style = MaterialTheme.typography.labelSmall)
+                            if (event.breathingSeconds > 0) {
+                                Text(
+                                    "Breathing session · ${event.breathingSeconds / 60}:${(event.breathingSeconds % 60).toString().padStart(2, '0')}",
+                                    color = MaterialTheme.colorScheme.primary,
+                                    style = MaterialTheme.typography.labelSmall,
+                                )
+                            }
                         }
                         Text(cravingDateFormatter.format(Instant.ofEpochMilli(event.occurredAtMillis)),
                             style = MaterialTheme.typography.labelSmall,
@@ -2571,6 +2588,7 @@ private fun RecordPurchaseScreen(
 private fun RecordCravingDialog(
     busy: Boolean,
     trackedStock: Long,
+    breathingSeconds: Int,
     savedCravingIds: Set<String>,
     onDismiss: () -> Unit,
     onSave: (CravingEvent, Boolean) -> Unit,
@@ -2620,6 +2638,7 @@ private fun RecordCravingDialog(
                 trigger = trigger,
                 intensity = intensity,
                 note = note,
+                breathingSeconds = breathingSeconds.coerceAtLeast(0),
             ),
             confirmUnstockedSmoking,
         )
