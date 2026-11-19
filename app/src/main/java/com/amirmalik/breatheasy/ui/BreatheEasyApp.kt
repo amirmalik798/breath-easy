@@ -259,7 +259,6 @@ fun BreatheEasyApp(viewModel: BreatheEasyViewModel) {
     var pendingDeleteId by remember { mutableStateOf<String?>(null) }
     var pdfWorkflowBusy by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
-    val snackbarScope = rememberCoroutineScope()
     val saveableStateHolder = rememberSaveableStateHolder()
     val trackedStock = remember(
         snapshot.preferences.startingStockCigarettes,
@@ -297,7 +296,7 @@ fun BreatheEasyApp(viewModel: BreatheEasyViewModel) {
             }
             // The channel delivers each result, including identical messages emitted
             // before a Compose frame is rendered.
-            snackbarScope.launch { snackbarHostState.showSnackbar(resultMessage) }
+            snackbarHostState.showSnackbar(resultMessage)
         }
     }
 
