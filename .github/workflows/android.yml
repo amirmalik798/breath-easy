@@ -66,6 +66,14 @@ jobs:
       - name: Assemble debug APK
         run: gradle :app:assembleDebug
 
+      - name: Upload debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: BreatheEasy-debug-apk
+          path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 7
+
       - name: Launch app on Android 17 emulator
         run: |
           set -euo pipefail
@@ -78,10 +86,15 @@ jobs:
             adb emu kill >/dev/null 2>&1 || kill "$emulator_pid" >/dev/null 2>&1 || true
           }
           trap cleanup EXIT
-          adb wait-for-device
+          if ! timeout 180s adb wait-for-device; then
+            cat "$RUNNER_TEMP/breathe-easy-emulator.log"
+            adb devices -l || true
+            echo "Android 17 emulator did not expose an ADB device within 3 minutes."
+            exit 1
+          fi
           booted=false
-          for attempt in $(seq 1 180); do
-            if [ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = "1" ]; then
+          for attempt in $(seq 1 90); do
+            if [ "$(timeout 15s adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = "1" ]; then
               booted=true
               break
             fi
@@ -89,18 +102,11 @@ jobs:
           done
           if [ "$booted" != true ]; then
             cat "$RUNNER_TEMP/breathe-easy-emulator.log"
-            echo "Android 17 emulator did not finish booting."
+            adb logcat -d -t 300 || true
+            echo "Android 17 emulator did not finish booting within the 7.5-minute limit."
             exit 1
           fi
           adb shell settings put global window_animation_scale 0
           adb shell settings put global transition_animation_scale 0
           adb shell settings put global animator_duration_scale 0
-          gradle :app:connectedDebugAndroidTest
-
-      - name: Upload debug APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: BreatheEasy-debug-apk
-          path: app/build/outputs/apk/debug/app-debug.apk
-          if-no-files-found: error
-          retention-days: 7
+          timeout 600s gradle :app:connectedDebugAndroidTest
