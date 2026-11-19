@@ -478,6 +478,7 @@ fun BreatheEasyApp(viewModel: BreatheEasyViewModel) {
         RecordCravingDialog(
             busy = operationsBlocked,
             operationRevision = operationRevision,
+            loadError = loadError,
             trackedStock = trackedStock,
             breathingSeconds = cravingBreathingSeconds,
             savedCravingIds = savedCravingIds,
@@ -2696,6 +2697,7 @@ private fun RecordPurchaseScreen(
 private fun RecordCravingDialog(
     busy: Boolean,
     operationRevision: Long,
+    loadError: Boolean,
     trackedStock: Long,
     breathingSeconds: Int,
     savedCravingIds: Set<String>,
@@ -2711,8 +2713,16 @@ private fun RecordCravingDialog(
     var cravingDraftPrepared by rememberSaveable { mutableStateOf(false) }
     var submitPending by rememberSaveable { mutableStateOf(false) }
     var showStockConfirmation by rememberSaveable { mutableStateOf(false) }
-    LaunchedEffect(busy, operationRevision) {
-        if (!busy) submitPending = false
+    var saveError by rememberSaveable { mutableStateOf<String?>(null) }
+    LaunchedEffect(busy, operationRevision, savedCravingIds, loadError) {
+        if (!busy && submitPending) {
+            submitPending = false
+            saveError = if (cravingDraftId !in savedCravingIds && !loadError) {
+                "Couldn't save this craving. Your details are still here; try again."
+            } else {
+                null
+            }
+        }
     }
     val saving = busy || submitPending
 
@@ -2723,6 +2733,7 @@ private fun RecordCravingDialog(
             cravingOccurredAtMillis = 0L
             cravingDraftPrepared = false
         }
+        saveError = null
     }
 
     LaunchedEffect(cravingDraftId, savedCravingIds, busy) {
@@ -2739,6 +2750,7 @@ private fun RecordCravingDialog(
         }
         submitPending = true
         showStockConfirmation = false
+        saveError = null
         onSave(
             CravingEvent(
                 id = cravingDraftId,
@@ -2760,6 +2772,13 @@ private fun RecordCravingDialog(
             Column(Modifier.fillMaxWidth().heightIn(max = 540.dp).verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text("What happened?", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
+                saveError?.let { message ->
+                    Text(
+                        message,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     FilterChip(
                         selected = outcome == CravingOutcome.RESISTED,
