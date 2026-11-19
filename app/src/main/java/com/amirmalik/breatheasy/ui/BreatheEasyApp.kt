@@ -906,7 +906,7 @@ private fun SmokingHistoryScreen(
     }
     // Recreate the picker state whenever the displayed date changes. Otherwise,
     // arrow navigation updates the screen but the calendar can reopen on an old date.
-    val datePickerState = key(selectedDate, showDatePicker) {
+    val datePickerState = key(selectedDate, today, showDatePicker) {
         rememberDatePickerState(
             initialSelectedDateMillis = selectedDate.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli(),
             selectableDates = object : SelectableDates {
@@ -1347,7 +1347,7 @@ private fun SpendingScreen(
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clickable(enabled = targetMonthOffset != null) {
+                                .clickable(enabled = targetMonthOffset != null, role = Role.Button) {
                                     targetMonthOffset?.let { monthOffset = it }
                                 }
                                 .padding(horizontal = 18.dp, vertical = 13.dp),
@@ -1974,14 +1974,15 @@ private fun RecordPurchaseScreen(
     var amount by rememberSaveable { mutableStateOf("") }
     var purchaseDraftId by rememberSaveable { mutableStateOf(UUID.randomUUID().toString()) }
     val currency = preferences.displayCurrency
+    val localDay = rememberLocalDayContext()
     var brand by rememberSaveable { mutableStateOf("") }
     var location by rememberSaveable { mutableStateOf("") }
     var note by rememberSaveable { mutableStateOf("") }
     var planned by rememberSaveable { mutableStateOf(true) }
     var purchasedAtMillis by rememberSaveable {
         mutableLongStateOf(
-            LocalDate.now(ZoneId.systemDefault()).atTime(12, 0)
-                .atZone(ZoneId.systemDefault()).toInstant().toEpochMilli(),
+            localDay.date.atTime(12, 0)
+                .atZone(localDay.zone).toInstant().toEpochMilli(),
         )
     }
     var showDatePicker by rememberSaveable { mutableStateOf(false) }
@@ -2002,7 +2003,7 @@ private fun RecordPurchaseScreen(
         PurchaseType.ROLLING -> "units"
     }
     val dateLabel = DateTimeFormatter.ofPattern("EEE, d MMM yyyy", Locale.getDefault())
-        .withZone(ZoneId.systemDefault())
+        .withZone(localDay.zone)
         .format(Instant.ofEpochMilli(purchasedAtMillis))
 
 
@@ -2383,9 +2384,9 @@ private fun RecordPurchaseScreen(
     }
 
     if (showDatePicker) {
-        val today = LocalDate.now(ZoneId.systemDefault())
+        val today = localDay.date
         val initialPurchaseDateUtc = Instant.ofEpochMilli(purchasedAtMillis)
-            .atZone(ZoneId.systemDefault())
+            .atZone(localDay.zone)
             .toLocalDate()
             .atStartOfDay(ZoneOffset.UTC)
             .toInstant()
@@ -2412,7 +2413,7 @@ private fun RecordPurchaseScreen(
                             .atZone(ZoneId.of("UTC"))
                             .toLocalDate()
                         purchasedAtMillis = selectedDate.atTime(12, 0)
-                            .atZone(ZoneId.systemDefault())
+                            .atZone(localDay.zone)
                             .toInstant()
                             .toEpochMilli()
                     }
