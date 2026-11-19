@@ -858,7 +858,7 @@ private fun SmokingHistoryScreen(
     }
     // Recreate the picker state whenever the displayed date changes. Otherwise,
     // arrow navigation updates the screen but the calendar can reopen on an old date.
-    val datePickerState = key(selectedDate) {
+    val datePickerState = key(selectedDate, showDatePicker) {
         rememberDatePickerState(
             initialSelectedDateMillis = selectedDate.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli(),
             selectableDates = object : SelectableDates {
