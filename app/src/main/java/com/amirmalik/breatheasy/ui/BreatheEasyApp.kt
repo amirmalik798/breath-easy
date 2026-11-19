@@ -1149,10 +1149,16 @@ private fun SpendingScreen(
     // A system-picker launch is transient and must not survive process recreation.
     var isPickingPdfDestination by remember { mutableStateOf(false) }
     var pdfExportMessage by rememberSaveable { mutableStateOf<String?>(null) }
-    var monthOffset by rememberSaveable { mutableIntStateOf(0) }
+    var selectedMonthAnchorText by rememberSaveable { mutableStateOf("") }
     val localDay = rememberLocalDayContext()
     val currentMonth = YearMonth.from(localDay.date)
-    val selectedMonth = currentMonth.minusMonths(monthOffset.toLong())
+    val selectedMonthAnchor = remember(selectedMonthAnchorText) {
+        selectedMonthAnchorText.takeIf { it.isNotBlank() }
+            ?.let { runCatching { YearMonth.parse(it) }.getOrNull() }
+    }
+    val selectedMonth = MonthNavigation.selectedMonth(selectedMonthAnchor, currentMonth)
+    val monthOffset = MonthNavigation.offsetForMonth(selectedMonth, currentMonth)
+        ?: MonthNavigation.MAX_MONTH_OFFSET
     val latestSnapshot = rememberUpdatedState(snapshot)
     val latestCurrency = rememberUpdatedState(prefs.displayCurrency)
     val latestPeriod = rememberUpdatedState(reportPeriod)
@@ -1306,14 +1312,17 @@ private fun SpendingScreen(
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         OutlinedButton(
-                            onClick = { monthOffset = (monthOffset + 1).coerceAtMost(60) },
+                            onClick = { selectedMonthAnchorText = selectedMonth.minusMonths(1).toString() },
                             enabled = monthOffset < 60 && !isExportingPdf && !isPickingPdfDestination,
                             modifier = Modifier.weight(1f),
                             contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 8.dp, vertical = 8.dp),
                             colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.onPrimaryContainer),
                         ) { Text("Older") }
                         OutlinedButton(
-                            onClick = { monthOffset = (monthOffset - 1).coerceAtLeast(0) },
+                            onClick = {
+                                val nextMonth = selectedMonth.plusMonths(1)
+                                selectedMonthAnchorText = if (nextMonth == currentMonth) "" else nextMonth.toString()
+                            },
                             enabled = monthOffset > 0 && !isExportingPdf && !isPickingPdfDestination,
                             modifier = Modifier.weight(1f),
                             contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 8.dp, vertical = 8.dp),
@@ -1368,7 +1377,9 @@ private fun SpendingScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clickable(enabled = targetMonthOffset != null, role = Role.Button) {
-                                    targetMonthOffset?.let { monthOffset = it }
+                                    targetMonthOffset?.let {
+                                        selectedMonthAnchorText = if (point.month == currentMonth) "" else point.month.toString()
+                                    }
                                 }
                                 .padding(horizontal = 18.dp, vertical = 13.dp),
                             verticalAlignment = Alignment.CenterVertically,
