@@ -60,6 +60,7 @@ import androidx.compose.material.icons.outlined.ChevronRight
 import androidx.compose.material.icons.outlined.ExpandLess
 import androidx.compose.material.icons.outlined.ExpandMore
 import androidx.compose.material.icons.outlined.Flag
+import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Settings
@@ -279,6 +280,9 @@ fun BreatheEasyApp(viewModel: BreatheEasyViewModel) {
                     }
                 },
                 actions = {
+                    IconButton(onClick = { showSmokingHistory = true }) {
+                        Icon(Icons.Outlined.History, contentDescription = "Smoking history")
+                    }
                     IconButton(onClick = { selectedTab = MainTab.GOALS }) {
                         Icon(Icons.Outlined.Settings, contentDescription = "Settings")
                     }
@@ -347,7 +351,6 @@ fun BreatheEasyApp(viewModel: BreatheEasyViewModel) {
                         onOpenCravings = { selectedTab = MainTab.CRAVINGS },
                         onRecordPurchase = { if (!busy) showPurchaseScreen = true },
                         onDeletePurchase = { purchaseToDeleteId = it.id },
-                        onOpenHistory = { showSmokingHistory = true },
                     )
                     MainTab.SPENDING -> SpendingScreen(
                         snapshot = snapshot,
@@ -443,7 +446,6 @@ private fun TodayScreen(
     onOpenCravings: () -> Unit,
     onRecordPurchase: () -> Unit,
     onDeletePurchase: (Purchase) -> Unit,
-    onOpenHistory: () -> Unit,
 ) {
     val prefs = snapshot.preferences
     var smokePending by rememberSaveable { mutableStateOf(false) }
@@ -495,13 +497,6 @@ private fun TodayScreen(
                     color = MaterialTheme.colorScheme.secondary, letterSpacing = 1.1.sp)
                 Text("Your day", style = MaterialTheme.typography.headlineMedium,
                     fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
-                OutlinedButton(onClick = onOpenHistory, modifier = Modifier.fillMaxWidth()) {
-                    Icon(Icons.Outlined.CalendarToday, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(8.dp))
-                    Text("View smoking history")
-                    Spacer(Modifier.weight(1f))
-                    Icon(Icons.Outlined.ChevronRight, contentDescription = null, modifier = Modifier.size(18.dp))
-                }
             }
         }
         item {
@@ -936,12 +931,6 @@ private fun SmokingHistoryScreen(
                             modifier = Modifier.size(44.dp),
                         ) { Icon(Icons.Outlined.ChevronRight, contentDescription = "Next day") }
                     }
-                }
-            }
-            if (selectedDate != today) {
-                item {
-                    TextButton(onClick = { selectedDateText = today.toString() },
-                        modifier = Modifier.fillMaxWidth()) { Text("Return to today") }
                 }
             }
             item {
