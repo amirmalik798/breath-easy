@@ -1,4 +1,5 @@
 package com.amirmalik.breatheasy.ui
+import com.amirmalik.breatheasy.domain.SafeArithmetic
 
 import android.content.BroadcastReceiver
 import android.content.Intent
@@ -980,7 +981,7 @@ private fun SmokingHistoryScreen(
             .toList()
     }
     val count = remember(dayEvents) {
-        dayEvents.fold(0L) { total, event -> Math.addExact(total, event.quantity.toLong()) }
+        dayEvents.fold(0L) { total, event -> SafeArithmetic.add(total, event.quantity.toLong()) }
     }
     val dateLabel = remember(selectedDate, today) {
         when (selectedDate) {
@@ -1391,7 +1392,7 @@ private fun SpendingScreen(
     }
     val breakdown = remember(selectedPurchases) {
         selectedPurchases.groupBy { it.type }.mapValues { (_, rows) ->
-            rows.fold(0L) { total, purchase -> Math.addExact(total, purchase.amountMinor) }
+            rows.fold(0L) { total, purchase -> SafeArithmetic.add(total, purchase.amountMinor) }
         }
     }
     val maxBreakdown = breakdown.values.maxOrNull()?.coerceAtLeast(1L) ?: 1L

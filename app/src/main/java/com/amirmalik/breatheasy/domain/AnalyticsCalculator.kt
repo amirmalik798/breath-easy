@@ -68,7 +68,7 @@ object AnalyticsCalculator {
             val month = selectedMonth.minusMonths(offset.toLong())
             val total = events.asSequence()
                 .filter { YearMonth.from(Instant.ofEpochMilli(it.smokedAtMillis).atZone(zoneId)) == month }
-                .fold(0L) { count, event -> Math.addExact(count, event.quantity.toLong()) }
+                .fold(0L) { count, event -> SafeArithmetic.add(count, event.quantity.toLong()) }
             MonthlyConsumptionPoint(month, total)
         }
     }
@@ -86,7 +86,7 @@ object AnalyticsCalculator {
         return MonthlySpendPoint(
             month = month,
             totalMinor = matchingPurchases.fold(0L) { total, purchase ->
-                Math.addExact(total, purchase.amountMinor)
+                SafeArithmetic.add(total, purchase.amountMinor)
             },
             purchaseCount = matchingPurchases.size,
         )

@@ -1,4 +1,5 @@
 package com.amirmalik.breatheasy.data
+import com.amirmalik.breatheasy.domain.SafeArithmetic
 
 import android.content.ContentValues
 import android.content.Context
@@ -189,7 +190,7 @@ internal class BreatheEasyDatabase(context: Context) :
                             ?: throw IllegalStateException("A purchase contains an unsupported product type.")
                         val cigarettesPerUnit = type.cigarettesPerUnit ?: 0
                         val added = Math.multiplyExact(purchases.getLong(2), cigarettesPerUnit.toLong())
-                        availableStock = Math.addExact(availableStock, added)
+                        availableStock = SafeArithmetic.add(availableStock, added)
                         hasPurchase = purchases.moveToNext()
                     } else {
                         val id = smokeEvents.getString(0)
@@ -199,7 +200,7 @@ internal class BreatheEasyDatabase(context: Context) :
                             "INSERT INTO smoke_stock_backfill(id, stock_quantity) VALUES(?, ?)",
                             arrayOf(id, debited),
                         )
-                        availableStock = Math.subtractExact(availableStock, debited)
+                        availableStock = SafeArithmetic.subtract(availableStock, debited)
                         hasSmokeEvent = smokeEvents.moveToNext()
                     }
                 }
@@ -521,19 +522,19 @@ internal class BreatheEasyDatabase(context: Context) :
                     ?: throw IllegalStateException("A purchase contains an unsupported product type.")
                 val cigarettesPerUnit = type.cigarettesPerUnit ?: continue
                 val count = Math.multiplyExact(cursor.getLong(1), cigarettesPerUnit.toLong())
-                purchasedCigarettes = Math.addExact(purchasedCigarettes, count)
+                purchasedCigarettes = SafeArithmetic.add(purchasedCigarettes, count)
             }
         }
 
         var consumedFromStock = 0L
         db.rawQuery("SELECT stock_quantity FROM smoke_events", null).use { cursor ->
             while (cursor.moveToNext()) {
-                consumedFromStock = Math.addExact(consumedFromStock, cursor.getLong(0))
+                consumedFromStock = SafeArithmetic.add(consumedFromStock, cursor.getLong(0))
             }
         }
 
-        return Math.subtractExact(
-            Math.addExact(startingStock.toLong(), purchasedCigarettes),
+        return SafeArithmetic.subtract(
+            SafeArithmetic.add(startingStock.toLong(), purchasedCigarettes),
             consumedFromStock,
         ).coerceAtLeast(0L)
     }

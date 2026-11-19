@@ -16,15 +16,15 @@ object InventoryCalculator {
     ): Long {
         require(startingStock >= 0) { "Starting stock cannot be negative" }
         val purchased = purchases.fold(0L) { total, purchase ->
-            Math.addExact(total, purchase.totalCigarettes ?: 0L)
+            SafeArithmetic.add(total, purchase.totalCigarettes ?: 0L)
         }
         val consumedFromStock = smokeEvents.fold(0L) { total, event ->
             require(event.stockQuantity in 0..event.quantity) {
                 "Stock consumption must be between zero and the number of cigarettes smoked."
             }
-            Math.addExact(total, event.stockQuantity.toLong())
+            SafeArithmetic.add(total, event.stockQuantity.toLong())
         }
-        return Math.subtractExact(Math.addExact(startingStock.toLong(), purchased), consumedFromStock)
+        return SafeArithmetic.subtract(SafeArithmetic.add(startingStock.toLong(), purchased), consumedFromStock)
             .coerceAtLeast(0L)
     }
 }

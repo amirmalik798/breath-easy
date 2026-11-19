@@ -1,4 +1,5 @@
 package com.amirmalik.breatheasy.data
+import com.amirmalik.breatheasy.domain.SafeArithmetic
 
 import android.content.Context
 import android.icu.util.ULocale
@@ -168,7 +169,7 @@ data class AppSnapshot(
         require(dayEndExclusiveMillis >= dayStartMillis) { "Day range end cannot precede its start." }
         return smokeEvents.asSequence()
             .filter { it.smokedAtMillis >= dayStartMillis && it.smokedAtMillis < dayEndExclusiveMillis }
-            .fold(0L) { total, event -> Math.addExact(total, event.quantity.toLong()) }
+            .fold(0L) { total, event -> SafeArithmetic.add(total, event.quantity.toLong()) }
     }
 
     fun purchasesFor(

@@ -167,7 +167,7 @@ class BreatheEasyViewModel(application: Application) : AndroidViewModel(applicat
         // unwinding on Dispatchers.IO. Close the helper only after that operation
         // releases the same mutex, and never block the main thread during teardown.
         CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
-            operationMutex.withLock { repository.close() }
+            operationMutex.withLock { runCatching { repository.close() } }
         }
         super.onCleared()
     }

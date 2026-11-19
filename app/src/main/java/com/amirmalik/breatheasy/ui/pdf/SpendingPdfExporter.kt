@@ -1,4 +1,5 @@
 package com.amirmalik.breatheasy.ui.pdf
+import com.amirmalik.breatheasy.domain.SafeArithmetic
 
 import android.content.Context
 import android.graphics.Canvas
@@ -563,7 +564,7 @@ object SpendingPdfExporter {
         month.atEndOfMonth().format(DateTimeFormatter.ofPattern("d MMM yyyy", Locale.getDefault()))
 
     private fun sumAmounts(purchases: List<Purchase>): Long =
-        purchases.fold(0L) { total, purchase -> Math.addExact(total, purchase.amountMinor) }
+        purchases.fold(0L) { total, purchase -> SafeArithmetic.add(total, purchase.amountMinor) }
 
     private fun fillPaint(color: Int) = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         this.color = color
