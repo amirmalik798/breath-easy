@@ -17,6 +17,11 @@ class MoneyTest {
     }
 
     @Test
+    fun usesASafeFallbackWhenTheDeviceRegionHasNoIsoCurrency() {
+        assertEquals("USD", CurrencyCode.fromLocale(java.util.Locale("", "AQ")).isoCode)
+    }
+
+    @Test
     fun formatsUsingPlatformCurrencyMetadata() {
         val rwf = CurrencyCode.fromCode("RWF")
         val jpy = CurrencyCode.fromCode("JPY")

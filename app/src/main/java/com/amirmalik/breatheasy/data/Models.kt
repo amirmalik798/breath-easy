@@ -76,9 +76,12 @@ data class CurrencyCode(
             val currency = sequenceOf(locale, likelyLocale)
                 .mapNotNull { candidate -> runCatching { Currency.getInstance(candidate) }.getOrNull() }
                 .firstOrNull { it.defaultFractionDigits >= 0 }
-                ?: throw IllegalStateException("No ISO currency could be resolved for the device region.")
+                // A few valid device regions have no applicable ISO-4217 currency.
+                // Keep first-launch database creation safe in those regions rather
+                // than crashing before the user can reach the app.
+                ?: Currency.getInstance("USD")
             return fromJavaCurrency(currency)
-                ?: throw IllegalStateException("The device region resolved to a currency without a supported minor unit.")
+                ?: throw IllegalStateException("The resolved currency has no supported minor unit.")
         }
 
         private fun fromJavaCurrency(currency: Currency): CurrencyCode? {
