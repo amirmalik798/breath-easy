@@ -280,10 +280,16 @@ fun BreatheEasyApp(viewModel: BreatheEasyViewModel) {
                     }
                 },
                 actions = {
-                    IconButton(onClick = { showSmokingHistory = true }) {
+                    IconButton(
+                        onClick = { showSmokingHistory = true },
+                        enabled = !busy && !snapshot.isLoading,
+                    ) {
                         Icon(Icons.Outlined.History, contentDescription = "Smoking history")
                     }
-                    IconButton(onClick = { selectedTab = MainTab.GOALS }) {
+                    IconButton(
+                        onClick = { selectedTab = MainTab.GOALS },
+                        enabled = !busy && !snapshot.isLoading,
+                    ) {
                         Icon(Icons.Outlined.Settings, contentDescription = "Settings")
                     }
                 },
@@ -354,12 +360,14 @@ fun BreatheEasyApp(viewModel: BreatheEasyViewModel) {
                     )
                     MainTab.SPENDING -> SpendingScreen(
                         snapshot = snapshot,
+                        busy = busy,
                         onRecordPurchase = { if (!busy) showPurchaseScreen = true },
                         onDeletePurchase = { purchaseToDeleteId = it.id },
                     )
                     MainTab.CRAVINGS -> CravingsScreen(
                         snapshot = snapshot,
-                        onRecordCraving = { showCravingDialog = true },
+                        busy = busy,
+                        onRecordCraving = { if (!busy) showCravingDialog = true },
                     )
                     MainTab.GOALS -> GoalsScreen(
                         snapshot = snapshot,
@@ -727,8 +735,12 @@ private fun TodayScreen(
                                 color = MaterialTheme.colorScheme.primary,
                             )
                         }
-                        AssistChip(onClick = onRecordPurchase, label = { Text("Add purchase") },
-                            leadingIcon = { Icon(Icons.Outlined.Add, contentDescription = null) })
+                        AssistChip(
+                            onClick = onRecordPurchase,
+                            enabled = !busy && !snapshot.isLoading,
+                            label = { Text("Add purchase") },
+                            leadingIcon = { Icon(Icons.Outlined.Add, contentDescription = null) },
+                        )
                     }
                     if (spend.purchaseCount == 0) {
                         Text(
@@ -758,17 +770,23 @@ private fun TodayScreen(
                     Column(Modifier.fillMaxWidth().padding(18.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                         Icon(Icons.Outlined.Waves, contentDescription = null)
                         Text("No purchases yet", fontWeight = FontWeight.SemiBold)
-                        TextButton(onClick = onRecordPurchase) { Text("Record a purchase") }
+                        TextButton(onClick = onRecordPurchase, enabled = !busy && !snapshot.isLoading) {
+                            Text("Record a purchase")
+                        }
                     }
                 } else {
                     Column {
                         recentPurchases.forEachIndexed { index, purchase ->
-                            PurchaseRow(purchase, onDelete = { onDeletePurchase(purchase) })
+                            PurchaseRow(purchase, enabled = !busy, onDelete = { onDeletePurchase(purchase) })
                             if (index < recentPurchases.lastIndex) Divider(
                                 Modifier.padding(start = 18.dp), color = MaterialTheme.colorScheme.outlineVariant,
                             )
                         }
-                        TextButton(onClick = onRecordPurchase, modifier = Modifier.align(Alignment.End)) {
+                        TextButton(
+                            onClick = onRecordPurchase,
+                            enabled = !busy && !snapshot.isLoading,
+                            modifier = Modifier.align(Alignment.End),
+                        ) {
                             Text("Record another purchase")
                         }
                     }
@@ -1051,6 +1069,7 @@ private fun SmokingHistoryScreen(
 @Composable
 private fun SpendingScreen(
     snapshot: AppSnapshot,
+    busy: Boolean,
     onRecordPurchase: () -> Unit,
     onDeletePurchase: (Purchase) -> Unit,
 ) {
@@ -1165,7 +1184,7 @@ private fun SpendingScreen(
                             fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
                     }
                 }
-                FilledTonalButton(onClick = onRecordPurchase) {
+                FilledTonalButton(onClick = onRecordPurchase, enabled = !busy && !snapshot.isLoading) {
                     Icon(Icons.Outlined.Add, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(5.dp))
                     Text("Add")
@@ -1199,14 +1218,14 @@ private fun SpendingScreen(
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         OutlinedButton(
                             onClick = { monthOffset = (monthOffset + 1).coerceAtMost(60) },
-                            enabled = monthOffset < 60,
+                            enabled = monthOffset < 60 && !isExportingPdf && !isPickingPdfDestination,
                             modifier = Modifier.weight(1f),
                             contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 8.dp, vertical = 8.dp),
                             colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.onPrimaryContainer),
                         ) { Text("Older") }
                         OutlinedButton(
                             onClick = { monthOffset = (monthOffset - 1).coerceAtLeast(0) },
-                            enabled = monthOffset > 0,
+                            enabled = monthOffset > 0 && !isExportingPdf && !isPickingPdfDestination,
                             modifier = Modifier.weight(1f),
                             contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 8.dp, vertical = 8.dp),
                             colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.onPrimaryContainer),
@@ -1397,7 +1416,9 @@ private fun SpendingScreen(
                     SpendingReportPeriod.entries.chunked(2).forEach { periodRow ->
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             periodRow.forEach { period ->
-                                FilterChip(selected = reportPeriod == period,
+                                FilterChip(
+                                    selected = reportPeriod == period,
+                                    enabled = !busy && !snapshot.isLoading && !isExportingPdf && !isPickingPdfDestination,
                                     onClick = { reportPeriod = period; pdfExportMessage = null },
                                     modifier = Modifier.weight(1f),
                                     label = { Text(when (period) {
@@ -1414,7 +1435,7 @@ private fun SpendingScreen(
                         createPdfLauncher.launch(
                             "Breathe-Easy-Spending-${reportPeriod.fileLabel}-${selectedMonth}.pdf",
                         )
-                    }, enabled = !isExportingPdf && !isPickingPdfDestination,
+                    }, enabled = !busy && !snapshot.isLoading && !isExportingPdf && !isPickingPdfDestination,
                         modifier = Modifier.fillMaxWidth().height(54.dp),
                         shape = RoundedCornerShape(17.dp)) {
                         if (isExportingPdf) CircularProgressIndicator(Modifier.size(18.dp),
@@ -1444,6 +1465,7 @@ private fun SpendingScreen(
 @Composable
 private fun CravingsScreen(
     snapshot: AppSnapshot,
+    busy: Boolean,
     onRecordCraving: () -> Unit,
 ) {
     // Persist elapsed session time, but never restore an actively running timer
@@ -1645,6 +1667,7 @@ private fun CravingsScreen(
             Button(
                 onClick = onRecordCraving,
                 modifier = Modifier.fillMaxWidth().height(54.dp),
+                enabled = !busy && !snapshot.isLoading,
                 shape = RoundedCornerShape(18.dp),
             ) {
                 Icon(Icons.Outlined.Add, contentDescription = null, modifier = Modifier.size(18.dp))
@@ -1785,6 +1808,7 @@ private fun GoalsScreen(
                     OutlinedTextField(
                         value = target,
                         onValueChange = { target = it.asciiDigitsOnly(maxLength = 3) },
+                        enabled = !busy,
                         label = { Text("Daily tracking target (cigarettes)") },
                         isError = target.toIntOrNull() !in 1..200,
                         supportingText = {
@@ -1801,6 +1825,7 @@ private fun GoalsScreen(
                     OutlinedTextField(
                         value = baseline,
                         onValueChange = { baseline = it.asciiDigitsOnly(maxLength = 3) },
+                        enabled = !busy,
                         label = { Text("Previous daily baseline (cigarettes)") },
                         isError = baseline.toIntOrNull() !in 0..200,
                         supportingText = {
@@ -1816,6 +1841,7 @@ private fun GoalsScreen(
                     OutlinedTextField(
                         value = startingStock,
                         onValueChange = { startingStock = it.asciiDigitsOnly(maxLength = 6) },
+                        enabled = !busy,
                         label = { Text("Opening stock (before first purchase)") },
                         isError = startingStock.toIntOrNull() !in 0..100_000,
                         supportingText = {
@@ -2045,7 +2071,12 @@ private fun RecordPurchaseScreen(
                             options.forEach { option ->
                                 val selected = type == option
                                 Surface(modifier = Modifier.weight(1f).heightIn(min = 58.dp).clip(RoundedCornerShape(17.dp))
-                                    .selectable(selected = selected, role = Role.RadioButton, onClick = { type = option })
+                                    .selectable(
+                                        selected = selected,
+                                        enabled = !saving,
+                                        role = Role.RadioButton,
+                                        onClick = { type = option },
+                                    )
                                     .animateContentSize(),
                                     shape = RoundedCornerShape(17.dp),
                                     color = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface,
@@ -2082,7 +2113,9 @@ private fun RecordPurchaseScreen(
                                     color = MaterialTheme.colorScheme.onPrimaryContainer)
                             }
                         }
-                        OutlinedTextField(value = amount,
+                        OutlinedTextField(
+                            value = amount,
+                            enabled = !saving,
                             onValueChange = {
                                 amount = it.asciiMoneyInput(
                                     decimalSeparator = DecimalFormatSymbols.getInstance(Locale.getDefault()).decimalSeparator,
@@ -2145,7 +2178,7 @@ private fun RecordPurchaseScreen(
                                     val current = quantity.toIntOrNull() ?: 1
                                     quantity = (current - 1).coerceAtLeast(1).toString()
                                 },
-                                enabled = (quantity.toIntOrNull() ?: 1) > 1,
+                                enabled = !saving && (quantity.toIntOrNull() ?: 1) > 1,
                             ) {
                                 Icon(Icons.Outlined.Remove, contentDescription = "Decrease quantity")
                             }
@@ -2161,7 +2194,7 @@ private fun RecordPurchaseScreen(
                                     val current = quantity.toIntOrNull() ?: 1
                                     quantity = (current + 1).coerceAtMost(10_000).toString()
                                 },
-                                enabled = (quantity.toIntOrNull() ?: 1) < 10_000,
+                                enabled = !saving && (quantity.toIntOrNull() ?: 1) < 10_000,
                             ) {
                                 Icon(Icons.Outlined.Add, contentDescription = "Increase quantity")
                             }
@@ -2171,6 +2204,7 @@ private fun RecordPurchaseScreen(
 
                 OutlinedButton(
                     onClick = { showDatePicker = true },
+                    enabled = !saving,
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(16.dp),
                 ) {
@@ -2182,6 +2216,7 @@ private fun RecordPurchaseScreen(
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedButton(
                         onClick = { showDetails = !showDetails },
+                        enabled = !saving,
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(16.dp),
                         contentPadding = androidx.compose.foundation.layout.PaddingValues(
@@ -2222,6 +2257,7 @@ private fun RecordPurchaseScreen(
                             value = brand,
                             onValueChange = { brand = it.take(60) },
                             label = { Text("Brand or product") },
+                            enabled = !saving,
                             singleLine = true,
                             modifier = Modifier.fillMaxWidth(),
                         )
@@ -2230,6 +2266,7 @@ private fun RecordPurchaseScreen(
                             onValueChange = { location = it.take(80) },
                             label = { Text("Shop or location") },
                             placeholder = { Text("Optional") },
+                            enabled = !saving,
                             singleLine = true,
                             modifier = Modifier.fillMaxWidth(),
                         )
@@ -2241,11 +2278,13 @@ private fun RecordPurchaseScreen(
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             FilterChip(
                                 selected = planned,
+                                enabled = !saving,
                                 onClick = { planned = true },
                                 label = { Text("Planned") },
                             )
                             FilterChip(
                                 selected = !planned,
+                                enabled = !saving,
                                 onClick = { planned = false },
                                 label = { Text("Impulse") },
                             )
@@ -2254,6 +2293,7 @@ private fun RecordPurchaseScreen(
                             value = note,
                             onValueChange = { note = it.take(500) },
                             label = { Text("Note (optional)") },
+                            enabled = !saving,
                             modifier = Modifier.fillMaxWidth(),
                             minLines = 2,
                         )
@@ -2361,9 +2401,13 @@ private fun RecordCravingDialog(
                 verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text("What happened?", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    FilterChip(selected = outcome == CravingOutcome.RESISTED,
+                    FilterChip(
+                        selected = outcome == CravingOutcome.RESISTED,
+                        enabled = !saving,
                         onClick = { outcome = CravingOutcome.RESISTED }, label = { Text("I resisted") })
-                    FilterChip(selected = outcome == CravingOutcome.SMOKED,
+                    FilterChip(
+                        selected = outcome == CravingOutcome.SMOKED,
+                        enabled = !saving,
                         onClick = { outcome = CravingOutcome.SMOKED }, label = { Text("I smoked") })
                 }
                 Text("What triggered it?", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
@@ -2375,6 +2419,7 @@ private fun RecordCravingDialog(
                     CravingTrigger.entries.forEach { item ->
                         FilterChip(
                             selected = trigger == item,
+                            enabled = !saving,
                             onClick = { trigger = item },
                             label = { Text(item.label, maxLines = 1, overflow = TextOverflow.Ellipsis) },
                         )
@@ -2386,14 +2431,21 @@ private fun RecordCravingDialog(
                     (1..5).forEach { value ->
                         FilterChip(
                             selected = intensity == value,
+                            enabled = !saving,
                             onClick = { intensity = value },
                             modifier = Modifier.weight(1f),
                             label = { Text(value.toString()) },
                         )
                     }
                 }
-                OutlinedTextField(value = note, onValueChange = { note = it.take(500) },
-                    label = { Text("What was happening? (optional)") }, modifier = Modifier.fillMaxWidth(), minLines = 2)
+                OutlinedTextField(
+                    value = note,
+                    onValueChange = { note = it.take(500) },
+                    enabled = !saving,
+                    label = { Text("What was happening? (optional)") },
+                    modifier = Modifier.fillMaxWidth(),
+                    minLines = 2,
+                )
                 if (outcome == CravingOutcome.SMOKED) {
                     Text("This will also add one cigarette to today's smoking log.",
                         style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.tertiary)
@@ -2483,7 +2535,7 @@ private fun MetricCard(
 }
 
 @Composable
-fun PurchaseRow(purchase: Purchase, onDelete: () -> Unit) {
+fun PurchaseRow(purchase: Purchase, enabled: Boolean = true, onDelete: () -> Unit) {
     Row(
         Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 13.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -2518,7 +2570,7 @@ fun PurchaseRow(purchase: Purchase, onDelete: () -> Unit) {
             Text(if (purchase.planned) "Planned" else "Impulse", style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
-        IconButton(onClick = onDelete) {
+        IconButton(onClick = onDelete, enabled = enabled) {
             Icon(Icons.Outlined.Delete, contentDescription = "Delete purchase",
                 tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(18.dp))
         }
