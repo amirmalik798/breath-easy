@@ -2032,6 +2032,13 @@ private fun RecordPurchaseScreen(
                 .atZone(localDay.zone).toInstant().toEpochMilli(),
         )
     }
+    var hasCustomPurchaseDate by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(localDay.date, localDay.zone) {
+        if (!hasCustomPurchaseDate) {
+            purchasedAtMillis = localDay.date.atTime(12, 0)
+                .atZone(localDay.zone).toInstant().toEpochMilli()
+        }
+    }
     var showDatePicker by rememberSaveable { mutableStateOf(false) }
     var showDetails by rememberSaveable { mutableStateOf(false) }
     var submitPending by rememberSaveable { mutableStateOf(false) }
@@ -2465,6 +2472,7 @@ private fun RecordPurchaseScreen(
                             .atZone(localDay.zone)
                             .toInstant()
                             .toEpochMilli()
+                        hasCustomPurchaseDate = true
                     }
                     showDatePicker = false
                 }) { Text("Apply date") }
