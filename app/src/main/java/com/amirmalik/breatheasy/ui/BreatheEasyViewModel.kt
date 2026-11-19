@@ -36,6 +36,11 @@ class BreatheEasyViewModel(application: Application) : AndroidViewModel(applicat
     private val _loadError = MutableStateFlow(false)
     val loadError: StateFlow<Boolean> = _loadError.asStateFlow()
 
+    // Monotonic completion signal lets forms clear pending state even when a
+    // fast operation's busy=true/busy=false updates are coalesced by the UI.
+    private val _operationRevision = MutableStateFlow(0L)
+    val operationRevision: StateFlow<Long> = _operationRevision.asStateFlow()
+
     init { refresh() }
 
     fun refresh() {
@@ -113,6 +118,7 @@ class BreatheEasyViewModel(application: Application) : AndroidViewModel(applicat
                     }
                 } finally {
                     _busy.value = false
+                    _operationRevision.value += 1L
                 }
             }
         }
