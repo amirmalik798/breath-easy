@@ -36,6 +36,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.semantics.contentDescription
@@ -58,10 +59,11 @@ fun MonthlySpendingChart(
     val latestBar = MaterialTheme.colorScheme.secondary
     val grid = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.15f)
     val muted = MaterialTheme.colorScheme.onSurfaceVariant
+    val locale = LocalConfiguration.current.locales[0]
     val values = points.map { it.totalMinor.coerceAtLeast(0L) }
-    val spendingChartDescription = remember(points, currency) {
+    val spendingChartDescription = remember(points, currency, locale) {
         "Monthly spending by month. " + points.joinToString("; ") { point ->
-            "${point.month.month.getDisplayName(TextStyle.FULL, Locale.getDefault())} ${point.month.year}: ${Money.format(point.totalMinor, currency)}"
+            "${point.month.month.getDisplayName(TextStyle.FULL, locale)} ${point.month.year}: ${Money.format(point.totalMinor, currency)}"
         }
     }
     val maxValue = values.maxOrNull() ?: 0L
@@ -169,7 +171,7 @@ fun MonthlySpendingChart(
                     ) {
                         axisLabels.forEach { amount ->
                             Text(
-                                text = compactAxisAmount(amount, currency),
+                                text = compactAxisAmount(amount, currency, locale),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = muted,
                                 maxLines = 1,
@@ -236,7 +238,7 @@ fun MonthlySpendingChart(
                     Spacer(Modifier.width(54.dp))
                     points.forEachIndexed { index, point ->
                         Text(
-                            text = point.month.month.getDisplayName(TextStyle.SHORT, Locale.getDefault())
+                            text = point.month.month.getDisplayName(TextStyle.SHORT, locale)
                                 .take(3),
                             color = if (index == points.lastIndex) primary else muted,
                             style = MaterialTheme.typography.labelSmall.copy(
@@ -280,7 +282,7 @@ fun MonthlySpendingChart(
     }
 }
 
-private fun compactAxisAmount(minorAmount: Long, currency: CurrencyCode): String {
+private fun compactAxisAmount(minorAmount: Long, currency: CurrencyCode, locale: Locale): String {
     val majorAmount = java.math.BigDecimal.valueOf(minorAmount, currency.fractionDigits)
     val absoluteAmount = majorAmount.abs()
     val divisor: Long
@@ -306,7 +308,7 @@ private fun compactAxisAmount(minorAmount: Long, currency: CurrencyCode): String
         1,
         java.math.RoundingMode.HALF_UP,
     )
-    val formatter = java.text.NumberFormat.getNumberInstance(Locale.getDefault()).apply {
+    val formatter = java.text.NumberFormat.getNumberInstance(locale).apply {
         minimumFractionDigits = 0
         maximumFractionDigits = 1
     }
@@ -322,10 +324,11 @@ fun MonthlyConsumptionChart(
     val grid = MaterialTheme.colorScheme.outlineVariant
     val muted = MaterialTheme.colorScheme.onSurfaceVariant
     val surface = MaterialTheme.colorScheme.surface
+    val locale = LocalConfiguration.current.locales[0]
     val values = points.map { it.cigaretteCount.toFloat() }
-    val consumptionChartDescription = remember(points) {
+    val consumptionChartDescription = remember(points, locale) {
         "Cigarettes smoked by month. " + points.joinToString("; ") { point ->
-            "${point.month.month.getDisplayName(TextStyle.FULL, Locale.getDefault())} ${point.month.year}: ${point.cigaretteCount} cigarettes"
+            "${point.month.month.getDisplayName(TextStyle.FULL, locale)} ${point.month.year}: ${point.cigaretteCount} cigarettes"
         }
     }
     val maxValue = max(values.maxOrNull() ?: 0f, 1f)
@@ -383,7 +386,7 @@ fun MonthlyConsumptionChart(
         ) {
             points.forEach { point ->
                 Text(
-                    text = point.month.month.getDisplayName(TextStyle.SHORT, Locale.getDefault()).take(3),
+                    text = point.month.month.getDisplayName(TextStyle.SHORT, locale).take(3),
                     color = muted,
                     style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
                     textAlign = TextAlign.Center,
