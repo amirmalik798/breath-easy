@@ -258,10 +258,7 @@ fun BreatheEasyApp(viewModel: BreatheEasyViewModel) {
     val savedPurchaseIds = remember(snapshot.purchases) { snapshot.purchases.mapTo(mutableSetOf()) { it.id } }
     val savedCravingIds = remember(snapshot.cravingEvents) { snapshot.cravingEvents.mapTo(mutableSetOf()) { it.id } }
     var pendingDeleteId by remember { mutableStateOf<String?>(null) }
-    // Long-lived message collection must read the latest Compose values, not the
-    // snapshot captured when this effect first started.
-    val latestSnapshot = rememberUpdatedState(snapshot)
-    val latestPendingDeleteId = rememberUpdatedState(pendingDeleteId)
+    var pendingDeleteRevision by remember { mutableLongStateOf(-1L) }
     var pdfWorkflowBusy by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
     val saveableStateHolder = rememberSaveableStateHolder()
@@ -277,35 +274,28 @@ fun BreatheEasyApp(viewModel: BreatheEasyViewModel) {
         )
     }
 
+    // Messages are presentation-only. Form dismissal is driven by the saved
+    // record appearing in the latest snapshot, and deletion completion is tracked
+    // independently below so an old snackbar can never affect a newer operation.
     LaunchedEffect(viewModel) {
         viewModel.messages.collect { resultMessage ->
-            when {
-                resultMessage.startsWith("Purchase added to your ledger") -> showPurchaseScreen = false
-                resultMessage.startsWith("Craving recorded as resisted") ||
-                    resultMessage.startsWith("Craving entry saved") -> {
-                    showCravingDialog = false
-                    cravingBreathingSeconds = 0
-                }
-            }
-            val deletingId = latestPendingDeleteId.value
-            if (deletingId != null) {
-                val currentPurchaseIds = latestSnapshot.value.purchases.mapTo(mutableSetOf()) { it.id }
-                // A failed delete leaves the confirmation open but re-enables Retry.
-                // If the write committed but reloading failed, the success result still
-                // closes the modal while the app-level reload prompt handles stale data.
-                pendingDeleteId = null
-                if (shouldClosePurchaseDeleteConfirmation(
-                        pendingPurchaseId = deletingId,
-                        currentPurchaseIds = currentPurchaseIds,
-                        resultMessage = resultMessage,
-                    )
-                ) {
-                    purchaseToDeleteId = null
-                }
-            }
-            // The channel delivers each result, including identical messages emitted
-            // before a Compose frame is rendered.
             snackbarHostState.showSnackbar(resultMessage)
+        }
+    }
+
+    LaunchedEffect(pendingDeleteId, pendingDeleteRevision, busy, operationRevision, snapshot.purchases) {
+        val deletingId = pendingDeleteId
+        val resolution = resolvePurchaseDeleteCompletion(
+            pendingPurchaseId = deletingId,
+            submittedRevision = pendingDeleteRevision,
+            currentRevision = operationRevision,
+            isBusy = busy,
+            purchaseStillExists = deletingId != null && snapshot.purchases.any { it.id == deletingId },
+        )
+        if (resolution.operationFinished) {
+            pendingDeleteId = null
+            pendingDeleteRevision = -1L
+            if (resolution.closeConfirmation) purchaseToDeleteId = null
         }
     }
 
@@ -527,6 +517,7 @@ fun BreatheEasyApp(viewModel: BreatheEasyViewModel) {
                 Button(
                     onClick = {
                         pendingDeleteId = purchase.id
+                        pendingDeleteRevision = operationRevision
                         viewModel.deletePurchase(purchase.id)
                     },
                     enabled = pendingDeleteId == null && !busy,
