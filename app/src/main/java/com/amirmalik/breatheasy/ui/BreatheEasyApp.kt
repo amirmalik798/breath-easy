@@ -200,8 +200,8 @@ private fun rememberLocalDayContext(): LocalDayContext {
 
     DisposableEffect(appContext) {
         val receiver = object : BroadcastReceiver() {
-            override fun onReceive(context: android.content.Context?, intent: Intent?) {
-                context.value = currentLocalDayContext()
+            override fun onReceive(receiverContext: android.content.Context?, intent: Intent?) {
+                context = currentLocalDayContext()
             }
         }
         val filter = IntentFilter().apply {
