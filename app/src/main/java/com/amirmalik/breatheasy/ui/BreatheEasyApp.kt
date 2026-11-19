@@ -228,6 +228,8 @@ fun BreatheEasyApp(viewModel: BreatheEasyViewModel) {
     var showCravingDialog by rememberSaveable { mutableStateOf(false) }
     var purchaseToDeleteId by rememberSaveable { mutableStateOf<String?>(null) }
     val purchaseToDelete = snapshot.purchases.firstOrNull { it.id == purchaseToDeleteId }
+    val savedPurchaseIds = remember(snapshot.purchases) { snapshot.purchases.mapTo(mutableSetOf()) { it.id } }
+    val savedCravingIds = remember(snapshot.cravingEvents) { snapshot.cravingEvents.mapTo(mutableSetOf()) { it.id } }
     var pendingDeleteId by remember { mutableStateOf<String?>(null) }
     var pdfWorkflowBusy by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
@@ -281,7 +283,7 @@ fun BreatheEasyApp(viewModel: BreatheEasyViewModel) {
         RecordPurchaseScreen(
             preferences = snapshot.preferences,
             busy = operationsBlocked,
-            savedPurchaseIds = snapshot.purchases.mapTo(mutableSetOf()) { it.id },
+            savedPurchaseIds = savedPurchaseIds,
             snackbarHostState = snackbarHostState,
             onDismiss = { showPurchaseScreen = false },
             onSave = viewModel::recordPurchase,
@@ -467,7 +469,7 @@ fun BreatheEasyApp(viewModel: BreatheEasyViewModel) {
         RecordCravingDialog(
             busy = operationsBlocked,
             trackedStock = trackedStock,
-            savedCravingIds = snapshot.cravingEvents.mapTo(mutableSetOf()) { it.id },
+            savedCravingIds = savedCravingIds,
             onDismiss = { showCravingDialog = false },
             onSave = viewModel::logCraving,
         )
@@ -900,7 +902,14 @@ private fun SmokingHistoryScreen(
     var selectedDateText by rememberSaveable { mutableStateOf(today.toString()) }
     var showDatePicker by rememberSaveable { mutableStateOf(false) }
     val selectedDate = remember(selectedDateText, today) {
-        runCatching { LocalDate.parse(selectedDateText) }.getOrDefault(today)
+        runCatching { LocalDate.parse(selectedDateText) }
+            .getOrDefault(today)
+            .coerceAtMost(today)
+    }
+    LaunchedEffect(selectedDateText, selectedDate) {
+        if (selectedDateText != selectedDate.toString()) {
+            selectedDateText = selectedDate.toString()
+        }
     }
     val dayRange = remember(selectedDate, zone) { DateTimeRanges.dayRangeMillis(selectedDate, zone) }
     val dayEvents = remember(events, dayRange) {
@@ -1183,6 +1192,9 @@ private fun SpendingScreen(
         isPickingPdfDestination = false
         if (destination != null) {
             isExportingPdf = true
+            // Reassert the cross-tab guard if Android restored a pending
+            // document-picker result after process recreation.
+            onPdfWorkflowBusyChanged(true)
             pdfExportMessage = null
             // The SAF result may arrive after the screen has recomposed or the
             // selected reporting period has changed. Snapshot all inputs at the
