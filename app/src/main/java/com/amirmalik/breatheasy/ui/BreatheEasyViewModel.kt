@@ -11,6 +11,9 @@ import com.amirmalik.breatheasy.data.CravingOutcome
 import com.amirmalik.breatheasy.data.Purchase
 import com.amirmalik.breatheasy.data.SmokeEvent
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -154,8 +157,13 @@ class BreatheEasyViewModel(application: Application) : AndroidViewModel(applicat
     }
 
     override fun onCleared() {
-        repository.close()
         operationMessages.close()
+        // ViewModel cancellation can arrive while a blocking SQLite call is still
+        // unwinding on Dispatchers.IO. Close the helper only after that operation
+        // releases the same mutex, and never block the main thread during teardown.
+        CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
+            operationMutex.withLock { repository.close() }
+        }
         super.onCleared()
     }
 }
