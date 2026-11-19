@@ -68,7 +68,6 @@ import androidx.compose.material.icons.outlined.Flag
 import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Info
-import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Spa
 import androidx.compose.material.icons.outlined.Waves
 import androidx.compose.material3.AlertDialog
@@ -370,12 +369,6 @@ fun BreatheEasyApp(viewModel: BreatheEasyViewModel) {
                         enabled = !operationsBlocked && !pdfWorkflowBusy,
                     ) {
                         Icon(Icons.Outlined.History, contentDescription = "Smoking history")
-                    }
-                    IconButton(
-                        onClick = { selectedTab = MainTab.GOALS },
-                        enabled = !operationsBlocked && !pdfWorkflowBusy,
-                    ) {
-                        Icon(Icons.Outlined.Settings, contentDescription = "Settings")
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
