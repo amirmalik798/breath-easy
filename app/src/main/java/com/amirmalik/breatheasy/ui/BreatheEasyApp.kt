@@ -231,6 +231,7 @@ fun BreatheEasyApp(viewModel: BreatheEasyViewModel) {
     var pendingDeleteId by remember { mutableStateOf<String?>(null) }
     var pdfWorkflowBusy by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
+    val snackbarScope = rememberCoroutineScope()
     val saveableStateHolder = rememberSaveableStateHolder()
     val trackedStock = remember(
         snapshot.preferences.startingStockCigarettes,
@@ -263,7 +264,10 @@ fun BreatheEasyApp(viewModel: BreatheEasyViewModel) {
                     purchaseToDeleteId = null
                 }
             }
-            snackbarHostState.showSnackbar(resultMessage)
+            // Consume the result immediately so identical consecutive messages
+            // cannot collapse into one StateFlow value while a snackbar is visible.
+            // Snackbar display runs independently and is queued by SnackbarHostState.
+            snackbarScope.launch { snackbarHostState.showSnackbar(resultMessage) }
             viewModel.clearMessage()
         }
     }
