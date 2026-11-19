@@ -23,6 +23,9 @@ internal class BreatheEasyDatabase(context: Context) :
     override fun onConfigure(db: SQLiteDatabase) {
         super.onConfigure(db)
         db.setForeignKeyConstraintsEnabled(true)
+        // Keep committed user records durable across abrupt power loss as well as
+        // process crashes. This app's write volume is small, so FULL sync is viable.
+        db.execSQL("PRAGMA synchronous = FULL")
     }
 
     override fun onCreate(db: SQLiteDatabase) {
