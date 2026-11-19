@@ -219,6 +219,7 @@ private fun rememberLocalDayContext(): LocalDayContext {
 fun BreatheEasyApp(viewModel: BreatheEasyViewModel) {
     val snapshot by viewModel.snapshot.collectAsState()
     val busy by viewModel.busy.collectAsState()
+    val operationsBlocked = busy || snapshot.isLoading
     val message by viewModel.message.collectAsState()
     val loadError by viewModel.loadError.collectAsState()
     var selectedTab by rememberSaveable { mutableStateOf(MainTab.TODAY) }
@@ -274,7 +275,7 @@ fun BreatheEasyApp(viewModel: BreatheEasyViewModel) {
     } else if (showPurchaseScreen) {
         RecordPurchaseScreen(
             preferences = snapshot.preferences,
-            busy = busy,
+            busy = operationsBlocked,
             snackbarHostState = snackbarHostState,
             onDismiss = { showPurchaseScreen = false },
             onSave = viewModel::recordPurchase,
@@ -397,28 +398,28 @@ fun BreatheEasyApp(viewModel: BreatheEasyViewModel) {
                     when (tab) {
                     MainTab.TODAY -> TodayScreen(
                         snapshot = snapshot,
-                        busy = busy,
+                        busy = operationsBlocked,
                         trackedStock = trackedStock,
                         onLogSmoke = viewModel::logSmoke,
                         onOpenCravings = { selectedTab = MainTab.CRAVINGS },
-                        onRecordPurchase = { if (!busy) showPurchaseScreen = true },
+                        onRecordPurchase = { if (!operationsBlocked) showPurchaseScreen = true },
                         onDeletePurchase = { purchaseToDeleteId = it.id },
                     )
                     MainTab.SPENDING -> SpendingScreen(
                         snapshot = snapshot,
-                        busy = busy,
+                        busy = operationsBlocked,
                         onRecordPurchase = { if (!busy) showPurchaseScreen = true },
                         onDeletePurchase = { purchaseToDeleteId = it.id },
                     )
                     MainTab.CRAVINGS -> CravingsScreen(
                         snapshot = snapshot,
-                        busy = busy,
-                        onRecordCraving = { if (!busy) showCravingDialog = true },
+                        busy = operationsBlocked,
+                        onRecordCraving = { if (!operationsBlocked) showCravingDialog = true },
                     )
                     MainTab.GOALS -> GoalsScreen(
                         snapshot = snapshot,
                         onSave = viewModel::savePreferences,
-                        busy = busy,
+                        busy = operationsBlocked,
                     )
                     }
                 }
@@ -456,7 +457,7 @@ fun BreatheEasyApp(viewModel: BreatheEasyViewModel) {
 
     if (showCravingDialog) {
         RecordCravingDialog(
-            busy = busy,
+            busy = operationsBlocked,
             trackedStock = trackedStock,
             onDismiss = { showCravingDialog = false },
             onSave = viewModel::logCraving,
