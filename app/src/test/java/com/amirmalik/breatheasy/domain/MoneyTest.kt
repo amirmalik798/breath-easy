@@ -80,6 +80,26 @@ class MoneyTest {
     }
 
     @Test
+    fun parsesUsingTheComposeLocaleWhenItDiffersFromTheProcessDefault() {
+        val originalLocale = java.util.Locale.getDefault()
+        try {
+            java.util.Locale.setDefault(java.util.Locale.US)
+            val usd = CurrencyCode.fromCode("USD")
+
+            // The purchase field uses the locale from Compose's Configuration.
+            // That locale may differ from the process default (for example, with
+            // app-specific language settings), so parsing must use the same locale
+            // that supplied the visible decimal separator.
+            assertNull(Money.parseToMinor("12,50", usd))
+            assertEquals(1_250L, Money.parseToMinor("12,50", usd, java.util.Locale.GERMANY))
+            assertNull(Money.parseToMinor("12.50", usd, java.util.Locale.GERMANY))
+            assertEquals(1_250L, Money.parseToMinor("12.50", usd, java.util.Locale.US))
+        } finally {
+            java.util.Locale.setDefault(originalLocale)
+        }
+    }
+
+    @Test
     fun rejectsZeroNegativeAndMalformedAmounts() {
         val usd = CurrencyCode.fromCode("USD")
         assertNull(Money.parseToMinor("0", usd))

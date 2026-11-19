@@ -9,10 +9,14 @@ import java.util.Locale
 
 object Money {
     /** Parse a user-entered major-unit amount into exact minor units. */
-    fun parseToMinor(input: String, currency: CurrencyCode): Long? {
+    fun parseToMinor(
+        input: String,
+        currency: CurrencyCode,
+        locale: Locale = Locale.getDefault(),
+    ): Long? {
         return try {
             val raw = input.trim()
-            val symbols = DecimalFormatSymbols.getInstance(Locale.getDefault())
+            val symbols = DecimalFormatSymbols.getInstance(locale)
             val decimalSeparator = symbols.decimalSeparator
             val groupingSeparator = symbols.groupingSeparator
             // A locale's grouping character must never be reinterpreted as a decimal

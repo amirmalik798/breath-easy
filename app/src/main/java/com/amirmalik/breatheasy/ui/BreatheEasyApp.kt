@@ -2284,7 +2284,7 @@ private fun RecordPurchaseScreen(
         }
     }
 
-    val amountMinor = Money.parseToMinor(amount, currency)
+    val amountMinor = Money.parseToMinor(amount, currency, locale)
     val quantityValue = quantity.toIntOrNull()
     val canSave = amountMinor != null && quantityValue in 1..10_000
     val quantityLabel = when (type) {
