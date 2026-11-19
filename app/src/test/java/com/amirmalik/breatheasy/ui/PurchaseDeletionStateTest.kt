@@ -14,6 +14,7 @@ class PurchaseDeletionStateTest {
                 currentRevision = 5L,
                 isBusy = false,
                 purchaseStillExists = false,
+                snapshotLoadFailed = false,
             ),
         )
     }
@@ -28,6 +29,7 @@ class PurchaseDeletionStateTest {
                 currentRevision = 5L,
                 isBusy = true,
                 purchaseStillExists = false,
+                snapshotLoadFailed = false,
             ),
         )
     }
@@ -42,6 +44,7 @@ class PurchaseDeletionStateTest {
                 currentRevision = 5L,
                 isBusy = false,
                 purchaseStillExists = false,
+                snapshotLoadFailed = false,
             ),
         )
     }
@@ -56,6 +59,7 @@ class PurchaseDeletionStateTest {
                 currentRevision = 5L,
                 isBusy = false,
                 purchaseStillExists = true,
+                snapshotLoadFailed = false,
             ),
         )
     }
@@ -70,6 +74,22 @@ class PurchaseDeletionStateTest {
                 currentRevision = 5L,
                 isBusy = false,
                 purchaseStillExists = false,
+                snapshotLoadFailed = false,
+            ),
+        )
+    }
+
+    @Test
+    fun snapshotLoadFailureDoesNotLeaveDeleteDialogOverTheReloadError() {
+        assertEquals(
+            PurchaseDeleteResolution(operationFinished = true, closeConfirmation = true),
+            resolvePurchaseDeleteCompletion(
+                pendingPurchaseId = "purchase-1",
+                submittedRevision = 4L,
+                currentRevision = 5L,
+                isBusy = false,
+                purchaseStillExists = true,
+                snapshotLoadFailed = true,
             ),
         )
     }
