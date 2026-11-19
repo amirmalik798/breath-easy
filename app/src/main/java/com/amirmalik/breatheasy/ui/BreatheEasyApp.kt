@@ -1685,7 +1685,11 @@ private fun CravingsScreen(
                                     else MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.08f),
                             ) {
                                 Text(
-                                    phaseName,
+                                    when (phaseName) {
+                                        "Breathe in" -> "In"
+                                        "Breathe out" -> "Out"
+                                        else -> phaseName
+                                    },
                                     modifier = Modifier.padding(horizontal = 3.dp, vertical = 7.dp),
                                     style = MaterialTheme.typography.labelSmall,
                                     textAlign = TextAlign.Center,
@@ -2146,7 +2150,7 @@ private fun RecordPurchaseScreen(
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(9.dp)) {
                             options.forEach { option ->
                                 val selected = type == option
-                                Surface(modifier = Modifier.weight(1f).heightIn(min = 58.dp).clip(RoundedCornerShape(17.dp))
+                                Surface(modifier = Modifier.weight(1f).heightIn(min = 64.dp).clip(RoundedCornerShape(17.dp))
                                     .selectable(
                                         selected = selected,
                                         enabled = !saving,
@@ -2163,7 +2167,7 @@ private fun RecordPurchaseScreen(
                                         Text(option.label, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium,
                                             fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
                                             color = if (selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface,
-                                            maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                            maxLines = 2, overflow = TextOverflow.Ellipsis)
                                         if (selected) Icon(Icons.Outlined.CheckCircle, contentDescription = "Selected",
                                             tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
                                     }
