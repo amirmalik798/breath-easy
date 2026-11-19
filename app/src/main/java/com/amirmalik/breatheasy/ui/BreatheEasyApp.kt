@@ -519,7 +519,6 @@ fun BreatheEasyApp(viewModel: BreatheEasyViewModel) {
             },
         )
     }
-}
 
     // Keep the blocking recovery prompt above any transient form or confirmation
     // dialog, including a craving form whose write succeeded before reload failed.
@@ -544,6 +543,7 @@ fun BreatheEasyApp(viewModel: BreatheEasyViewModel) {
             },
         )
     }
+}
 
 @Composable
 private fun TodayScreen(
