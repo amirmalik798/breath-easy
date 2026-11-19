@@ -2609,7 +2609,7 @@ private fun RecordCravingDialog(
     var cravingDraftPrepared by rememberSaveable { mutableStateOf(false) }
     var submitPending by rememberSaveable { mutableStateOf(false) }
     var showStockConfirmation by rememberSaveable { mutableStateOf(false) }
-    LaunchedEffect(busy) {
+    LaunchedEffect(busy, operationRevision) {
         if (!busy) submitPending = false
     }
     val saving = busy || submitPending
