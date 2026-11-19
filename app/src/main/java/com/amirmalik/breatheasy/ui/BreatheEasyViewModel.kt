@@ -45,21 +45,23 @@ class BreatheEasyViewModel(application: Application) : AndroidViewModel(applicat
 
     fun refresh() {
         viewModelScope.launch {
-            operationMutex.withLock {
-                _busy.value = true
-                try {
-                    _snapshot.value = repository.loadSnapshot()
-                    _loadError.value = false
-                } catch (error: Exception) {
-                    if (error is CancellationException) throw error
-                    // Do not leave the app in its initial loading state forever. Keep
-                    // the last good snapshot (if any) and expose an explicit retry path.
-                    _snapshot.value = _snapshot.value.copy(isLoading = false)
-                    _loadError.value = true
-                    _message.value = "Your local records could not be loaded."
-                } finally {
-                    _busy.value = false
+            beginOperation()
+            try {
+                operationMutex.withLock {
+                    try {
+                        _snapshot.value = repository.loadSnapshot()
+                        _loadError.value = false
+                    } catch (error: Exception) {
+                        if (error is CancellationException) throw error
+                        // Do not leave the app in its initial loading state forever. Keep
+                        // the last good snapshot (if any) and expose an explicit retry path.
+                        _snapshot.value = _snapshot.value.copy(isLoading = false)
+                        _loadError.value = true
+                        _message.value = "Your local records could not be loaded."
+                    }
                 }
+            } finally {
+                endOperation()
             }
         }
     }
@@ -89,9 +91,9 @@ class BreatheEasyViewModel(application: Application) : AndroidViewModel(applicat
 
     private fun perform(successMessage: String?, operation: suspend () -> Unit) {
         viewModelScope.launch {
-            operationMutex.withLock {
-                _busy.value = true
-                try {
+            beginOperation()
+            try {
+                operationMutex.withLock {
                     try {
                         operation()
                     } catch (error: Exception) {
@@ -116,12 +118,27 @@ class BreatheEasyViewModel(application: Application) : AndroidViewModel(applicat
                             "$it. Saved, but the latest data could not be reloaded."
                         } ?: "Saved, but the latest data could not be reloaded."
                     }
-                } finally {
-                    _busy.value = false
-                    _operationRevision.value += 1L
                 }
+            } finally {
+                endOperation()
             }
         }
+    }
+
+    // viewModelScope launches on Main, so this count represents both the current
+    // database operation and queued operations waiting for the serialization mutex.
+    // Keeping busy true until the queue drains prevents brief false-ready windows.
+    private var activeOperationCount = 0
+
+    private fun beginOperation() {
+        activeOperationCount += 1
+        _busy.value = true
+    }
+
+    private fun endOperation() {
+        activeOperationCount = (activeOperationCount - 1).coerceAtLeast(0)
+        _busy.value = activeOperationCount > 0
+        _operationRevision.value += 1L
     }
 
     override fun onCleared() {
