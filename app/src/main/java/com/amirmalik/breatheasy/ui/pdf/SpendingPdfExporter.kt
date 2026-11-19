@@ -91,10 +91,6 @@ object SpendingPdfExporter {
         val document = PdfDocument()
 
         try {
-            val output = context.contentResolver.openOutputStream(destination, "w")
-                ?: throw IOException("The selected location could not be opened for writing.")
-
-            output.use { stream ->
                 val generatedAtMillis = System.currentTimeMillis()
                 val overviewPage = document.startPage(
                     PdfDocument.PageInfo.Builder(PAGE_WIDTH, PAGE_HEIGHT, 1).create(),
@@ -133,6 +129,12 @@ object SpendingPdfExporter {
                     }
                 }
 
+            // Render the complete PDF before opening the destination. If page
+            // generation fails, an existing document at the chosen location is not
+            // truncated to an empty file.
+            val output = context.contentResolver.openOutputStream(destination, "w")
+                ?: throw IOException("The selected location could not be opened for writing.")
+            output.use { stream ->
                 document.writeTo(stream)
                 stream.flush()
             }
