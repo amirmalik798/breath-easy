@@ -393,7 +393,8 @@ fun BreatheEasyApp(viewModel: BreatheEasyViewModel) {
                 transitionSpec = { fadeIn() togetherWith fadeOut() },
                 label = "main-tab-content",
             ) { tab ->
-                when (tab) {
+                saveableStateHolder.SaveableStateProvider("tab-${tab.name}") {
+                    when (tab) {
                     MainTab.TODAY -> TodayScreen(
                         snapshot = snapshot,
                         busy = busy,
@@ -419,6 +420,7 @@ fun BreatheEasyApp(viewModel: BreatheEasyViewModel) {
                         onSave = viewModel::savePreferences,
                         busy = busy,
                     )
+                    }
                 }
             }
             if (busy && snapshot.isLoading) {
