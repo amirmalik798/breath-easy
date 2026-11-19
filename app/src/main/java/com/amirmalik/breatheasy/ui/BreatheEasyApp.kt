@@ -1393,7 +1393,7 @@ private fun SpendingScreen(
                 } else {
                     Column {
                         ledgerPurchases.forEachIndexed { index, purchase ->
-                            PurchaseRow(purchase, onDelete = { onDeletePurchase(purchase) })
+                            PurchaseRow(purchase, enabled = !busy, onDelete = { onDeletePurchase(purchase) })
                             if (index < ledgerPurchases.lastIndex) Divider(
                                 Modifier.padding(start = 18.dp), color = MaterialTheme.colorScheme.outlineVariant,
                             )
