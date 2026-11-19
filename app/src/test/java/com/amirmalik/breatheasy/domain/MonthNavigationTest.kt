@@ -20,4 +20,28 @@ class MonthNavigationTest {
         assertNull(MonthNavigation.offsetForMonth(YearMonth.of(2021, 10), currentMonth))
         assertNull(MonthNavigation.offsetForMonth(YearMonth.of(2026, 12), currentMonth))
     }
+
+    @Test
+    fun nullAnchorFollowsTheNewCurrentMonth() {
+        assertEquals(
+            YearMonth.of(2026, 12),
+            MonthNavigation.selectedMonth(null, YearMonth.of(2026, 12)),
+        )
+    }
+
+    @Test
+    fun explicitSelectionRemainsOnTheSameMonthWhenCurrentMonthAdvances() {
+        val selected = YearMonth.of(2026, 10)
+
+        assertEquals(selected, MonthNavigation.selectedMonth(selected, YearMonth.of(2026, 11)))
+        assertEquals(selected, MonthNavigation.selectedMonth(selected, YearMonth.of(2026, 12)))
+    }
+
+    @Test
+    fun absoluteSelectionIsBoundedByTheSupportedHistoryWindow() {
+        assertEquals(
+            YearMonth.of(2021, 12),
+            MonthNavigation.selectedMonth(YearMonth.of(2021, 10), YearMonth.of(2026, 12)),
+        )
+    }
 }
