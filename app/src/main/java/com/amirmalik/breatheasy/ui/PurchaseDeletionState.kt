@@ -1,17 +1,28 @@
 package com.amirmalik.breatheasy.ui
 
 /**
- * Decides whether the purchase-delete confirmation can be closed after a result.
- *
- * A failed delete must remain retryable while the purchase still exists in the
- * latest snapshot. A committed delete closes the confirmation even if refreshing
- * the snapshot failed after the database write.
+ * Resolves a pending delete only after a newer ViewModel operation has completed.
+ * Snackbar messages are deliberately excluded because they can be delayed behind
+ * an earlier snackbar and must not mutate the state of a newer confirmation.
  */
-internal fun shouldClosePurchaseDeleteConfirmation(
+internal data class PurchaseDeleteResolution(
+    val operationFinished: Boolean,
+    val closeConfirmation: Boolean,
+)
+
+internal fun resolvePurchaseDeleteCompletion(
     pendingPurchaseId: String?,
-    currentPurchaseIds: Set<String>,
-    resultMessage: String,
-): Boolean {
-    val deletingId = pendingPurchaseId ?: return false
-    return deletingId !in currentPurchaseIds || resultMessage.startsWith("Purchase removed.")
+    submittedRevision: Long,
+    currentRevision: Long,
+    isBusy: Boolean,
+    purchaseStillExists: Boolean,
+): PurchaseDeleteResolution {
+    if (pendingPurchaseId == null || isBusy || currentRevision == submittedRevision) {
+        return PurchaseDeleteResolution(operationFinished = false, closeConfirmation = false)
+    }
+
+    return PurchaseDeleteResolution(
+        operationFinished = true,
+        closeConfirmation = !purchaseStillExists,
+    )
 }
