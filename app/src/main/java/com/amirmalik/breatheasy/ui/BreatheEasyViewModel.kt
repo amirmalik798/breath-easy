@@ -39,7 +39,7 @@ class BreatheEasyViewModel(application: Application) : AndroidViewModel(applicat
     // One-shot results should not use StateFlow: rapid identical updates can be
     // conflated before Compose observes them. A buffered channel preserves each
     // completion result in order for snackbar and confirmation handling.
-    private val operationMessages = Channel<String>(Channel.UNLIMITED)
+    private val operationMessages = Channel<String>(Channel.BUFFERED)
     val messages: Flow<String> = operationMessages.receiveAsFlow()
 
     private val _loadError = MutableStateFlow(false)
@@ -96,8 +96,8 @@ class BreatheEasyViewModel(application: Application) : AndroidViewModel(applicat
         if (event.outcome == CravingOutcome.RESISTED) "Craving recorded as resisted" else "Craving entry saved",
     ) { repository.logCraving(event, confirmUnstockedSmoking) }
 
-    private fun publishMessage(message: String) {
-        operationMessages.trySend(message)
+    private suspend fun publishMessage(message: String) {
+        operationMessages.send(message)
     }
 
     private fun perform(successMessage: String?, operation: suspend () -> Unit) {
