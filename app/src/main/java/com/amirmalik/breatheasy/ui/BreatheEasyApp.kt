@@ -173,6 +173,46 @@ private enum class MainTab(val label: String) {
     TODAY("Today"), SPENDING("Spending"), CRAVINGS("Cravings"), GOALS("Goals"),
 }
 
+private data class LocalDayContext(
+    val zone: ZoneId,
+    val date: LocalDate,
+)
+
+private fun currentLocalDayContext(): LocalDayContext {
+    val zone = ZoneId.systemDefault()
+    return LocalDayContext(zone = zone, date = LocalDate.now(zone))
+}
+
+/**
+ * Keeps date-sensitive screens aligned with the device's current local day.
+ * Refreshes on foreground return and at local midnight, without polling.
+ */
+@Composable
+private fun rememberLocalDayContext(): LocalDayContext {
+    val lifecycleOwner = LocalLifecycleOwner.current
+    var context by remember { mutableStateOf(currentLocalDayContext()) }
+
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                context = currentLocalDayContext()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+    LaunchedEffect(context.zone, context.date) {
+        val nextDayStart = context.date.plusDays(1).atStartOfDay(context.zone)
+            .toInstant().toEpochMilli()
+        val millisUntilNextDay = (nextDayStart - System.currentTimeMillis()).coerceAtLeast(1L)
+        delay(millisUntilNextDay)
+        context = currentLocalDayContext()
+    }
+
+    return context
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BreatheEasyApp(viewModel: BreatheEasyViewModel) {
@@ -492,8 +532,9 @@ private fun TodayScreen(
     }
     var showStockConfirmation by rememberSaveable { mutableStateOf(false) }
     val loggingSmoke = busy && smokePending
-    val todayZone = ZoneId.systemDefault()
-    val todayDate = LocalDate.now(todayZone)
+    val localDay = rememberLocalDayContext()
+    val todayZone = localDay.zone
+    val todayDate = localDay.date
     val todayRange = remember(todayDate, todayZone) {
         DateTimeRanges.dayRangeMillis(todayDate, todayZone)
     }
@@ -829,8 +870,9 @@ private fun SmokingHistoryScreen(
     events: List<SmokeEvent>,
     onBack: () -> Unit,
 ) {
-    val zone = remember { ZoneId.systemDefault() }
-    val today = LocalDate.now(zone)
+    val localDay = rememberLocalDayContext()
+    val zone = localDay.zone
+    val today = localDay.date
     var selectedDateText by rememberSaveable { mutableStateOf(today.toString()) }
     var showDatePicker by rememberSaveable { mutableStateOf(false) }
     val selectedDate = remember(selectedDateText, today) {
@@ -938,7 +980,7 @@ private fun SmokingHistoryScreen(
                         ) { Icon(Icons.Outlined.ChevronLeft, contentDescription = "Previous day") }
                         Surface(
                             modifier = Modifier.weight(1f).clip(RoundedCornerShape(16.dp))
-                                .clickable { showDatePicker = true },
+                                .clickable(role = Role.Button) { showDatePicker = true },
                             shape = RoundedCornerShape(16.dp),
                             color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
                         ) {
@@ -1089,7 +1131,8 @@ private fun SpendingScreen(
     var isPickingPdfDestination by remember { mutableStateOf(false) }
     var pdfExportMessage by rememberSaveable { mutableStateOf<String?>(null) }
     var monthOffset by rememberSaveable { mutableIntStateOf(0) }
-    val currentMonth = YearMonth.now(ZoneId.systemDefault())
+    val localDay = rememberLocalDayContext()
+    val currentMonth = YearMonth.from(localDay.date)
     val selectedMonth = currentMonth.minusMonths(monthOffset.toLong())
     val latestSnapshot = rememberUpdatedState(snapshot)
     val latestCurrency = rememberUpdatedState(prefs.displayCurrency)
@@ -1151,7 +1194,7 @@ private fun SpendingScreen(
     val change = summary.changeFromPreviousMinor
     val monthPurchases = remember(snapshot.purchases, selectedMonth) {
         snapshot.purchases.filter { purchase ->
-            YearMonth.from(Instant.ofEpochMilli(purchase.purchasedAtMillis).atZone(ZoneId.systemDefault())) == selectedMonth
+            YearMonth.from(Instant.ofEpochMilli(purchase.purchasedAtMillis).atZone(localDay.zone)) == selectedMonth
         }
     }
     val selectedPurchases = remember(monthPurchases, prefs.displayCurrency) {
@@ -1532,9 +1575,10 @@ private fun CravingsScreen(
         snapshot.cravingEvents.groupingBy { it.trigger }.eachCount()
             .entries.sortedByDescending { it.value }.take(4)
     }
-    val cravingDateFormatter = remember {
+    val localDay = rememberLocalDayContext()
+    val cravingDateFormatter = remember(localDay.zone) {
         DateTimeFormatter.ofPattern("d MMM yyyy", Locale.getDefault())
-            .withZone(ZoneId.systemDefault())
+            .withZone(localDay.zone)
     }
     val phase = phases[(seconds / 4) % phases.size]
     val phaseSeconds = 4 - (seconds % 4)
