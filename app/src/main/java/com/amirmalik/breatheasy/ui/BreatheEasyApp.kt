@@ -1624,9 +1624,9 @@ private fun CravingsScreen(
                     }
                     Text(
                         when {
-                            running -> "Breathe naturally; skip the hold if it feels uncomfortable."
-                            seconds > 0 -> "Session paused. Resume when you're ready; skip any uncomfortable phase."
-                            else -> "Follow the rhythm gently; skip any uncomfortable phase."
+                            running -> "Keep the rhythm gentle. Pause or reset whenever you need to."
+                            seconds > 0 -> "Session paused. Resume when you're ready, or reset to start again."
+                            else -> "Follow the rhythm gently. Pause or reset whenever you need to."
                         },
                         color = MaterialTheme.colorScheme.onPrimaryContainer,
                         style = MaterialTheme.typography.bodySmall,
