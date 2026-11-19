@@ -55,6 +55,8 @@ import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Remove
 import androidx.compose.material.icons.outlined.ReceiptLong
 import androidx.compose.material.icons.outlined.CalendarToday
+import androidx.compose.material.icons.outlined.ChevronLeft
+import androidx.compose.material.icons.outlined.ChevronRight
 import androidx.compose.material.icons.outlined.ExpandLess
 import androidx.compose.material.icons.outlined.ExpandMore
 import androidx.compose.material.icons.outlined.Flag
@@ -178,6 +180,7 @@ fun BreatheEasyApp(viewModel: BreatheEasyViewModel) {
     val loadError by viewModel.loadError.collectAsState()
     var selectedTab by rememberSaveable { mutableStateOf(MainTab.TODAY) }
     var showPurchaseScreen by rememberSaveable { mutableStateOf(false) }
+    var showSmokingHistory by rememberSaveable { mutableStateOf(false) }
     var showCravingDialog by rememberSaveable { mutableStateOf(false) }
     var purchaseToDeleteId by rememberSaveable { mutableStateOf<String?>(null) }
     val purchaseToDelete = snapshot.purchases.firstOrNull { it.id == purchaseToDeleteId }
@@ -219,7 +222,12 @@ fun BreatheEasyApp(viewModel: BreatheEasyViewModel) {
         }
     }
 
-    if (showPurchaseScreen) {
+    if (showSmokingHistory) {
+        SmokingHistoryScreen(
+            events = snapshot.smokeEvents,
+            onBack = { showSmokingHistory = false },
+        )
+    } else if (showPurchaseScreen) {
         RecordPurchaseScreen(
             preferences = snapshot.preferences,
             busy = busy,
@@ -338,6 +346,7 @@ fun BreatheEasyApp(viewModel: BreatheEasyViewModel) {
                         onOpenCravings = { selectedTab = MainTab.CRAVINGS },
                         onRecordPurchase = { if (!busy) showPurchaseScreen = true },
                         onDeletePurchase = { purchaseToDeleteId = it.id },
+                        onOpenHistory = { showSmokingHistory = true },
                     )
                     MainTab.SPENDING -> SpendingScreen(
                         snapshot = snapshot,
@@ -433,6 +442,7 @@ private fun TodayScreen(
     onOpenCravings: () -> Unit,
     onRecordPurchase: () -> Unit,
     onDeletePurchase: (Purchase) -> Unit,
+    onOpenHistory: () -> Unit,
 ) {
     val prefs = snapshot.preferences
     var smokePending by rememberSaveable { mutableStateOf(false) }
@@ -484,6 +494,13 @@ private fun TodayScreen(
                     color = MaterialTheme.colorScheme.secondary, letterSpacing = 1.1.sp)
                 Text("Your day", style = MaterialTheme.typography.headlineMedium,
                     fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
+                OutlinedButton(onClick = onOpenHistory, modifier = Modifier.fillMaxWidth()) {
+                    Icon(Icons.Outlined.CalendarToday, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("View smoking history")
+                    Spacer(Modifier.weight(1f))
+                    Icon(Icons.Outlined.ChevronRight, contentDescription = null, modifier = Modifier.size(18.dp))
+                }
             }
         }
         item {
@@ -778,6 +795,264 @@ private fun TodayScreen(
             },
             enabled = !busy && !smokePending,
         )
+    }
+}
+
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SmokingHistoryScreen(
+    events: List<SmokeEvent>,
+    onBack: () -> Unit,
+) {
+    val zone = remember { ZoneId.systemDefault() }
+    val today = LocalDate.now(zone)
+    var selectedDateText by rememberSaveable { mutableStateOf(today.toString()) }
+    var showDatePicker by rememberSaveable { mutableStateOf(false) }
+    val selectedDate = remember(selectedDateText, today) {
+        runCatching { LocalDate.parse(selectedDateText) }.getOrDefault(today)
+    }
+    val dayRange = remember(selectedDate, zone) { DateTimeRanges.dayRangeMillis(selectedDate, zone) }
+    val dayEvents = remember(events, dayRange) {
+        events.asSequence()
+            .filter { it.smokedAtMillis >= dayRange.first && it.smokedAtMillis <= dayRange.last }
+            .sortedByDescending { it.smokedAtMillis }
+            .toList()
+    }
+    val count = remember(dayEvents) {
+        dayEvents.fold(0L) { total, event -> Math.addExact(total, event.quantity.toLong()) }
+    }
+    val dateLabel = remember(selectedDate, today) {
+        when (selectedDate) {
+            today -> "Today"
+            today.minusDays(1) -> "Yesterday"
+            else -> DateTimeFormatter.ofPattern("EEEE, d MMMM yyyy", Locale.getDefault()).format(selectedDate)
+        }
+    }
+    val timeFormatter = remember {
+        DateTimeFormatter.ofPattern("h:mm a", Locale.getDefault()).withZone(zone)
+    }
+    val datePickerState = rememberDatePickerState(
+        initialSelectedDateMillis = selectedDate.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli(),
+        selectableDates = object : SelectableDates {
+            override fun isSelectableDate(utcTimeMillis: Long): Boolean {
+                val date = Instant.ofEpochMilli(utcTimeMillis).atZone(ZoneOffset.UTC).toLocalDate()
+                return !date.isAfter(today)
+            }
+            override fun isSelectableYear(year: Int): Boolean = year <= today.year
+        },
+    )
+
+    BackHandler(onBack = onBack)
+    Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
+        topBar = {
+            TopAppBar(
+                title = {
+                    Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
+                        Text("Smoking history", fontWeight = FontWeight.Bold)
+                        Text("Your cigarette log", style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.Outlined.ArrowBack, contentDescription = "Back")
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
+            )
+        },
+    ) { padding ->
+        LazyColumn(
+            modifier = Modifier.fillMaxSize().padding(padding),
+            contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                start = ScreenHorizontalPadding, end = ScreenHorizontalPadding, top = 12.dp, bottom = 32.dp,
+            ),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            item {
+                Card(
+                    shape = RoundedCornerShape(28.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+                ) {
+                    Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Text(dateLabel.uppercase(Locale.getDefault()), style = MaterialTheme.typography.labelMedium,
+                            letterSpacing = 1.1.sp, color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.78f))
+                        Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text(count.toString(), style = MaterialTheme.typography.displaySmall,
+                                fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onPrimaryContainer)
+                            Text(if (count == 1L) "cigarette logged" else "cigarettes logged",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.82f),
+                                modifier = Modifier.padding(bottom = 7.dp))
+                        }
+                        Text("A clear, timestamped record of your day.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.78f))
+                    }
+                }
+            }
+            item {
+                Card(
+                    shape = RoundedCornerShape(24.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                ) {
+                    Row(
+                        Modifier.fillMaxWidth().padding(10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        IconButton(
+                            onClick = { selectedDateText = selectedDate.minusDays(1).toString() },
+                            modifier = Modifier.size(44.dp),
+                        ) { Icon(Icons.Outlined.ChevronLeft, contentDescription = "Previous day") }
+                        Surface(
+                            modifier = Modifier.weight(1f).clip(RoundedCornerShape(16.dp))
+                                .clickable { showDatePicker = true },
+                            shape = RoundedCornerShape(16.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
+                        ) {
+                            Row(
+                                Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 13.dp),
+                                horizontalArrangement = Arrangement.Center,
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Icon(Icons.Outlined.CalendarToday, contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
+                                Spacer(Modifier.width(9.dp))
+                                Text(dateLabel, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
+                            }
+                        }
+                        IconButton(
+                            onClick = { selectedDateText = selectedDate.plusDays(1).toString() },
+                            enabled = selectedDate.isBefore(today),
+                            modifier = Modifier.size(44.dp),
+                        ) { Icon(Icons.Outlined.ChevronRight, contentDescription = "Next day") }
+                    }
+                }
+            }
+            if (selectedDate != today) {
+                item {
+                    TextButton(onClick = { selectedDateText = today.toString() },
+                        modifier = Modifier.fillMaxWidth()) { Text("Return to today") }
+                }
+            }
+            item {
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Text("TIMELINE", style = MaterialTheme.typography.labelMedium,
+                        letterSpacing = 1.2.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Spacer(Modifier.weight(1f))
+                    Text(dayEvents.size.toString() + if (dayEvents.size == 1) " entry" else " entries",
+                        style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+            if (dayEvents.isEmpty()) {
+                item {
+                    Card(
+                        shape = RoundedCornerShape(24.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                    ) {
+                        Column(
+                            Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 34.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(10.dp),
+                        ) {
+                            Box(Modifier.size(64.dp).clip(RoundedCornerShape(22.dp))
+                                .background(MaterialTheme.colorScheme.secondaryContainer),
+                                contentAlignment = Alignment.Center) {
+                                Icon(Icons.Outlined.Waves, contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                                    modifier = Modifier.size(30.dp))
+                            }
+                            Text("No cigarettes logged", style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold)
+                            Text(
+                                if (selectedDate == today) "Your day is clear so far. Any cigarettes you log will appear here."
+                                else "There are no saved cigarette entries for this date.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                textAlign = TextAlign.Center,
+                            )
+                        }
+                    }
+                }
+            } else {
+                items(dayEvents, key = { it.id }) { event ->
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Column(Modifier.width(76.dp), horizontalAlignment = Alignment.End,
+                            verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                            Text(timeFormatter.format(Instant.ofEpochMilli(event.smokedAtMillis)),
+                                style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
+                            Text(
+                                DateTimeFormatter.ofPattern("a", Locale.getDefault())
+                                    .withZone(zone).format(Instant.ofEpochMilli(event.smokedAtMillis)),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                        Box(Modifier.width(3.dp).height(66.dp).clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)))
+                        Card(
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(20.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.surface,
+                            ),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                        ) {
+                            Row(Modifier.fillMaxWidth().padding(14.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                Box(Modifier.size(42.dp).clip(RoundedCornerShape(14.dp))
+                                    .background(MaterialTheme.colorScheme.primaryContainer),
+                                    contentAlignment = Alignment.Center) {
+                                    Icon(Icons.Outlined.Waves, contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.onPrimaryContainer)
+                                }
+                                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                                    Text(
+                                        if (event.quantity == 1) "Cigarette logged"
+                                        else event.quantity.toString() + " cigarettes logged",
+                                        style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold,
+                                    )
+                                    Text(event.trigger.label, style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                                if (event.quantity > 1) {
+                                    Text("×" + event.quantity, style = MaterialTheme.typography.labelLarge,
+                                        color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if (showDatePicker) {
+        DatePickerDialog(
+            onDismissRequest = { showDatePicker = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    datePickerState.selectedDateMillis?.let { millis ->
+                        selectedDateText = Instant.ofEpochMilli(millis)
+                            .atZone(ZoneOffset.UTC).toLocalDate().toString()
+                    }
+                    showDatePicker = false
+                }) { Text("Show date") }
+            },
+            dismissButton = { TextButton(onClick = { showDatePicker = false }) { Text("Cancel") } },
+        ) {
+            DatePicker(state = datePickerState)
+        }
     }
 }
 
