@@ -152,4 +152,63 @@ class AnalyticsCalculatorTest {
         assertEquals(Int.MAX_VALUE.toLong() * 2L, result.cigaretteCount)
     }
 
+
+    @Test
+    fun monthlyConsumptionGroupsEventsByTheExplicitReportingTimeZone() {
+        val events = listOf(
+            SmokeEvent(
+                smokedAtMillis = Instant.parse("2026-11-01T00:30:00Z").toEpochMilli(),
+                quantity = 2,
+            ),
+            SmokeEvent(
+                smokedAtMillis = Instant.parse("2026-11-01T08:30:00Z").toEpochMilli(),
+                quantity = 3,
+            ),
+            SmokeEvent(
+                smokedAtMillis = Instant.parse("2026-10-31T23:00:00Z").toEpochMilli(),
+                quantity = 5,
+            ),
+        )
+
+        val result = AnalyticsCalculator.monthlyConsumption(
+            events,
+            YearMonth.of(2026, 11),
+            monthCount = 2,
+            zoneId = java.time.ZoneId.of("America/Los_Angeles"),
+        )
+
+        assertEquals(7L, result.first().cigaretteCount)
+        assertEquals(3L, result.last().cigaretteCount)
+    }
+
+    @Test
+    fun spendingTotalsSaturateInsteadOfWrappingWhenHistoryIsExtremelyLarge() {
+        val purchases = listOf(
+            Purchase(
+                purchasedAtMillis = Instant.parse("2026-11-03T10:00:00Z").toEpochMilli(),
+                type = PurchaseType.PACK,
+                quantity = 1,
+                amountMinor = Long.MAX_VALUE,
+                currency = CurrencyCode.fromCode("USD"),
+            ),
+            Purchase(
+                purchasedAtMillis = Instant.parse("2026-11-04T10:00:00Z").toEpochMilli(),
+                type = PurchaseType.PACK,
+                quantity = 1,
+                amountMinor = 1L,
+                currency = CurrencyCode.fromCode("USD"),
+            ),
+        )
+
+        val report = AnalyticsCalculator.spending(
+            purchases,
+            YearMonth.of(2026, 11),
+            CurrencyCode.fromCode("USD"),
+            monthCount = 1,
+            zoneId = utc,
+        )
+
+        assertEquals(Long.MAX_VALUE, report.totalMinor)
+    }
+
 }
