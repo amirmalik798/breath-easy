@@ -45,6 +45,6 @@ New records are validated at the repository boundary, not only in the visible fo
 
 A craving recorded as **Smoked** creates one matching smoking event in the same SQLite transaction. Either both records are saved or neither is saved. A **Resisted** craving does not alter cigarette consumption.
 
-Stock is an estimate: opening stock + recorded pack/carton/loose-cigarette purchases − cigarettes explicitly logged as smoked. Full packs count as 20 cigarettes and cartons as 200. Rolling tobacco is excluded because its yield is user-dependent. Negative stock is retained as a reconciliation signal rather than preventing a smoking entry.
+Stock is an estimate: opening stock + recorded pack/carton/loose-cigarette purchases − cigarettes explicitly logged as smoked. Full packs count as 20 cigarettes and cartons as 200. Rolling tobacco is excluded because its yield is user-dependent. Tracked stock never becomes negative. If you confirm smoking when tracked stock is insufficient, the full smoking quantity is recorded in consumption totals, while only available tracked stock is debited (zero when stock is empty).
 
 The previous daily baseline is shown as a personal reference alongside the daily tracking target. Neither value is presented as a medically recommended safe limit.
