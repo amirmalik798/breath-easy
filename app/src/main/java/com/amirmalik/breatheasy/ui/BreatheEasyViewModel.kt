@@ -36,9 +36,9 @@ class BreatheEasyViewModel(application: Application) : AndroidViewModel(applicat
     private val _busy = MutableStateFlow(false)
     val busy: StateFlow<Boolean> = _busy.asStateFlow()
 
-    // One-shot results should not use StateFlow: rapid identical updates can be
+    // One-shot feedback should not use StateFlow: rapid identical updates can be
     // conflated before Compose observes them. A buffered channel preserves each
-    // completion result in order for snackbar and confirmation handling.
+    // user-facing message in order for snackbar display.
     private val operationMessages = Channel<String>(Channel.BUFFERED)
     val messages: Flow<String> = operationMessages.receiveAsFlow()
 
