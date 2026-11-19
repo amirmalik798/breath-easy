@@ -110,6 +110,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -228,6 +229,7 @@ fun BreatheEasyApp(viewModel: BreatheEasyViewModel) {
     val purchaseToDelete = snapshot.purchases.firstOrNull { it.id == purchaseToDeleteId }
     var pendingDeleteId by remember { mutableStateOf<String?>(null) }
     val snackbarHostState = remember { SnackbarHostState() }
+    val saveableStateHolder = rememberSaveableStateHolder()
     val trackedStock = remember(
         snapshot.preferences.startingStockCigarettes,
         snapshot.purchases,
@@ -278,6 +280,9 @@ fun BreatheEasyApp(viewModel: BreatheEasyViewModel) {
             onSave = viewModel::recordPurchase,
         )
     } else {
+    // Keep the main tab composition's scroll and form-navigation state intact
+    // while history or the purchase editor is shown above it.
+    saveableStateHolder.SaveableStateProvider("main") {
     Scaffold(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         containerColor = MaterialTheme.colorScheme.background,
@@ -420,6 +425,7 @@ fun BreatheEasyApp(viewModel: BreatheEasyViewModel) {
                 CircularProgressIndicator(Modifier.align(Alignment.Center))
             }
         }
+    }
     }
 
     }
