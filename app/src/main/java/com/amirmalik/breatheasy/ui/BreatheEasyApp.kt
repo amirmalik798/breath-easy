@@ -990,12 +990,6 @@ private fun SmokingHistoryScreen(
                             verticalArrangement = Arrangement.spacedBy(3.dp)) {
                             Text(timeFormatter.format(Instant.ofEpochMilli(event.smokedAtMillis)),
                                 style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
-                            Text(
-                                DateTimeFormatter.ofPattern("a", Locale.getDefault())
-                                    .withZone(zone).format(Instant.ofEpochMilli(event.smokedAtMillis)),
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
                         }
                         Box(Modifier.width(3.dp).height(66.dp).clip(CircleShape)
                             .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)))
