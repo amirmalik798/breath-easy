@@ -987,15 +987,24 @@ private fun SmokingHistoryScreen(
     val zone = localDay.zone
     val today = localDay.date
     var selectedDateText by rememberSaveable { mutableStateOf(today.toString()) }
+    var followsCurrentDay by rememberSaveable { mutableStateOf(true) }
     var showDatePicker by rememberSaveable { mutableStateOf(false) }
     val selectedDate = remember(selectedDateText, today) {
         runCatching { LocalDate.parse(selectedDateText) }
             .getOrDefault(today)
             .coerceAtMost(today)
     }
+    // The initial "Today" selection follows local midnight while the user has
+    // not explicitly navigated to or selected a historical date.
+    LaunchedEffect(today, followsCurrentDay) {
+        if (followsCurrentDay && selectedDateText != today.toString()) {
+            selectedDateText = today.toString()
+        }
+    }
     LaunchedEffect(selectedDateText, selectedDate) {
         if (selectedDateText != selectedDate.toString()) {
             selectedDateText = selectedDate.toString()
+            followsCurrentDay = selectedDate == today
         }
     }
     val dayRange = remember(selectedDate, zone) { DateTimeRanges.dayRangeMillis(selectedDate, zone) }
@@ -1096,7 +1105,10 @@ private fun SmokingHistoryScreen(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         IconButton(
-                            onClick = { selectedDateText = selectedDate.minusDays(1).toString() },
+                            onClick = {
+                                selectedDateText = selectedDate.minusDays(1).toString()
+                                followsCurrentDay = false
+                            },
                             modifier = Modifier.size(44.dp),
                         ) { Icon(Icons.Outlined.ChevronLeft, contentDescription = "Previous day") }
                         Surface(
@@ -1117,7 +1129,11 @@ private fun SmokingHistoryScreen(
                             }
                         }
                         IconButton(
-                            onClick = { selectedDateText = selectedDate.plusDays(1).toString() },
+                            onClick = {
+                                val nextDate = selectedDate.plusDays(1)
+                                selectedDateText = nextDate.toString()
+                                followsCurrentDay = nextDate == today
+                            },
                             enabled = selectedDate.isBefore(today),
                             modifier = Modifier.size(44.dp),
                         ) { Icon(Icons.Outlined.ChevronRight, contentDescription = "Next day") }
@@ -1286,8 +1302,10 @@ private fun SmokingHistoryScreen(
             confirmButton = {
                 TextButton(onClick = {
                     datePickerState.selectedDateMillis?.let { millis ->
-                        selectedDateText = Instant.ofEpochMilli(millis)
-                            .atZone(ZoneOffset.UTC).toLocalDate().toString()
+                        val chosenDate = Instant.ofEpochMilli(millis)
+                            .atZone(ZoneOffset.UTC).toLocalDate()
+                        selectedDateText = chosenDate.toString()
+                        followsCurrentDay = chosenDate == today
                     }
                     showDatePicker = false
                 }) { Text("Show date") }
