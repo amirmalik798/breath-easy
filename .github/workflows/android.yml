@@ -67,16 +67,35 @@ jobs:
         run: gradle :app:assembleDebug
 
       - name: Launch app on Android 17 emulator
-        uses: ReactiveCircus/android-emulator-runner@v2
-        with:
-          api-level: 37.0
-          system-image-api-level: 37.0
-          target: google_apis
-          arch: x86_64
-          profile: pixel_7
-          channel: canary
-          emulator-boot-timeout: 900
-          script: gradle :app:connectedDebugAndroidTest
+        run: |
+          set -euo pipefail
+          image_package="system-images;android-37.0;google_apis;x86_64"
+          sdkmanager --channel=3 "emulator" "$image_package"
+          echo "no" | avdmanager create avd --force --name BreatheEasy_API_37 --package "$image_package" --device pixel_7
+          emulator -avd BreatheEasy_API_37 -memory 4096 -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim > "$RUNNER_TEMP/breathe-easy-emulator.log" 2>&1 &
+          emulator_pid=$!
+          cleanup() {
+            adb emu kill >/dev/null 2>&1 || kill "$emulator_pid" >/dev/null 2>&1 || true
+          }
+          trap cleanup EXIT
+          adb wait-for-device
+          booted=false
+          for attempt in $(seq 1 180); do
+            if [ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = "1" ]; then
+              booted=true
+              break
+            fi
+            sleep 5
+          done
+          if [ "$booted" != true ]; then
+            cat "$RUNNER_TEMP/breathe-easy-emulator.log"
+            echo "Android 17 emulator did not finish booting."
+            exit 1
+          fi
+          adb shell settings put global window_animation_scale 0
+          adb shell settings put global transition_animation_scale 0
+          adb shell settings put global animator_duration_scale 0
+          gradle :app:connectedDebugAndroidTest
 
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
