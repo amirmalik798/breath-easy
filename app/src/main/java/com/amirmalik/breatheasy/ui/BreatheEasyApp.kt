@@ -1162,6 +1162,7 @@ private fun SpendingScreen(
         onDispose {
             isExportingPdf = false
             isPickingPdfDestination = false
+            onPdfWorkflowBusyChanged(false)
         }
     }
     val createPdfLauncher = rememberLauncherForActivityResult(
@@ -1199,11 +1200,14 @@ private fun SpendingScreen(
                     Result.failure(error)
                 }
                 isExportingPdf = false
+                onPdfWorkflowBusyChanged(false)
                 pdfExportMessage = result.fold(
                     onSuccess = { "PDF saved." },
                     onFailure = { "PDF export failed. Please try again." },
                 )
             }
+        } else {
+            onPdfWorkflowBusyChanged(false)
         }
     }
     val summary = remember(snapshot.purchases, selectedMonth, prefs.displayCurrency, localDay.zone) {
@@ -1266,7 +1270,10 @@ private fun SpendingScreen(
                             fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
                     }
                 }
-                FilledTonalButton(onClick = onRecordPurchase, enabled = !busy && !snapshot.isLoading) {
+                FilledTonalButton(
+                    onClick = onRecordPurchase,
+                    enabled = !busy && !snapshot.isLoading && !isExportingPdf && !isPickingPdfDestination,
+                ) {
                     Icon(Icons.Outlined.Add, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(5.dp))
                     Text("Add")
@@ -1469,7 +1476,11 @@ private fun SpendingScreen(
                 } else {
                     Column {
                         ledgerPurchases.forEachIndexed { index, purchase ->
-                            PurchaseRow(purchase, enabled = !busy, onDelete = { onDeletePurchase(purchase) })
+                            PurchaseRow(
+                                purchase,
+                                enabled = !busy && !isExportingPdf && !isPickingPdfDestination,
+                                onDelete = { onDeletePurchase(purchase) },
+                            )
                             if (index < ledgerPurchases.lastIndex) Divider(
                                 Modifier.padding(start = 18.dp), color = MaterialTheme.colorScheme.outlineVariant,
                             )
@@ -1514,9 +1525,16 @@ private fun SpendingScreen(
                     }
                     Button(onClick = {
                         isPickingPdfDestination = true
-                        createPdfLauncher.launch(
-                            "Breathe-Easy-Spending-${reportPeriod.fileLabel}-${selectedMonth}.pdf",
-                        )
+                        onPdfWorkflowBusyChanged(true)
+                        try {
+                            createPdfLauncher.launch(
+                                "Breathe-Easy-Spending-${reportPeriod.fileLabel}-${selectedMonth}.pdf",
+                            )
+                        } catch (_: Exception) {
+                            isPickingPdfDestination = false
+                            onPdfWorkflowBusyChanged(false)
+                            pdfExportMessage = "Couldn't open a save location. Please try again."
+                        }
                     }, enabled = !busy && !snapshot.isLoading && !isExportingPdf && !isPickingPdfDestination,
                         modifier = Modifier.fillMaxWidth().height(54.dp),
                         shape = RoundedCornerShape(17.dp)) {
