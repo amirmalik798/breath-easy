@@ -157,7 +157,6 @@ class BreatheEasyViewModel(application: Application) : AndroidViewModel(applicat
     }
 
     override fun onCleared() {
-        operationMessages.close()
         // ViewModel cancellation can arrive while a blocking SQLite call is still
         // unwinding on Dispatchers.IO. Close the helper only after that operation
         // releases the same mutex, and never block the main thread during teardown.
