@@ -303,6 +303,60 @@ internal class BreatheEasyDatabase(context: Context) :
     fun deletePurchase(id: String): Boolean =
         writableDatabase.delete("purchases", "id = ?", arrayOf(id)) == 1
 
+    /**
+     * Remove a smoking event and, when it originated from a smoked craving, its
+     * matching craving record in the same transaction. Deleting the smoke row also
+     * reverses only the stock debit stored on that row; all app totals are rebuilt
+     * from the resulting snapshot.
+     */
+    fun deleteSmokeEvent(id: String): Boolean {
+        require(id.isNotBlank()) { "Smoking entry ID is required" }
+        val db = writableDatabase
+        db.beginTransaction()
+        try {
+            val smokeRecord = db.rawQuery(
+                "SELECT smoked_at_ms, note FROM smoke_events WHERE id = ?",
+                arrayOf(id),
+            ).use { cursor ->
+                if (cursor.moveToFirst()) cursor.getLong(0) to cursor.getString(1) else null
+            } ?: run {
+                db.setTransactionSuccessful()
+                return false
+            }
+            val smokeTimestamp = smokeRecord.first
+
+            val linkedCravingId = id.takeIf {
+                smokeRecord.second == "Logged from craving entry" && it.startsWith("craving-")
+            }?.removePrefix("craving-")?.takeIf { it.isNotBlank() }
+            val hasMatchingSmokedCraving = linkedCravingId?.let { cravingId ->
+                db.rawQuery(
+                    "SELECT 1 FROM craving_events WHERE id = ? AND outcome = 'SMOKED' AND occurred_at_ms = ?",
+                    arrayOf(cravingId, smokeTimestamp.toString()),
+                ).use { cursor -> cursor.moveToFirst() }
+            } ?: false
+
+            check(db.delete("smoke_events", "id = ?", arrayOf(id)) == 1) {
+                "This smoking entry could not be removed."
+            }
+            if (linkedCravingId != null && hasMatchingSmokedCraving) {
+                check(
+                    db.delete(
+                        "craving_events",
+                        "id = ? AND outcome = 'SMOKED' AND occurred_at_ms = ?",
+                        arrayOf(linkedCravingId, smokeTimestamp.toString()),
+                    ) == 1,
+                ) {
+                    "The linked craving entry could not be removed."
+                }
+            }
+
+            db.setTransactionSuccessful()
+            return true
+        } finally {
+            db.endTransaction()
+        }
+    }
+
     fun insertSmokeEvent(event: SmokeEvent, confirmUnstockedSmoking: Boolean = false) {
         val db = writableDatabase
         db.beginTransaction()

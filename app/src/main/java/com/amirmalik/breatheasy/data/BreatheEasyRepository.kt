@@ -34,6 +34,11 @@ class BreatheEasyRepository(context: Context) {
         check(database.deletePurchase(id)) { "This purchase was already removed." }
     }
 
+    suspend fun deleteSmokeEvent(id: String) = withContext(Dispatchers.IO) {
+        require(id.isNotBlank()) { "Smoking entry ID is required" }
+        check(database.deleteSmokeEvent(id)) { "This smoking entry was already removed." }
+    }
+
     suspend fun logSmoke(event: SmokeEvent, confirmUnstockedSmoking: Boolean = false) = withContext(Dispatchers.IO) {
         val normalized = event.copy(note = event.note.trim().take(BusinessRules.MAX_NOTE_LENGTH))
         BusinessRules.validateSmokeEvent(normalized)

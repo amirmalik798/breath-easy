@@ -35,7 +35,9 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import com.amirmalik.breatheasy.data.CurrencyCode
@@ -237,11 +239,16 @@ fun MonthlySpendingChart(
                             text = point.month.month.getDisplayName(TextStyle.SHORT, Locale.getDefault())
                                 .take(3),
                             color = if (index == points.lastIndex) primary else muted,
-                            style = MaterialTheme.typography.labelSmall,
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontSize = 9.sp,
+                                letterSpacing = (-0.2).sp,
+                            ),
                             fontWeight = if (index == points.lastIndex) FontWeight.Bold else FontWeight.Medium,
                             textAlign = TextAlign.Center,
                             modifier = Modifier.weight(1f),
                             maxLines = 1,
+                            softWrap = false,
+                            overflow = TextOverflow.Clip,
                         )
                     }
                 }
@@ -376,12 +383,14 @@ fun MonthlyConsumptionChart(
         ) {
             points.forEach { point ->
                 Text(
-                    text = point.month.month.getDisplayName(TextStyle.SHORT, Locale.getDefault()),
+                    text = point.month.month.getDisplayName(TextStyle.SHORT, Locale.getDefault()).take(3),
                     color = muted,
-                    style = MaterialTheme.typography.labelSmall,
+                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
                     textAlign = TextAlign.Center,
                     modifier = Modifier.weight(1f),
                     maxLines = 1,
+                    softWrap = false,
+                    overflow = TextOverflow.Clip,
                 )
             }
         }

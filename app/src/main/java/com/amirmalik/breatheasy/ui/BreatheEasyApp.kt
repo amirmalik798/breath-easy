@@ -303,6 +303,9 @@ fun BreatheEasyApp(viewModel: BreatheEasyViewModel) {
     if (showSmokingHistory) {
         SmokingHistoryScreen(
             events = snapshot.smokeEvents,
+            busy = operationsBlocked,
+            operationRevision = operationRevision,
+            onDelete = viewModel::deleteSmokeEvent,
             onBack = { showSmokingHistory = false },
         )
     } else if (showPurchaseScreen) {
@@ -933,8 +936,27 @@ private fun TodayScreen(
 @Composable
 private fun SmokingHistoryScreen(
     events: List<SmokeEvent>,
+    busy: Boolean,
+    operationRevision: Long,
+    onDelete: (String) -> Unit,
     onBack: () -> Unit,
 ) {
+    var eventToDeleteId by rememberSaveable { mutableStateOf<String?>(null) }
+    var pendingDeleteId by rememberSaveable { mutableStateOf<String?>(null) }
+    val eventToDelete = events.firstOrNull { it.id == eventToDeleteId }
+
+    // Let the repository finish and publish a fresh snapshot before re-enabling
+    // deletion. A failed operation leaves the event available for a retry.
+    LaunchedEffect(busy, events, operationRevision) {
+        if (!busy && pendingDeleteId != null) {
+            val completedId = pendingDeleteId
+            pendingDeleteId = null
+            if (events.none { it.id == completedId }) {
+                eventToDeleteId = null
+            }
+        }
+    }
+
     val localDay = rememberLocalDayContext()
     val zone = localDay.zone
     val today = localDay.date
@@ -1159,12 +1181,76 @@ private fun SmokingHistoryScreen(
                                     Text("×" + event.quantity, style = MaterialTheme.typography.labelLarge,
                                         color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
                                 }
+                                if (pendingDeleteId == event.id) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(22.dp),
+                                        color = MaterialTheme.colorScheme.error,
+                                        strokeWidth = 2.dp,
+                                    )
+                                } else {
+                                    IconButton(
+                                        onClick = { eventToDeleteId = event.id },
+                                        enabled = !busy && pendingDeleteId == null,
+                                        modifier = Modifier.size(40.dp),
+                                    ) {
+                                        Icon(
+                                            Icons.Outlined.Delete,
+                                            contentDescription = "Delete cigarette log",
+                                            tint = MaterialTheme.colorScheme.error,
+                                            modifier = Modifier.size(20.dp),
+                                        )
+                                    }
+                                }
                             }
                         }
                     }
                 }
             }
         }
+    }
+
+    eventToDelete?.let { event ->
+        AlertDialog(
+            onDismissRequest = {
+                if (!busy && pendingDeleteId == null) eventToDeleteId = null
+            },
+            title = { Text("Delete this cigarette log?") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        "${event.quantity} ${if (event.quantity == 1) "cigarette" else "cigarettes"} " +
+                            "logged at ${timeFormatter.format(Instant.ofEpochMilli(event.smokedAtMillis))} will be removed.",
+                    )
+                    Text(
+                        "Your daily count, monthly smoking trend, and tracked stock will be recalculated.",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    if (event.note == "Logged from craving entry") {
+                        Text(
+                            "The linked smoked-craving entry will also be removed so your craving history stays consistent.",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        pendingDeleteId = event.id
+                        eventToDeleteId = null
+                        onDelete(event.id)
+                    },
+                    enabled = !busy && pendingDeleteId == null,
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
+                ) { Text("Delete log") }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { eventToDeleteId = null },
+                    enabled = !busy && pendingDeleteId == null,
+                ) { Text("Cancel") }
+            },
+        )
     }
 
     if (showDatePicker) {

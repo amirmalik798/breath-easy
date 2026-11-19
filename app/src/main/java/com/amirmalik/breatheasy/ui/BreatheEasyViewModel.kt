@@ -87,6 +87,12 @@ class BreatheEasyViewModel(application: Application) : AndroidViewModel(applicat
         repository.deletePurchase(id)
     }
 
+    fun deleteSmokeEvent(id: String) = perform(
+        "Cigarette log removed. Daily totals, smoking trends, and tracked stock have been updated.",
+    ) {
+        repository.deleteSmokeEvent(id)
+    }
+
     fun logSmoke(event: SmokeEvent, confirmUnstockedSmoking: Boolean = false) =
         perform(successMessage = null) {
             repository.logSmoke(event, confirmUnstockedSmoking)
