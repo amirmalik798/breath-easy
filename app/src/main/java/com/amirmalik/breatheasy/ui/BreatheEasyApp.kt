@@ -247,6 +247,7 @@ fun BreatheEasyApp(viewModel: BreatheEasyViewModel) {
     val operationsBlocked = busy || snapshot.isLoading
     val message by viewModel.message.collectAsState()
     val loadError by viewModel.loadError.collectAsState()
+    val operationRevision by viewModel.operationRevision.collectAsState()
     var selectedTab by rememberSaveable { mutableStateOf(MainTab.TODAY) }
     var showPurchaseScreen by rememberSaveable { mutableStateOf(false) }
     var showSmokingHistory by rememberSaveable { mutableStateOf(false) }
@@ -309,6 +310,7 @@ fun BreatheEasyApp(viewModel: BreatheEasyViewModel) {
         RecordPurchaseScreen(
             preferences = snapshot.preferences,
             busy = operationsBlocked,
+            operationRevision = operationRevision,
             savedPurchaseIds = savedPurchaseIds,
             snackbarHostState = snackbarHostState,
             onDismiss = { showPurchaseScreen = false },
@@ -434,6 +436,7 @@ fun BreatheEasyApp(viewModel: BreatheEasyViewModel) {
                     MainTab.TODAY -> TodayScreen(
                         snapshot = snapshot,
                         busy = operationsBlocked,
+                        operationRevision = operationRevision,
                         trackedStock = trackedStock,
                         onLogSmoke = viewModel::logSmoke,
                         onOpenCravings = { selectedTab = MainTab.CRAVINGS },
@@ -499,6 +502,7 @@ fun BreatheEasyApp(viewModel: BreatheEasyViewModel) {
     if (showCravingDialog) {
         RecordCravingDialog(
             busy = operationsBlocked,
+            operationRevision = operationRevision,
             trackedStock = trackedStock,
             breathingSeconds = cravingBreathingSeconds,
             savedCravingIds = savedCravingIds,
@@ -541,6 +545,7 @@ fun BreatheEasyApp(viewModel: BreatheEasyViewModel) {
 private fun TodayScreen(
     snapshot: AppSnapshot,
     busy: Boolean,
+    operationRevision: Long,
     trackedStock: Long,
     onLogSmoke: (SmokeEvent, Boolean) -> Unit,
     onOpenCravings: () -> Unit,
@@ -572,7 +577,7 @@ private fun TodayScreen(
         )
     }
 
-    LaunchedEffect(busy, snapshot.smokeEvents) {
+    LaunchedEffect(busy, snapshot.smokeEvents, operationRevision) {
         if (!busy) {
             if (snapshot.smokeEvents.any { it.id == smokeDraftId }) {
                 smokeDraftId = UUID.randomUUID().toString()
@@ -2068,6 +2073,7 @@ private fun GoalsScreen(
 private fun RecordPurchaseScreen(
     preferences: AppPreferences,
     busy: Boolean,
+    operationRevision: Long,
     savedPurchaseIds: Set<String>,
     onDismiss: () -> Unit,
     onSave: (Purchase) -> Unit,
@@ -2100,7 +2106,7 @@ private fun RecordPurchaseScreen(
     var showDatePicker by rememberSaveable { mutableStateOf(false) }
     var showDetails by rememberSaveable { mutableStateOf(false) }
     var submitPending by rememberSaveable { mutableStateOf(false) }
-    LaunchedEffect(busy) {
+    LaunchedEffect(busy, operationRevision) {
         if (!busy) submitPending = false
     }
     val saving = busy || submitPending
@@ -2587,6 +2593,7 @@ private fun RecordPurchaseScreen(
 @Composable
 private fun RecordCravingDialog(
     busy: Boolean,
+    operationRevision: Long,
     trackedStock: Long,
     breathingSeconds: Int,
     savedCravingIds: Set<String>,
