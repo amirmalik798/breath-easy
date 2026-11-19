@@ -44,6 +44,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.CircleShape
@@ -257,6 +258,10 @@ fun BreatheEasyApp(viewModel: BreatheEasyViewModel) {
     val savedPurchaseIds = remember(snapshot.purchases) { snapshot.purchases.mapTo(mutableSetOf()) { it.id } }
     val savedCravingIds = remember(snapshot.cravingEvents) { snapshot.cravingEvents.mapTo(mutableSetOf()) { it.id } }
     var pendingDeleteId by remember { mutableStateOf<String?>(null) }
+    // Long-lived message collection must read the latest Compose values, not the
+    // snapshot captured when this effect first started.
+    val latestSnapshot = rememberUpdatedState(snapshot)
+    val latestPendingDeleteId = rememberUpdatedState(pendingDeleteId)
     var pdfWorkflowBusy by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
     val saveableStateHolder = rememberSaveableStateHolder()
@@ -282,15 +287,19 @@ fun BreatheEasyApp(viewModel: BreatheEasyViewModel) {
                     cravingBreathingSeconds = 0
                 }
             }
-            val deletingId = pendingDeleteId
+            val deletingId = latestPendingDeleteId.value
             if (deletingId != null) {
-                val removedFromSnapshot = snapshot.purchases.none { it.id == deletingId }
-                val writeReportedSuccess = resultMessage.startsWith("Purchase removed.")
+                val currentPurchaseIds = latestSnapshot.value.purchases.mapTo(mutableSetOf()) { it.id }
                 // A failed delete leaves the confirmation open but re-enables Retry.
-                // If the write committed but reloading failed, close the modal and let
-                // the app-level reload error prompt the user to refresh the stale view.
+                // If the write committed but reloading failed, the success result still
+                // closes the modal while the app-level reload prompt handles stale data.
                 pendingDeleteId = null
-                if (removedFromSnapshot || writeReportedSuccess) {
+                if (shouldClosePurchaseDeleteConfirmation(
+                        pendingPurchaseId = deletingId,
+                        currentPurchaseIds = currentPurchaseIds,
+                        resultMessage = resultMessage,
+                    )
+                ) {
                     purchaseToDeleteId = null
                 }
             }
@@ -1611,29 +1620,38 @@ private fun SpendingScreen(
                 }
             }
         }
-        item {
-            SectionHeader("Purchase ledger")
-            Card(
-                shape = RoundedCornerShape(24.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-            ) {
-                if (ledgerPurchases.isEmpty()) {
-                    Text("No purchases this month.", Modifier.padding(18.dp),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant)
-                } else {
-                    Column {
-                        ledgerPurchases.forEachIndexed { index, purchase ->
-                            PurchaseRow(
-                                purchase,
-                                enabled = !busy && !isExportingPdf && !isPickingPdfDestination,
-                                onDelete = { onDeletePurchase(purchase) },
-                            )
-                            if (index < ledgerPurchases.lastIndex) Divider(
-                                Modifier.padding(start = 18.dp), color = MaterialTheme.colorScheme.outlineVariant,
-                            )
-                        }
-                    }
+        item { SectionHeader("Purchase ledger") }
+        if (ledgerPurchases.isEmpty()) {
+            item {
+                Card(
+                    shape = RoundedCornerShape(24.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                ) {
+                    Text(
+                        "No purchases this month.",
+                        Modifier.padding(18.dp),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+        } else {
+            // Keep each history row lazy. A busy month should not create every
+            // purchase card at once when the spending screen first opens.
+            itemsIndexed(
+                items = ledgerPurchases,
+                key = { _, purchase -> purchase.id },
+            ) { _, purchase ->
+                Card(
+                    shape = RoundedCornerShape(20.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                ) {
+                    PurchaseRow(
+                        purchase,
+                        enabled = !busy && !isExportingPdf && !isPickingPdfDestination,
+                        onDelete = { onDeletePurchase(purchase) },
+                    )
                 }
             }
         }
