@@ -36,7 +36,7 @@ class BreatheEasyViewModel(application: Application) : AndroidViewModel(applicat
     // One-shot results should not use StateFlow: rapid identical updates can be
     // conflated before Compose observes them. A buffered channel preserves each
     // completion result in order for snackbar and confirmation handling.
-    private val operationMessages = Channel<String>(Channel.BUFFERED)
+    private val operationMessages = Channel<String>(Channel.UNLIMITED)
     val messages: Flow<String> = operationMessages.receiveAsFlow()
 
     private val _loadError = MutableStateFlow(false)
