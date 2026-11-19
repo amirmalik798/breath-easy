@@ -1555,16 +1555,22 @@ private fun CravingsScreen(
     var lastTickElapsedMillis by lastTickState
     val lifecycleOwner = LocalLifecycleOwner.current
 
+    fun pauseBreathingTimer() {
+        if (runningState.value) {
+            val now = android.os.SystemClock.elapsedRealtime()
+            val elapsedSeconds = (now - lastTickState.longValue).coerceAtLeast(0L) / 1_000L
+            val availableSeconds = (Int.MAX_VALUE - secondsState.intValue).toLong()
+            val increment = elapsedSeconds.coerceAtMost(availableSeconds)
+            secondsState.intValue += increment.toInt()
+            runningState.value = false
+        }
+        lastTickState.longValue = 0L
+    }
+
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_STOP && runningState.value) {
-                val now = android.os.SystemClock.elapsedRealtime()
-                val elapsedSeconds = (now - lastTickState.longValue).coerceAtLeast(0L) / 1_000L
-                val availableSeconds = (Int.MAX_VALUE - secondsState.intValue).toLong()
-                val increment = elapsedSeconds.coerceAtMost(availableSeconds)
-                secondsState.intValue += increment.toInt()
-                lastTickState.longValue = 0L
-                runningState.value = false
+            if (event == Lifecycle.Event.ON_STOP) {
+                pauseBreathingTimer()
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -1591,10 +1597,7 @@ private fun CravingsScreen(
         }
     }
     DisposableEffect(Unit) {
-        onDispose {
-            running = false
-            lastTickElapsedMillis = 0L
-        }
+        onDispose { pauseBreathingTimer() }
     }
     val phases = BreathingPhases
 
@@ -1706,13 +1709,7 @@ private fun CravingsScreen(
                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         Button(onClick = {
                             if (running) {
-                                val now = android.os.SystemClock.elapsedRealtime()
-                                val elapsed = (now - lastTickElapsedMillis).coerceAtLeast(0L)
-                                val increment = (elapsed / 1_000L)
-                                    .coerceAtMost((Int.MAX_VALUE - seconds).toLong())
-                                seconds = (seconds.toLong() + increment).toInt()
-                                lastTickElapsedMillis = 0L
-                                running = false
+                                pauseBreathingTimer()
                             } else {
                                 lastTickElapsedMillis = android.os.SystemClock.elapsedRealtime()
                                 running = true
