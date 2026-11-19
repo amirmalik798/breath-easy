@@ -259,6 +259,7 @@ fun BreatheEasyApp(viewModel: BreatheEasyViewModel) {
     val savedCravingIds = remember(snapshot.cravingEvents) { snapshot.cravingEvents.mapTo(mutableSetOf()) { it.id } }
     var pendingDeleteId by remember { mutableStateOf<String?>(null) }
     var pendingDeleteRevision by remember { mutableLongStateOf(-1L) }
+    var purchaseDeleteError by remember { mutableStateOf<String?>(null) }
     var pdfWorkflowBusy by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
     val saveableStateHolder = rememberSaveableStateHolder()
@@ -296,7 +297,12 @@ fun BreatheEasyApp(viewModel: BreatheEasyViewModel) {
         if (resolution.operationFinished) {
             pendingDeleteId = null
             pendingDeleteRevision = -1L
-            if (resolution.closeConfirmation) purchaseToDeleteId = null
+            if (resolution.closeConfirmation) {
+                purchaseToDeleteId = null
+                purchaseDeleteError = null
+            } else {
+                purchaseDeleteError = "Couldn't remove this purchase. It remains in your ledger; you can try again."
+            }
         }
     }
 
@@ -491,14 +497,31 @@ fun BreatheEasyApp(viewModel: BreatheEasyViewModel) {
     }
     purchaseToDelete?.let { purchase ->
         AlertDialog(
-            onDismissRequest = { if (pendingDeleteId == null) purchaseToDeleteId = null },
+            onDismissRequest = {
+                if (pendingDeleteId == null) {
+                    purchaseToDeleteId = null
+                    purchaseDeleteError = null
+                }
+            },
             title = { Text("Delete this purchase?") },
-            text = { Text("${purchase.brand.ifBlank { purchase.type.label }} · ${Money.format(purchase.amountMinor, purchase.currency)} will be removed from the ledger and monthly totals. Cigarette stock will be recalculated.") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("${purchase.brand.ifBlank { purchase.type.label }} · ${Money.format(purchase.amountMinor, purchase.currency)} will be removed from the ledger and monthly totals. Cigarette stock will be recalculated.")
+                    purchaseDeleteError?.let { message ->
+                        Text(
+                            message,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    }
+                }
+            },
             confirmButton = {
                 Button(
                     onClick = {
                         pendingDeleteId = purchase.id
                         pendingDeleteRevision = operationRevision
+                        purchaseDeleteError = null
                         viewModel.deletePurchase(purchase.id)
                     },
                     enabled = pendingDeleteId == null && !busy,
@@ -513,7 +536,10 @@ fun BreatheEasyApp(viewModel: BreatheEasyViewModel) {
             },
             dismissButton = {
                 TextButton(
-                    onClick = { purchaseToDeleteId = null },
+                    onClick = {
+                        purchaseToDeleteId = null
+                        purchaseDeleteError = null
+                    },
                     enabled = pendingDeleteId == null && !busy,
                 ) { Text("Cancel") }
             },
