@@ -91,43 +91,43 @@ object SpendingPdfExporter {
         val document = PdfDocument()
 
         try {
-                val generatedAtMillis = System.currentTimeMillis()
-                val overviewPage = document.startPage(
-                    PdfDocument.PageInfo.Builder(PAGE_WIDTH, PAGE_HEIGHT, 1).create(),
+            val generatedAtMillis = System.currentTimeMillis()
+            val overviewPage = document.startPage(
+                PdfDocument.PageInfo.Builder(PAGE_WIDTH, PAGE_HEIGHT, 1).create(),
+            )
+            try {
+                drawOverviewPage(
+                    canvas = overviewPage.canvas,
+                    reports = reports,
+                    currency = currency,
+                    period = period,
+                    generatedAtMillis = generatedAtMillis,
+                    zoneId = zoneId,
+                    totalPages = totalPages,
+                )
+            } finally {
+                document.finishPage(overviewPage)
+            }
+
+            detailPages.forEachIndexed { index, monthPage ->
+                val pageNumber = index + 2
+                val pdfPage = document.startPage(
+                    PdfDocument.PageInfo.Builder(PAGE_WIDTH, PAGE_HEIGHT, pageNumber).create(),
                 )
                 try {
-                    drawOverviewPage(
-                        canvas = overviewPage.canvas,
-                        reports = reports,
+                    drawMonthPage(
+                        canvas = pdfPage.canvas,
+                        monthPage = monthPage,
                         currency = currency,
-                        period = period,
+                        pageNumber = pageNumber,
+                        totalPages = totalPages,
                         generatedAtMillis = generatedAtMillis,
                         zoneId = zoneId,
-                        totalPages = totalPages,
                     )
                 } finally {
-                    document.finishPage(overviewPage)
+                    document.finishPage(pdfPage)
                 }
-
-                detailPages.forEachIndexed { index, monthPage ->
-                    val pageNumber = index + 2
-                    val pdfPage = document.startPage(
-                        PdfDocument.PageInfo.Builder(PAGE_WIDTH, PAGE_HEIGHT, pageNumber).create(),
-                    )
-                    try {
-                        drawMonthPage(
-                            canvas = pdfPage.canvas,
-                            monthPage = monthPage,
-                            currency = currency,
-                            pageNumber = pageNumber,
-                            totalPages = totalPages,
-                            generatedAtMillis = generatedAtMillis,
-                            zoneId = zoneId,
-                        )
-                    } finally {
-                        document.finishPage(pdfPage)
-                    }
-                }
+            }
 
             // Render the complete PDF before opening the destination. If page
             // generation fails, an existing document at the chosen location is not
