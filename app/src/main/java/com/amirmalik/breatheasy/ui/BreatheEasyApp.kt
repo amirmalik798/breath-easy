@@ -550,8 +550,14 @@ private fun TodayScreen(
         }
     }
     val month = YearMonth.from(todayDate)
-    val spend = remember(snapshot.purchases, prefs.displayCurrency, month) {
-        AnalyticsCalculator.spending(snapshot.purchases, month, prefs.displayCurrency, 6)
+    val spend = remember(snapshot.purchases, prefs.displayCurrency, month, todayZone) {
+        AnalyticsCalculator.spending(
+            snapshot.purchases,
+            month,
+            prefs.displayCurrency,
+            monthCount = 6,
+            zoneId = todayZone,
+        )
     }
     val todayLabel = DateTimeFormatter.ofPattern("EEEE, d MMMM", Locale.getDefault()).format(todayDate)
     val recentPurchases = remember(snapshot.purchases) { snapshot.purchases.take(3) }
@@ -1138,6 +1144,7 @@ private fun SpendingScreen(
     val latestCurrency = rememberUpdatedState(prefs.displayCurrency)
     val latestPeriod = rememberUpdatedState(reportPeriod)
     val latestSelectedMonth = rememberUpdatedState(selectedMonth)
+    val latestZone = rememberUpdatedState(localDay.zone)
     DisposableEffect(Unit) {
         onDispose {
             isExportingPdf = false
@@ -1158,6 +1165,7 @@ private fun SpendingScreen(
             val currencyForReport = latestCurrency.value
             val periodForReport = latestPeriod.value
             val monthForReport = latestSelectedMonth.value
+            val zoneForReport = latestZone.value
             exportScope.launch {
                 val result = try {
                     withContext(Dispatchers.IO) {
@@ -1168,6 +1176,7 @@ private fun SpendingScreen(
                             currency = currencyForReport,
                             period = periodForReport,
                             currentMonth = monthForReport,
+                            zoneId = zoneForReport,
                         )
                     }
                     Result.success(Unit)
@@ -1184,15 +1193,26 @@ private fun SpendingScreen(
             }
         }
     }
-    val summary = remember(snapshot.purchases, selectedMonth, prefs.displayCurrency) {
-        AnalyticsCalculator.spending(snapshot.purchases, selectedMonth, prefs.displayCurrency, 12)
+    val summary = remember(snapshot.purchases, selectedMonth, prefs.displayCurrency, localDay.zone) {
+        AnalyticsCalculator.spending(
+            snapshot.purchases,
+            selectedMonth,
+            prefs.displayCurrency,
+            monthCount = 12,
+            zoneId = localDay.zone,
+        )
     }
-    val usagePoints = remember(snapshot.smokeEvents, selectedMonth) {
-        AnalyticsCalculator.monthlyConsumption(snapshot.smokeEvents, selectedMonth, 12)
+    val usagePoints = remember(snapshot.smokeEvents, selectedMonth, localDay.zone) {
+        AnalyticsCalculator.monthlyConsumption(
+            snapshot.smokeEvents,
+            selectedMonth,
+            monthCount = 12,
+            zoneId = localDay.zone,
+        )
     }
     val previous = summary.previousMonthTotalMinor
     val change = summary.changeFromPreviousMinor
-    val monthPurchases = remember(snapshot.purchases, selectedMonth) {
+    val monthPurchases = remember(snapshot.purchases, selectedMonth, localDay.zone) {
         snapshot.purchases.filter { purchase ->
             YearMonth.from(Instant.ofEpochMilli(purchase.purchasedAtMillis).atZone(localDay.zone)) == selectedMonth
         }
