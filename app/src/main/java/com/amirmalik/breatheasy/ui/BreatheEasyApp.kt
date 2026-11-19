@@ -431,7 +431,7 @@ fun BreatheEasyApp(viewModel: BreatheEasyViewModel) {
                     }
                 }
             }
-            if (busy && snapshot.isLoading) {
+            if (snapshot.isLoading) {
                 CircularProgressIndicator(Modifier.align(Alignment.Center))
             }
         }
