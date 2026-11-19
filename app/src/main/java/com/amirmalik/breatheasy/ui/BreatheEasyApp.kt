@@ -2491,8 +2491,7 @@ private fun RecordPurchaseScreen(
                             },
                             modifier = Modifier.fillMaxWidth(),
                             placeholder = {
-                                val separator = DecimalFormatSymbols.getInstance(locale).decimalSeparator
-                                Text(if (currency.fractionDigits == 0) "0" else "0${separator}00")
+                                Text(Money.inputPlaceholder(currency, locale))
                             },
                             textStyle = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.ExtraBold,
                                 color = MaterialTheme.colorScheme.onPrimaryContainer),

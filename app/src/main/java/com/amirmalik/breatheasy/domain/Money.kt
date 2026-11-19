@@ -42,6 +42,13 @@ object Money {
         }
     }
 
+    /** Build the amount-field example using the currency's ISO minor-unit precision. */
+    fun inputPlaceholder(currency: CurrencyCode, locale: Locale = Locale.getDefault()): String {
+        if (currency.fractionDigits <= 0) return "0"
+        val decimalSeparator = DecimalFormatSymbols.getInstance(locale).decimalSeparator
+        return "0" + decimalSeparator + "0".repeat(currency.fractionDigits)
+    }
+
     fun format(minor: Long, currency: CurrencyCode, includeCode: Boolean = false): String {
         val value = BigDecimal.valueOf(minor, currency.fractionDigits)
         val formatted = formatMajor(value, currency)

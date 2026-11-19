@@ -54,6 +54,18 @@ class MoneyTest {
     }
 
     @Test
+    fun amountPlaceholderReflectsCurrencyPrecisionAndLocaleSeparator() {
+        val rwf = CurrencyCode.fromCode("RWF")
+        val usd = CurrencyCode.fromCode("USD")
+        val bhd = CurrencyCode.fromCode("BHD")
+
+        assertEquals("0", Money.inputPlaceholder(rwf, java.util.Locale.US))
+        assertEquals("0.00", Money.inputPlaceholder(usd, java.util.Locale.US))
+        assertEquals("0.000", Money.inputPlaceholder(bhd, java.util.Locale.US))
+        assertEquals("0,000", Money.inputPlaceholder(bhd, java.util.Locale.GERMANY))
+    }
+
+    @Test
     fun parsesAmountsUsingTheSelectedCurrenciesMinorUnitPrecision() {
         val usd = CurrencyCode.fromCode("USD")
         val bhd = CurrencyCode.fromCode("BHD")
